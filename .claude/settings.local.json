@@ -1,0 +1,10 @@
+{
+  "enabledMcpjsonServers": [
+    "aidesigner"
+  ],
+  "permissions": {
+    "allow": [
+      "Bash(npm -v)"
+    ]
+  }
+}
