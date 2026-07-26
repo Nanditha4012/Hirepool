@@ -1,4 +1,16 @@
+<!--
+  Deliberately wordmark-free. The previous version rendered a literal "H",
+  which hardcodes the placeholder product name into an asset — the one thing
+  the spec's "app name is a config value" rule is meant to prevent. This mark
+  (an arrow arriving at a bar: "companies come to you") stays correct whatever
+  APP_NAME is set to. frontend/scripts/generate-icons.mjs rasterises the same
+  design into the PWA install icons.
+-->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
   <rect width="32" height="32" rx="7" fill="#0A66C2" />
-  <text x="16" y="22" font-family="Arial, sans-serif" font-size="16" font-weight="700" fill="#FFFFFF" text-anchor="middle">H</text>
+  <g fill="none" stroke="#FFFFFF" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M16 7.5 V 17.5" />
+    <path d="M11.6 13.4 L16 17.8 L20.4 13.4" />
+    <path d="M9.5 23 H 22.5" />
+  </g>
 </svg>

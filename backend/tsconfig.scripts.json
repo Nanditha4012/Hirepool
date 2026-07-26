@@ -1,0 +1,13 @@
+{
+  // Operator scripts in scripts/ live outside the app's rootDir ("src"), so
+  // they can't be compiled by the main tsconfig without polluting dist/.
+  // They're only ever executed through ts-node, so this project just widens
+  // rootDir and drops the emit settings.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "noEmit": true
+  },
+  "include": ["src", "scripts"],
+  "exclude": ["node_modules", "dist"]
+}

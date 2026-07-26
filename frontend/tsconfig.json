@@ -14,6 +14,13 @@
     "noEmit": true,
     "jsx": "react-jsx",
 
+    /* Deprecation suppression. Must match the TypeScript major in use — this
+       project pins typescript ^5.5, which only accepts "5.0"; "6.0" is a TS 7
+       value and makes tsc fail outright with TS5103. If your editor still
+       flags baseUrl/moduleResolution as deprecated, that's its own newer
+       bundled TypeScript, not this build. */
+    "ignoreDeprecations": "5.0",
+
     /* Path alias */
     "baseUrl": ".",
     "paths": {

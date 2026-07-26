@@ -3,12 +3,16 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="theme-color" content="#0A66C2" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <!-- Static fallback title; App.tsx overwrites this at runtime from VITE_APP_NAME -->
-    <title>Hirepool</title>
+    <!-- Vite substitutes %VITE_APP_NAME% at build/serve time from the env file,
+         so the product name is never hardcoded in markup. App.tsx also sets
+         document.title from the same value at runtime. -->
+    <title>%VITE_APP_NAME%</title>
     <meta
       name="description"
-      content="Hirepool — a reverse job board. Get verified once, let companies find and unlock you."
+      content="%VITE_APP_NAME% — a reverse job board. Get verified once, let companies find and unlock you."
     />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />

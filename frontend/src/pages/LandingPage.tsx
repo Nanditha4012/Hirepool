@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
+import { APP_NAME } from '@/lib/config'
 
 const steps = [
   {
@@ -30,7 +31,7 @@ export default function LandingPage() {
             Companies find <span className="text-primary">you</span>. Not the other way around.
           </h1>
           <p className="mx-auto mt-6 max-w-xl text-lg text-ink/70">
-            Hirepool is a reverse job board: get verified once, then let hiring companies come to you.
+            {APP_NAME} is a reverse job board: get verified once, then let hiring companies come to you.
           </p>
           <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
             <Link to="/signup?role=candidate" className="w-full sm:w-auto">

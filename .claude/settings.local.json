@@ -1,10 +1,23 @@
 {
-  "enabledMcpjsonServers": [
-    "aidesigner"
-  ],
   "permissions": {
     "allow": [
-      "Bash(npm -v)"
+      "Bash(npm -v)",
+      "Bash(python -c \"import sys; print\\(sys.version\\)\")",
+      "Bash(node *)",
+      "Bash(npx ts-node *)",
+      "Bash(cp backend/.env.example backend/.env)",
+      "Bash(cp frontend/.env.example frontend/.env)",
+      "Bash(git checkout *)",
+      "Bash(echo \"exit=$?\")",
+      "Bash(npx tsc *)",
+      "Bash(echo \"backend exit=$?\")",
+      "Bash(echo \"frontend exit=$?\")",
+      "Bash(echo \"frontend tsc exit=$?\")",
+      "Bash(npm run *)",
+      "Bash(taskkill //F //IM node.exe)"
     ]
-  }
+  },
+  "enabledMcpjsonServers": [
+    "aidesigner"
+  ]
 }

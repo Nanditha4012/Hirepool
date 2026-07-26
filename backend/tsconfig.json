@@ -11,12 +11,22 @@
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "moduleResolution": "node",
-    "ignoreDeprecations": "5.0",
+    "ignoreDeprecations": "6.0",
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"]
     }
   },
   "include": ["src"],
-  "exclude": ["node_modules", "dist"]
+  "exclude": ["node_modules", "dist"],
+
+  // ts-node (used by `npm run dev`) resolves files by following imports from
+  // the entry point, so it would otherwise never load src/types/express.d.ts —
+  // nothing imports it. Without that ambient declaration the `req.user`
+  // augmentation is missing and dev startup fails with TS2339, even though
+  // `npm run build` (plain tsc, which honours "include") compiles fine.
+  // "files": true makes ts-node honour "include"/"files" as well.
+  "ts-node": {
+    "files": true
+  }
 }

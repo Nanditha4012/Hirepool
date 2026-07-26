@@ -1,4 +1,5 @@
 import { NextFunction, Request, Response } from 'express';
+import { ZodError } from 'zod';
 import { ApiError } from '../utils/ApiError';
 import { env } from '../config/env';
 
@@ -6,6 +7,19 @@ import { env } from '../config/env';
 export function errorHandler(err: unknown, req: Request, res: Response, _next: NextFunction): void {
   if (err instanceof ApiError) {
     res.status(err.statusCode).json({ message: err.message });
+    return;
+  }
+
+  // Controllers validate request bodies with `schema.parse(req.body)`, which
+  // throws a ZodError on bad input. Without this branch that fell through to
+  // the generic 500 below, so a plainly malformed request (e.g. signing up
+  // with role "admin", which is not in the self-signup enum) was reported as
+  // a server fault instead of a client error.
+  if (err instanceof ZodError) {
+    res.status(400).json({
+      message: 'Validation failed',
+      errors: err.flatten().fieldErrors,
+    });
     return;
   }
 

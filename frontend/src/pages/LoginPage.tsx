@@ -3,22 +3,11 @@ import { useNavigate } from 'react-router-dom'
 import Card from '@/components/ui/Card'
 import Input from '@/components/ui/Input'
 import Button from '@/components/ui/Button'
-import { useAuth, isAuthSuccess, Role } from '@/lib/authStore'
-
-function roleHomePath(role: Role, hasCategory: boolean): string {
-  switch (role) {
-    case 'candidate':
-      return hasCategory ? '/candidate' : '/onboarding/category'
-    case 'company':
-      return '/company'
-    case 'verifier':
-      return '/verify'
-    case 'admin':
-      return '/admin'
-    default:
-      return '/'
-  }
-}
+import GoogleSignInButton from '@/components/GoogleSignInButton'
+import { useAuth } from '@/lib/authStore'
+import { APP_NAME } from '@/lib/config'
+import { isGoogleConfigured } from '@/lib/googleIdentity'
+import { navigateAfterAuth } from '@/lib/postAuthRoute'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -26,7 +15,7 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
-  const { login } = useAuth()
+  const { login, loginWithGoogle } = useAuth()
   const navigate = useNavigate()
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -34,27 +23,23 @@ export default function LoginPage() {
     setError(null)
     setLoading(true)
     try {
-      const result = await login(email, password)
-
-      if (isAuthSuccess(result)) {
-        const hasCategory = Boolean(result.user.profile?.category)
-        navigate(roleHomePath(result.user.role, hasCategory))
-        return
-      }
-
-      if ('totpRequired' in result) {
-        navigate('/onboarding/2fa', {
-          state: { challengeToken: result.challengeToken, enrollmentRequired: false },
-        })
-        return
-      }
-
-      // remaining variant: TotpEnrollmentRequired
-      navigate('/onboarding/2fa', {
-        state: { challengeToken: result.challengeToken, enrollmentRequired: true },
-      })
+      navigateAfterAuth(await login(email, password), navigate)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // On the login page the role is only a fallback for a Google account that has
+  // never signed up here; an existing account keeps whatever role it holds.
+  const handleGoogleCredential = async (idToken: string) => {
+    setError(null)
+    setLoading(true)
+    try {
+      navigateAfterAuth(await loginWithGoogle(idToken, 'candidate'), navigate)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Google login failed')
     } finally {
       setLoading(false)
     }
@@ -64,7 +49,7 @@ export default function LoginPage() {
     <div className="mx-auto flex max-w-md flex-col gap-6 px-4 py-16 sm:px-6">
       <div className="text-center">
         <h1 className="text-2xl font-bold text-ink">Welcome back</h1>
-        <p className="mt-1 text-ink/60">Log in to your {`Hirepool`} account.</p>
+        <p className="mt-1 text-ink/60">Log in to your {APP_NAME} account.</p>
       </div>
 
       <Card>
@@ -92,6 +77,18 @@ export default function LoginPage() {
             Log in
           </Button>
         </form>
+
+        {isGoogleConfigured() && (
+          <>
+            <div className="my-6 flex items-center gap-3">
+              <div className="h-px flex-1 bg-gray-200" />
+              <span className="text-xs uppercase text-ink/40">or</span>
+              <div className="h-px flex-1 bg-gray-200" />
+            </div>
+
+            <GoogleSignInButton text="signin_with" onCredential={handleGoogleCredential} onError={setError} />
+          </>
+        )}
 
         <p className="mt-6 text-center text-sm text-ink/60">
           Don&apos;t have an account?{' '}
