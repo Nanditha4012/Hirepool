@@ -4,6 +4,7 @@ import { CandidatePlatformBadge } from '../models';
 import { asyncHandler } from '../utils/asyncHandler';
 import { ApiError } from '../utils/ApiError';
 import { runInRequestContext } from '../utils/withRequestContext';
+import { markProfileNeedsReverification } from '../utils/reverification';
 
 export const list = asyncHandler(async (req: Request, res: Response) => {
   const authUser = req.user!;
@@ -30,8 +31,8 @@ export const create = asyncHandler(async (req: Request, res: Response) => {
   const authUser = req.user!;
   const body = createSchema.parse(req.body);
 
-  const badge = await runInRequestContext(authUser, (t) =>
-    CandidatePlatformBadge.create(
+  const badge = await runInRequestContext(authUser, async (t) => {
+    const created = await CandidatePlatformBadge.create(
       {
         candidateId: authUser.id,
         platformName: body.platformName,
@@ -41,8 +42,14 @@ export const create = asyncHandler(async (req: Request, res: Response) => {
         verificationStatus: 'pending',
       },
       { transaction: t },
-    ),
-  );
+    );
+
+    // See utils/reverification.ts — an approved candidate adding a new badge
+    // has to ask for it to be re-verified.
+    await markProfileNeedsReverification(authUser.id, t);
+
+    return created;
+  });
 
   res.status(201).json(badge);
 });
@@ -74,10 +81,12 @@ export const update = asyncHandler(async (req: Request, res: Response) => {
     if (body.platformProfileLink !== undefined) existing.platformProfileLink = body.platformProfileLink;
     if (body.totalQuestionsSolved !== undefined) existing.totalQuestionsSolved = body.totalQuestionsSolved;
 
+    // Editing a badge invalidates whatever verdict it already had.
     existing.verificationStatus = 'pending';
     existing.rejectionReason = null;
 
     await existing.save({ transaction: t });
+    await markProfileNeedsReverification(authUser.id, t);
     return existing;
   });
 

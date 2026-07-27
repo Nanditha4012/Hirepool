@@ -108,14 +108,14 @@ export default function TotpPage() {
 
       <Card>
         {enrollmentRequired && (
-          <div className="mb-6 flex flex-col items-center gap-3 border-b border-gray-200 pb-6">
+          <div className="mb-6 flex flex-col items-center gap-3 border-b border-line pb-6">
             {enrollError && <p className="text-sm text-danger">{enrollError}</p>}
             {enrollment ? (
               <>
                 <img
                   src={enrollment.qrCodeDataUrl}
                   alt="Scan this QR code with your authenticator app"
-                  className="h-40 w-40 rounded-card border border-gray-200"
+                  className="h-40 w-40 rounded-card border border-line"
                 />
                 <p className="text-center text-xs text-ink/50">
                   Can&apos;t scan it? Enter this code manually:

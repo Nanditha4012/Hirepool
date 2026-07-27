@@ -3,6 +3,7 @@ import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Select from '@/components/ui/Select'
+import PageLoader from '@/components/ui/PageLoader'
 import {
   decideAchievement,
   listAchievementQueue,
@@ -114,7 +115,7 @@ export default function AchievementQueuePage() {
               'rounded-full px-3 py-1.5 text-sm font-medium transition-colors',
               typeFilter === tab.value
                 ? 'bg-primary text-white'
-                : 'border border-gray-300 text-ink/70 hover:border-primary hover:text-primary',
+                : 'border border-line text-ink/70 hover:border-primary hover:text-primary',
             ].join(' ')}
           >
             {tab.label}
@@ -123,7 +124,7 @@ export default function AchievementQueuePage() {
       </div>
 
       <Card className="mt-6">
-        {loading && <p className="text-ink/60">Loading achievement queue…</p>}
+        {loading && <PageLoader compact label="Loading achievement queue…" />}
         {!loading && error && <p className="text-danger">{error}</p>}
         {!loading && !error && rows.length === 0 && (
           <p className="text-ink/60">No achievements pending verification.</p>
@@ -134,7 +135,7 @@ export default function AchievementQueuePage() {
             {rows.map((row) => {
               const isActive = activeRowId === row.id
               return (
-                <div key={row.id} className="rounded-card border border-gray-200 p-4">
+                <div key={row.id} className="rounded-card border border-line p-4">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                       <p className="font-medium text-ink">{row.candidateFullName || 'Unnamed candidate'}</p>
@@ -162,7 +163,7 @@ export default function AchievementQueuePage() {
                   </div>
 
                   {isActive && (
-                    <div className="mt-4 border-t border-gray-100 pt-4">
+                    <div className="mt-4 border-t border-line pt-4">
                       {activeDecision === 'incorrect' && (
                         <Select
                           label="Reason"

@@ -30,9 +30,9 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
           id={selectId}
           ref={ref}
           className={[
-            'rounded-card border bg-white px-3 py-2 text-ink',
+            'rounded-card border bg-card px-3 py-2 text-ink',
             'focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary',
-            error ? 'border-danger' : 'border-gray-300',
+            error ? 'border-danger' : 'border-line',
             className,
           ].join(' ')}
           aria-invalid={Boolean(error)}

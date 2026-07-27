@@ -21,7 +21,7 @@ interface ComboboxProps {
 // Shared visual classes for the dropdown listbox + its options, kept in one
 // place so Combobox and ChipMultiSelect render identically.
 export const dropdownListClasses =
-  'absolute z-20 mt-1 max-h-60 w-full overflow-auto rounded-card border border-gray-300 bg-white py-1 shadow-soft'
+  'absolute z-20 mt-1 max-h-60 w-full overflow-auto rounded-card border border-line bg-card py-1 shadow-soft'
 
 export const dropdownOptionClasses = (active: boolean) =>
   [
@@ -152,7 +152,7 @@ const Combobox = ({
           className={[
             'w-full rounded-card border px-3 py-2 text-ink placeholder:text-ink/40',
             'focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary',
-            error ? 'border-danger' : 'border-gray-300',
+            error ? 'border-danger' : 'border-line',
             disabled ? 'cursor-not-allowed bg-surface text-ink/40' : '',
             allowClear && selectedOption ? 'pr-8' : '',
             className,

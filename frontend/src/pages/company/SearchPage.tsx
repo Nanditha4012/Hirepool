@@ -7,6 +7,7 @@ import Select from '@/components/ui/Select'
 import Combobox from '@/components/ui/Combobox'
 import ChipMultiSelect from '@/components/ui/ChipMultiSelect'
 import ProfileCard, { type ProfileCardData } from '@/components/candidate/ProfileCard'
+import PageLoader from '@/components/ui/PageLoader'
 import {
   getMyCompanyProfile,
   listDomains,
@@ -130,7 +131,7 @@ function ToggleChip({
       onClick={onClick}
       className={[
         'rounded-full px-3 py-1.5 text-sm font-medium transition-colors',
-        active ? 'bg-primary text-white' : 'border border-gray-300 text-ink/70 hover:border-primary hover:text-primary',
+        active ? 'bg-primary text-white' : 'border border-line text-ink/70 hover:border-primary hover:text-primary',
       ].join(' ')}
     >
       {children}
@@ -296,7 +297,7 @@ export default function SearchPage() {
   if (initialLoading) {
     return (
       <div className="mx-auto max-w-6xl px-4 py-16 text-center sm:px-6">
-        <p className="text-ink/60">Loading search…</p>
+        <PageLoader label="Loading search…" />
       </div>
     )
   }
@@ -323,7 +324,7 @@ export default function SearchPage() {
         </div>
         <button
           type="button"
-          className="inline-flex items-center justify-center rounded-card border border-gray-300 px-3 py-2 text-sm font-medium text-ink md:hidden"
+          className="inline-flex items-center justify-center rounded-card border border-line px-3 py-2 text-sm font-medium text-ink md:hidden"
           aria-expanded={filtersOpen}
           onClick={() => setFiltersOpen((open) => !open)}
         >
@@ -461,7 +462,7 @@ export default function SearchPage() {
                   type="checkbox"
                   checked={filters.hasResearch}
                   onChange={(e) => updateFilter('hasResearch', e.target.checked)}
-                  className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                  className="h-4 w-4 rounded border-line text-primary focus:ring-primary"
                 />
                 Has published research
               </label>
@@ -470,7 +471,7 @@ export default function SearchPage() {
                   type="checkbox"
                   checked={filters.hasHackathonWin}
                   onChange={(e) => updateFilter('hasHackathonWin', e.target.checked)}
-                  className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                  className="h-4 w-4 rounded border-line text-primary focus:ring-primary"
                 />
                 Has hackathon win
               </label>

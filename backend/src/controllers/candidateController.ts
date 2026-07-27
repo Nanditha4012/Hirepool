@@ -12,8 +12,10 @@ import {
   SkillMaster,
   VerificationLog,
   CandidateAchievement,
+  CandidatePlatformBadge,
   Unlock,
   CompanyProfile,
+  ProfileFieldCheck,
 } from '../models';
 import type {
   CandidateProfileAttributes,
@@ -28,6 +30,7 @@ import type { CompanyMasterAttributes } from '../models/CompanyMaster';
 import type { CandidateSecondaryRoleAttributes } from '../models/CandidateSecondaryRole';
 import type { CandidateSkillAttributes } from '../models/CandidateSkill';
 import type { SkillMasterAttributes } from '../models/SkillMaster';
+import type { ProfileFieldCheckAttributes } from '../models/ProfileFieldCheck';
 import { asyncHandler } from '../utils/asyncHandler';
 import { ApiError } from '../utils/ApiError';
 import { runInRequestContext } from '../utils/withRequestContext';
@@ -94,6 +97,36 @@ interface CandidateProfileResponse {
   latestVerificationNote: string | null;
   createdAt: Date;
   updatedAt: Date;
+  // Phase 5: everything the candidate needs to read their own submission
+  // back — what they sent, what the verifier said about each field, and
+  // when. Previously a rejected candidate only got a single free-text note.
+  submittedAt: Date | null;
+  pendingReverification: boolean;
+  reverificationRequestedAt: Date | null;
+  fieldReview: CandidateFieldReviewItem[];
+  history: CandidateHistoryEntry[];
+}
+
+/**
+ * One verifier verdict, flattened for the candidate's report.
+ *
+ * Deliberately omits the reviewer's identity: the candidate is told what was
+ * wrong, not who decided it.
+ */
+interface CandidateFieldReviewItem {
+  fieldKey: string;
+  fieldLabel: string | null;
+  passed: boolean;
+  reason: string | null;
+  checkedAt: Date;
+}
+
+interface CandidateHistoryEntry {
+  id: string;
+  at: Date;
+  title: string;
+  detail: string | null;
+  tone: 'pass' | 'fail' | 'neutral';
 }
 
 async function buildProfileResponse(
@@ -148,6 +181,79 @@ async function buildProfileResponse(
     transaction: t,
   });
 
+  // profile_field_checks is append-only, so the candidate's current report is
+  // the newest row per field — same collapse the verifier portal does, but
+  // stripped of reviewer identity (see CandidateFieldReviewItem).
+  const fieldCheckRows = await ProfileFieldCheck.findAll({
+    where: { profileId: plainProfile.id },
+    order: [['createdAt', 'DESC']],
+    transaction: t,
+  });
+
+  const newestCheckByField = new Map<string, ProfileFieldCheckAttributes>();
+  for (const row of fieldCheckRows) {
+    const plain = row.get({ plain: true }) as ProfileFieldCheckAttributes;
+    if (!newestCheckByField.has(plain.fieldKey)) {
+      newestCheckByField.set(plain.fieldKey, plain);
+    }
+  }
+
+  const fieldReview: CandidateFieldReviewItem[] = Array.from(newestCheckByField.values())
+    .map((check) => ({
+      fieldKey: check.fieldKey,
+      fieldLabel: check.fieldLabel,
+      passed: check.passed,
+      reason: check.passed ? null : check.reasonText,
+      checkedAt: check.createdAt,
+    }))
+    // Failures first — they are the actionable part of the report.
+    .sort((a, b) => Number(a.passed) - Number(b.passed));
+
+  const decisionLogs = await VerificationLog.findAll({
+    where: { targetType: 'candidate_profile', targetId: plainProfile.id },
+    order: [['createdAt', 'DESC']],
+    transaction: t,
+  });
+
+  const history: CandidateHistoryEntry[] = [];
+  if (plainProfile.submittedAt) {
+    history.push({
+      id: `submitted:${plainProfile.id}`,
+      at: plainProfile.submittedAt,
+      title: 'You submitted your profile for verification',
+      detail: null,
+      tone: 'neutral',
+    });
+  }
+  if (plainProfile.reverificationRequestedAt) {
+    history.push({
+      id: `reverify:${plainProfile.id}`,
+      at: plainProfile.reverificationRequestedAt,
+      title: 'You requested re-verification of your new items',
+      detail: null,
+      tone: 'neutral',
+    });
+  }
+  for (const log of decisionLogs) {
+    history.push({
+      id: `log:${log.id}`,
+      at: log.createdAt,
+      title: `Verifier decision: ${log.decision.replace('_', ' ')}`,
+      detail: log.notes,
+      tone: log.decision === 'approved' ? 'pass' : log.decision === 'flagged' ? 'neutral' : 'fail',
+    });
+  }
+  for (const check of newestCheckByField.values()) {
+    history.push({
+      id: `check:${check.id}`,
+      at: check.createdAt,
+      title: `${check.fieldLabel || check.fieldKey} — ${check.passed ? 'accepted' : 'not accepted'}`,
+      detail: check.passed ? null : check.reasonText,
+      tone: check.passed ? 'pass' : 'fail',
+    });
+  }
+  history.sort((a, b) => b.at.getTime() - a.at.getTime());
+
   const secondaryRoles = secondaryRoleRows.map((row) => {
     const plain = row.get({ plain: true }) as CandidateSecondaryRoleAttributes & {
       role: RoleMasterAttributes;
@@ -198,6 +304,11 @@ async function buildProfileResponse(
     latestVerificationNote: latestVerificationLog?.notes ?? null,
     createdAt: plainProfile.createdAt,
     updatedAt: plainProfile.updatedAt,
+    submittedAt: plainProfile.submittedAt,
+    pendingReverification: plainProfile.pendingReverification,
+    reverificationRequestedAt: plainProfile.reverificationRequestedAt,
+    fieldReview,
+    history,
   };
 }
 
@@ -393,6 +504,66 @@ export const submitMyProfile = asyncHandler(async (req: Request, res: Response) 
 
     profile.status = 'submitted';
     profile.submittedAt = new Date();
+    // A full resubmission supersedes any outstanding re-verification ask —
+    // the whole profile is going back through review anyway.
+    profile.pendingReverification = false;
+    profile.reverificationRequestedAt = null;
+    await profile.save({ transaction: t });
+
+    return buildProfileResponse(authUser.id, t);
+  });
+
+  res.json(response);
+});
+
+// ---------------------------------------------------------------------
+// POST /me/profile/request-reverification
+//
+// For an already-approved candidate who has added or edited something since
+// going live (a new project, an updated badge). The profile does NOT leave
+// the portal — it stays `approved` and visible to companies; only the new
+// items are unverified, and they are already sitting in the verifier's
+// badge/achievement queues via their own `pending` status.
+//
+// What this endpoint adds is the explicit ask. Without it, a candidate could
+// keep appending unverified work indefinitely and nothing would tell the
+// verifier the candidate considers it ready to look at.
+// ---------------------------------------------------------------------
+
+export const requestReverification = asyncHandler(async (req: Request, res: Response) => {
+  const authUser = req.user!;
+
+  const response = await runInRequestContext(authUser, async (t) => {
+    const profile = await CandidateProfile.findOne({
+      where: { userId: authUser.id },
+      transaction: t,
+    });
+    if (!profile) {
+      throw ApiError.notFound('Candidate profile not found');
+    }
+
+    if (profile.status !== 'approved') {
+      throw ApiError.conflict(
+        'Re-verification is only for approved profiles — use Submit for review instead',
+      );
+    }
+
+    // Sequential — shares transaction `t`.
+    const pendingAchievements = await CandidateAchievement.count({
+      where: { candidateId: authUser.id, verificationStatus: 'pending' },
+      transaction: t,
+    });
+    const pendingBadges = await CandidatePlatformBadge.count({
+      where: { candidateId: authUser.id, verificationStatus: 'pending' },
+      transaction: t,
+    });
+
+    if (pendingAchievements + pendingBadges === 0) {
+      throw ApiError.badRequest('You have no unverified items to submit');
+    }
+
+    profile.pendingReverification = true;
+    profile.reverificationRequestedAt = new Date();
     await profile.save({ transaction: t });
 
     return buildProfileResponse(authUser.id, t);

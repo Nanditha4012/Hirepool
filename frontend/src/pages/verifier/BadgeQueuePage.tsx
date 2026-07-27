@@ -3,6 +3,7 @@ import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Select from '@/components/ui/Select'
+import PageLoader from '@/components/ui/PageLoader'
 import {
   decideBadge,
   listBadgeQueue,
@@ -89,7 +90,7 @@ export default function BadgeQueuePage() {
       <p className="mt-1 text-ink/60">Verify coding-platform badges claimed by candidates.</p>
 
       <Card className="mt-6">
-        {loading && <p className="text-ink/60">Loading badge queue…</p>}
+        {loading && <PageLoader compact label="Loading badge queue…" />}
         {!loading && error && <p className="text-danger">{error}</p>}
         {!loading && !error && rows.length === 0 && <p className="text-ink/60">No badges pending verification.</p>}
 
@@ -98,7 +99,7 @@ export default function BadgeQueuePage() {
             {rows.map((row) => {
               const isActive = activeRowId === row.id
               return (
-                <div key={row.id} className="rounded-card border border-gray-200 p-4">
+                <div key={row.id} className="rounded-card border border-line p-4">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                       <p className="font-medium text-ink">{row.candidateFullName || 'Unnamed candidate'}</p>
@@ -125,7 +126,7 @@ export default function BadgeQueuePage() {
                   </div>
 
                   {isActive && (
-                    <div className="mt-4 border-t border-gray-100 pt-4">
+                    <div className="mt-4 border-t border-line pt-4">
                       {activeDecision === 'incorrect' && (
                         <Select
                           label="Reason"

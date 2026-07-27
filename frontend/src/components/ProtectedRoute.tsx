@@ -1,6 +1,7 @@
 import React from 'react'
 import { Navigate } from 'react-router-dom'
 import { useAuth, Role } from '@/lib/authStore'
+import PageLoader from '@/components/ui/PageLoader'
 
 interface ProtectedRouteProps {
   allow: Role[]
@@ -13,7 +14,7 @@ export default function ProtectedRoute({ allow, children }: ProtectedRouteProps)
   if (isLoading) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center">
-        <p className="text-ink/60">Loading…</p>
+        <PageLoader label="Loading…" />
       </div>
     )
   }

@@ -105,6 +105,30 @@ export interface CandidateProfileResponse {
   latestVerificationNote: string | null
   createdAt: string
   updatedAt: string
+  submittedAt: string | null
+  /** An approved profile has changes (new project, edited badge) not yet reviewed. */
+  pendingReverification: boolean
+  /** Set once the candidate formally asks for those changes to be looked at. */
+  reverificationRequestedAt: string | null
+  fieldReview: CandidateFieldReview[]
+  history: CandidateHistoryEntry[]
+}
+
+/** One verifier verdict on one field, as shown back to the candidate. */
+export interface CandidateFieldReview {
+  fieldKey: string
+  fieldLabel: string | null
+  passed: boolean
+  reason: string | null
+  checkedAt: string
+}
+
+export interface CandidateHistoryEntry {
+  id: string
+  at: string
+  title: string
+  detail: string | null
+  tone: 'pass' | 'fail' | 'neutral'
 }
 
 export interface UpsertProfileBody {
@@ -142,6 +166,17 @@ export function upsertMyProfile(body: UpsertProfileBody) {
 
 export function submitMyProfile() {
   return apiFetch<CandidateProfileResponse>('/candidates/me/profile/submit', {
+    method: 'POST',
+  })
+}
+
+/**
+ * Asks a verifier to re-check items added since the profile went live.
+ * Only valid for an approved profile — a profile still in the normal review
+ * flow uses submitMyProfile() instead.
+ */
+export function requestReverification() {
+  return apiFetch<CandidateProfileResponse>('/candidates/me/profile/request-reverification', {
     method: 'POST',
   })
 }

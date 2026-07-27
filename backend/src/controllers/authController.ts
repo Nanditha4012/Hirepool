@@ -26,10 +26,26 @@ const signupSchema = z.object({
   role: z.enum(SELF_SIGNUP_ROLES),
 });
 
-const loginSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(1),
-});
+/**
+ * `identifier` is either an email (candidate/company, who self-sign-up) or a
+ * username (verifier/admin, who we provision — see
+ * seeders/20240105000001-seed-verifier-account.js). It is deliberately NOT
+ * `.email()`-validated: rejecting "verifier01" at the schema before the
+ * lookup would make the whole username path impossible.
+ *
+ * `email` is still accepted as an alias so any client built against the
+ * pre-Phase-5 body shape keeps working.
+ */
+const loginSchema = z
+  .object({
+    identifier: z.string().min(1).optional(),
+    email: z.string().min(1).optional(),
+    password: z.string().min(1),
+  })
+  .refine((body) => Boolean(body.identifier || body.email), {
+    message: 'identifier is required',
+    path: ['identifier'],
+  });
 
 const totpEnrollSchema = z.object({
   challengeToken: z.string().min(1),
@@ -117,8 +133,40 @@ async function createProfileForNewUser(
 }
 
 /**
+ * The `user` object every auth endpoint returns.
+ *
+ * Includes `profile` — which it did NOT before Phase 5, and that omission was
+ * a real bug: the frontend decides where to land a candidate by reading
+ * `user.profile?.category` (see postAuthRoute.ts). With `profile` missing from
+ * the login response that check was always falsy, so a candidate who had
+ * already picked Fresher/Experienced/Executive — and already submitted their
+ * profile — got dumped back on the category picker on every single login.
+ */
+async function buildAuthUserPayload(user: User): Promise<Record<string, unknown>> {
+  const profile = await runInRequestContext({ id: user.id, role: user.role }, async (t) => {
+    if (user.role === 'candidate') {
+      return CandidateProfile.findOne({ where: { userId: user.id }, transaction: t });
+    }
+    if (user.role === 'company') {
+      return CompanyProfile.findOne({ where: { userId: user.id }, transaction: t });
+    }
+    return null;
+  });
+
+  return {
+    id: user.id,
+    email: user.email,
+    username: user.username,
+    role: user.role,
+    phone: user.phone,
+    fullName: user.fullName,
+    profile,
+  };
+}
+
+/**
  * Builds the { totpEnrollmentRequired | totpRequired, challengeToken }
- * response for a verifier/admin user at login time.
+ * response for an admin user at login time.
  */
 async function buildTotpChallengeResponse(user: User): Promise<Record<string, unknown>> {
   const totpSecret = await runInRequestContext({ id: user.id, role: user.role }, (t) =>
@@ -155,12 +203,14 @@ export const signup = asyncHandler(async (req: Request, res: Response) => {
   const accessToken = issueSession(res, { id: user.id, role: user.role });
   res.status(201).json({
     accessToken,
-    user: { id: user.id, email: user.email, role: user.role },
+    user: await buildAuthUserPayload(user),
   });
 });
 
 export const login = asyncHandler(async (req: Request, res: Response) => {
-  const { email, password } = loginSchema.parse(req.body);
+  const body = loginSchema.parse(req.body);
+  const password = body.password;
+  const identifier = (body.identifier ?? body.email ?? '').trim();
 
   // NOTE (known RLS gap): this SELECT runs with a null request context —
   // no session exists yet, since resolving *who* is logging in is the
@@ -175,26 +225,35 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
   // that's a security-relevant decision that should be made deliberately,
   // e.g. by adding a narrowly-scoped anonymous select-by-email policy or
   // a SECURITY DEFINER auth lookup function.
+  // Matched against email OR username in one query — an email address can't
+  // collide with a username here because usernames are only ever issued to
+  // provisioned accounts and never contain '@'.
   const user = await runInRequestContext(null, (t) =>
-    User.findOne({ where: { email }, transaction: t }),
+    User.findOne({
+      where: { [Op.or]: [{ email: identifier }, { username: identifier }] },
+      transaction: t,
+    }),
   );
 
   if (!user || !user.passwordHash) {
-    throw ApiError.unauthorized('Invalid email or password');
+    throw ApiError.unauthorized('Invalid credentials');
   }
 
   const passwordValid = await comparePassword(password, user.passwordHash);
   if (!passwordValid) {
-    throw ApiError.unauthorized('Invalid email or password');
+    throw ApiError.unauthorized('Invalid credentials');
   }
 
-  if (user.role === 'verifier' || user.role === 'admin') {
+  // Phase 5: verifiers now sign in on plain JWT like every other role — the
+  // TOTP second factor is kept for admins only. (Previously both were
+  // funnelled through the /onboarding/2fa challenge.)
+  if (user.role === 'admin') {
     res.json(await buildTotpChallengeResponse(user));
     return;
   }
 
   const accessToken = issueSession(res, { id: user.id, role: user.role });
-  res.json({ accessToken, user: { id: user.id, email: user.email, role: user.role } });
+  res.json({ accessToken, user: await buildAuthUserPayload(user) });
 });
 
 export const totpEnroll = asyncHandler(async (req: Request, res: Response) => {
@@ -310,7 +369,7 @@ export const totpVerify = asyncHandler(async (req: Request, res: Response) => {
   }
 
   const accessToken = issueSession(res, { id: user.id, role: user.role });
-  res.json({ accessToken, user: { id: user.id, email: user.email, role: user.role } });
+  res.json({ accessToken, user: await buildAuthUserPayload(user) });
 });
 
 export const googleAuth = asyncHandler(async (req: Request, res: Response) => {
@@ -363,13 +422,13 @@ export const googleAuth = asyncHandler(async (req: Request, res: Response) => {
     }
   }
 
-  if (user.role === 'verifier' || user.role === 'admin') {
+  if (user.role === 'admin') {
     res.json(await buildTotpChallengeResponse(user));
     return;
   }
 
   const accessToken = issueSession(res, { id: user.id, role: user.role });
-  res.json({ accessToken, user: { id: user.id, email: user.email, role: user.role } });
+  res.json({ accessToken, user: await buildAuthUserPayload(user) });
 });
 
 export const refresh = asyncHandler(async (req: Request, res: Response) => {
@@ -421,8 +480,10 @@ export const me = asyncHandler(async (req: Request, res: Response) => {
   res.json({
     id: result.user.id,
     email: result.user.email,
+    username: result.user.username,
     role: result.user.role,
     phone: result.user.phone,
+    fullName: result.user.fullName,
     profile: result.profile,
   });
 });

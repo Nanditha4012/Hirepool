@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import Card from '@/components/ui/Card'
 import Badge from '@/components/ui/Badge'
 import { getMyCompanyProfile, type CompanyProfileResponse } from '@/lib/companyApi'
+import PageLoader from '@/components/ui/PageLoader'
 
 export default function DashboardPage() {
   const [profile, setProfile] = useState<CompanyProfileResponse | null>(null)
@@ -29,7 +30,7 @@ export default function DashboardPage() {
   if (loading) {
     return (
       <div className="mx-auto max-w-4xl px-4 py-16 text-center sm:px-6">
-        <p className="text-ink/60">Loading your dashboard…</p>
+        <PageLoader label="Loading your dashboard…" />
       </div>
     )
   }

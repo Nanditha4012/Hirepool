@@ -4,6 +4,7 @@ import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import ProfileCard, { type ProfileCardData } from '@/components/candidate/ProfileCard'
+import PageLoader from '@/components/ui/PageLoader'
 import {
   blockCompany,
   getMyProfile,
@@ -13,6 +14,7 @@ import {
   listPlatformBadges,
   listWhoUnlockedMe,
   replyToThread,
+  requestReverification,
   setLookingStatus,
   type CandidateProfileResponse,
   type CompanyMaster,
@@ -40,6 +42,8 @@ export default function DashboardPage() {
   const [sendingReply, setSendingReply] = useState(false)
   const [blockedCompanyIds, setBlockedCompanyIds] = useState<Set<string>>(new Set())
   const [blockingCompanyId, setBlockingCompanyId] = useState<string | null>(null)
+  const [requestingReverify, setRequestingReverify] = useState(false)
+  const [reverifyError, setReverifyError] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -130,6 +134,18 @@ export default function DashboardPage() {
     }
   }
 
+  const handleRequestReverification = async () => {
+    setRequestingReverify(true)
+    setReverifyError(null)
+    try {
+      setProfile(await requestReverification())
+    } catch (err) {
+      setReverifyError(err instanceof Error ? err.message : 'Failed to submit the request')
+    } finally {
+      setRequestingReverify(false)
+    }
+  }
+
   const handleReply = async (companyId: string) => {
     if (!replyBody.trim()) return
     setSendingReply(true)
@@ -162,7 +178,7 @@ export default function DashboardPage() {
   if (loading) {
     return (
       <div className="mx-auto max-w-4xl px-4 py-16 text-center sm:px-6">
-        <p className="text-ink/60">Loading your dashboard…</p>
+        <PageLoader label="Loading your dashboard…" />
       </div>
     )
   }
@@ -189,6 +205,44 @@ export default function DashboardPage() {
         </Button>
       </div>
 
+      {/* Re-verification prompt. An approved candidate who adds a project
+          stays live on the portal — only the new item is unverified — but
+          they have to explicitly ask for it to be looked at, otherwise a
+          verifier has no signal that the additions are ready. */}
+      {profile.pendingReverification && (
+        <div className="mt-6 animate-fade-up rounded-card border border-boost/30 bg-boost/10 px-5 py-4">
+          {profile.reverificationRequestedAt ? (
+            <>
+              <p className="font-semibold text-boost">Re-verification requested</p>
+              <p className="mt-1 text-sm text-ink/70">
+                You asked for your new items to be checked on{' '}
+                {new Date(profile.reverificationRequestedAt).toLocaleDateString()}. Your profile stays
+                live in the meantime — only the new items show as unverified.
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="font-semibold text-boost">You have unverified changes</p>
+              <p className="mt-1 text-sm text-ink/70">
+                New or edited work needs a verifier to check it before it shows as verified to
+                companies. Your profile stays live either way.
+              </p>
+              <div className="mt-3 flex flex-wrap items-center gap-3">
+                <Button
+                  type="button"
+                  size="sm"
+                  loading={requestingReverify}
+                  onClick={handleRequestReverification}
+                >
+                  Submit verification request
+                </Button>
+                {reverifyError && <p className="text-sm text-danger">{reverifyError}</p>}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
       <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-3">
         <div className="flex flex-col gap-6 lg:col-span-2">
           <Card>
@@ -205,12 +259,14 @@ export default function DashboardPage() {
                 disabled={togglingLooking}
                 className={[
                   'relative h-7 w-12 flex-shrink-0 rounded-full transition-colors disabled:opacity-50',
-                  profile.isActivelyLooking ? 'bg-primary' : 'bg-gray-300',
+                  profile.isActivelyLooking ? 'bg-primary' : 'bg-line',
                 ].join(' ')}
               >
                 <span
                   className={[
-                    'absolute top-1 h-5 w-5 rounded-full bg-white transition-transform',
+                    // Literal white, not bg-card: this thumb sits on a
+                    // coloured track, so it must stay light in dark mode too.
+                    'absolute top-1 h-5 w-5 rounded-full bg-white shadow-soft transition-transform',
                     profile.isActivelyLooking ? 'translate-x-6' : 'translate-x-1',
                   ].join(' ')}
                 />
@@ -235,7 +291,7 @@ export default function DashboardPage() {
                   const lastMessage = thread.messages[thread.messages.length - 1]
                   const isExpanded = expandedThread === thread.companyId
                   return (
-                    <div key={thread.companyId} className="rounded-card border border-gray-200 p-3">
+                    <div key={thread.companyId} className="rounded-card border border-line p-3">
                       <button
                         type="button"
                         className="flex w-full items-start justify-between gap-2 text-left"
@@ -252,7 +308,7 @@ export default function DashboardPage() {
                         </span>
                       </button>
                       {isExpanded && (
-                        <div className="mt-3 flex flex-col gap-3 border-t border-gray-100 pt-3">
+                        <div className="mt-3 flex flex-col gap-3 border-t border-line pt-3">
                           <div className="flex flex-col gap-2">
                             {thread.messages.map((message) => (
                               <div
@@ -325,7 +381,7 @@ export default function DashboardPage() {
             ) : (
               <div className="mt-3 flex flex-col gap-3">
                 {unlockedBy.map((entry) => (
-                  <div key={entry.companyId} className="border-b border-gray-100 pb-2 last:border-0 last:pb-0">
+                  <div key={entry.companyId} className="border-b border-line pb-2 last:border-0 last:pb-0">
                     <p className="font-medium text-ink">{entry.companyName || 'Unknown company'}</p>
                     {entry.industry && <p className="text-sm text-ink/60">{entry.industry}</p>}
                     <p className="text-xs text-ink/40">

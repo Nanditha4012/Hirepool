@@ -7,6 +7,12 @@ export interface UserAttributes {
   id: string;
   role: UserRole;
   email: string;
+  /**
+   * Login handle for accounts we provision rather than accounts that
+   * self-sign-up (verifier/admin). Null for every candidate/company user,
+   * who log in with `email` instead.
+   */
+  username: string | null;
   passwordHash: string | null;
   googleId: string | null;
   phone: string | null;
@@ -16,13 +22,14 @@ export interface UserAttributes {
 
 type UserCreationAttributes = Optional<
   UserAttributes,
-  'id' | 'passwordHash' | 'googleId' | 'phone' | 'fullName' | 'createdAt'
+  'id' | 'username' | 'passwordHash' | 'googleId' | 'phone' | 'fullName' | 'createdAt'
 >;
 
 export class User extends Model<UserAttributes, UserCreationAttributes> implements UserAttributes {
   declare id: string;
   declare role: UserRole;
   declare email: string;
+  declare username: string | null;
   declare passwordHash: string | null;
   declare googleId: string | null;
   declare phone: string | null;
@@ -46,6 +53,11 @@ User.init(
       allowNull: false,
       unique: true,
       validate: { isEmail: true },
+    },
+    username: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      unique: true,
     },
     passwordHash: {
       type: DataTypes.STRING,

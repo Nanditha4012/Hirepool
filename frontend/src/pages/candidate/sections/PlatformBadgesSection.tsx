@@ -4,6 +4,7 @@ import Badge from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Select from '@/components/ui/Select'
+import PageLoader from '@/components/ui/PageLoader'
 import {
   createPlatformBadge,
   deletePlatformBadge,
@@ -144,7 +145,7 @@ export default function PlatformBadgesSection() {
     }
   }
 
-  if (loading) return <p className="text-sm text-ink/60">Loading platform badges…</p>
+  if (loading) return <PageLoader compact label="Loading platform badges…" />
 
   return (
     <div className="flex flex-col gap-4">

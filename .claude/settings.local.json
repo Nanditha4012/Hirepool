@@ -14,7 +14,16 @@
       "Bash(echo \"frontend exit=$?\")",
       "Bash(echo \"frontend tsc exit=$?\")",
       "Bash(npm run *)",
-      "Bash(taskkill //F //IM node.exe)"
+      "Bash(taskkill //F //IM node.exe)",
+      "Bash(sed -i 's|{loading \\\\&\\\\& <PageLoader label=\"Loading achievement queue…\" />}|{loading \\\\&\\\\& <PageLoader compact label=\"Loading achievement queue…\" />}|' src/pages/verifier/AchievementQueuePage.tsx)",
+      "Bash(sed -i 's|{loading \\\\&\\\\& <PageLoader label=\"Loading badge queue…\" />}|{loading \\\\&\\\\& <PageLoader compact label=\"Loading badge queue…\" />}|' src/pages/verifier/BadgeQueuePage.tsx)",
+      "Bash(echo \"=== main tsconfig exit: $? ===\")",
+      "Bash(npx eslint *)",
+      "Bash(npx vite *)",
+      "Bash(git mv *)",
+      "Bash(curl -s -o /dev/null -w \"health: %{http_code}\\\\n\" http://localhost:4000/health)",
+      "Bash(curl -s -w '\\\\nHTTP %{http_code}\\\\n' -X POST http://localhost:4000/api/auth/login -H 'Content-Type: application/json' -d '{\"identifier\":\"verifier01\",\"password\":\"veri1234\"}')",
+      "Bash(curl -s -o /dev/null -w 'HTTP %{http_code}\\\\n' -X POST http://localhost:4000/api/auth/login -H 'Content-Type: application/json' -d '{\"identifier\":\"verifier01\",\"password\":\"wrong\"}')"
     ]
   },
   "enabledMcpjsonServers": [

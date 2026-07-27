@@ -11,6 +11,7 @@
     "migrate": "sequelize-cli db:migrate",
     "migrate:undo": "sequelize-cli db:migrate:undo",
     "seed": "sequelize-cli db:seed:all",
+    "seed:verifier": "sequelize-cli db:seed --seed 20240105000001-seed-verifier-account.js",
     "create-user": "ts-node --project tsconfig.scripts.json scripts/create-user.ts",
     "verify:phase1": "ts-node --project tsconfig.scripts.json scripts/verify-phase1.ts"
   },

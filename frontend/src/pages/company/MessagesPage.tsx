@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
+import PageLoader from '@/components/ui/PageLoader'
 import {
   listMyThreads,
   sendMessage,
@@ -99,7 +100,7 @@ export default function MessagesPage() {
   if (loading) {
     return (
       <div className="mx-auto max-w-4xl px-4 py-16 text-center sm:px-6">
-        <p className="text-ink/60">Loading your messages…</p>
+        <PageLoader label="Loading your messages…" />
       </div>
     )
   }
@@ -162,7 +163,7 @@ export default function MessagesPage() {
               const lastMessage = thread.messages[thread.messages.length - 1]
               const isExpanded = expandedThread === thread.candidateId
               return (
-                <div key={thread.candidateId} className="rounded-card border border-gray-200 p-3">
+                <div key={thread.candidateId} className="rounded-card border border-line p-3">
                   <button
                     type="button"
                     className="flex w-full items-start justify-between gap-2 text-left"
@@ -179,7 +180,7 @@ export default function MessagesPage() {
                     </span>
                   </button>
                   {isExpanded && (
-                    <div className="mt-3 flex flex-col gap-3 border-t border-gray-100 pt-3">
+                    <div className="mt-3 flex flex-col gap-3 border-t border-line pt-3">
                       <div className="flex flex-col gap-2">
                         {thread.messages.map((message) => (
                           <div

@@ -13,6 +13,9 @@ export interface Profile {
 export interface AuthUser {
   id: string
   email: string
+  /** Login handle, set only on provisioned accounts (verifier/admin). */
+  username?: string | null
+  fullName?: string | null
   role: Role
   phone?: string
   profile: Profile | null
@@ -46,7 +49,11 @@ interface AuthState {
 }
 
 interface AuthContextValue extends AuthState {
-  login: (email: string, password: string) => Promise<LoginResult>
+  /**
+   * `identifier` is an email for self-signup roles, or a username for
+   * provisioned verifier/admin accounts — the backend accepts either.
+   */
+  login: (identifier: string, password: string) => Promise<LoginResult>
   signup: (email: string, password: string, role: 'candidate' | 'company') => Promise<AuthSuccess>
   loginWithGoogle: (idToken: string, role: 'candidate' | 'company') => Promise<LoginResult>
   verifyTotp: (challengeToken: string, code: string) => Promise<AuthSuccess>
@@ -68,10 +75,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const login = useCallback(
-    async (email: string, password: string): Promise<LoginResult> => {
+    async (identifier: string, password: string): Promise<LoginResult> => {
       const result = await apiFetch<LoginResult>('/auth/login', {
         method: 'POST',
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ identifier, password }),
         auth: false,
       })
       if (isAuthSuccess(result)) {

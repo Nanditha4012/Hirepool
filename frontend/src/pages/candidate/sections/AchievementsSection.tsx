@@ -3,6 +3,7 @@ import Card from '@/components/ui/Card'
 import Badge from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
+import PageLoader from '@/components/ui/PageLoader'
 import {
   createAchievement,
   deleteAchievement,
@@ -242,7 +243,7 @@ export default function AchievementsSection({ typesToShow }: AchievementsSection
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [typesToShow.join(',')])
 
-  if (loading) return <p className="text-sm text-ink/60">Loading…</p>
+  if (loading) return <PageLoader compact label="Loading achievements…" />
 
   return (
     <div className="flex flex-col gap-6">
