@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import Card from '@/components/ui/Card'
 import Input from '@/components/ui/Input'
@@ -30,11 +30,28 @@ export default function TotpPage() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
+  // Guards against firing the enroll request twice for the same challenge —
+  // React 18 StrictMode deliberately double-invokes effects in dev (mount →
+  // cleanup → mount). The ref survives that whole dance (it's the same
+  // component instance), so it reliably prevents a second network call.
+  //
+  // Deliberately NOT combined with a `cancelled`-in-cleanup pattern: that
+  // closure variable does NOT survive StrictMode's cleanup the way the ref
+  // does, so the first run's request would get marked "cancelled" by the
+  // synchronous fake-unmount before it resolves — silently discarding the
+  // real response and leaving this page stuck on "Setting up your
+  // authenticator..." forever, with neither the QR code nor an error ever
+  // appearing. The ref alone is sufficient here: at most one request is
+  // ever in flight, and its result should always be applied to whichever
+  // instance is currently mounted.
+  const enrollStartedRef = useRef(false)
+
   useEffect(() => {
     if (!challengeToken) return
     if (!enrollmentRequired) return
+    if (enrollStartedRef.current) return
+    enrollStartedRef.current = true
 
-    let cancelled = false
     ;(async () => {
       try {
         const result = await apiFetch<EnrollResponse>('/auth/totp/enroll', {
@@ -42,17 +59,11 @@ export default function TotpPage() {
           body: JSON.stringify({ challengeToken }),
           auth: false,
         })
-        if (!cancelled) setEnrollment(result)
+        setEnrollment(result)
       } catch (err) {
-        if (!cancelled) {
-          setEnrollError(err instanceof Error ? err.message : 'Could not start 2FA enrollment')
-        }
+        setEnrollError(err instanceof Error ? err.message : 'Could not start 2FA enrollment')
       }
     })()
-
-    return () => {
-      cancelled = true
-    }
   }, [challengeToken, enrollmentRequired])
 
   if (!challengeToken) {

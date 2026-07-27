@@ -16,7 +16,7 @@ import {
   verifyTotpChallengeToken,
   getRefreshCookieMaxAgeMs,
 } from '../utils/jwt';
-import { generateTotpSecret, verifyTotpToken, generateQrCodeDataUrl } from '../utils/totp';
+import { generateTotpSecret, verifyTotpToken, generateQrCodeDataUrl, buildOtpauthUrl } from '../utils/totp';
 
 const SELF_SIGNUP_ROLES = ['candidate', 'company'] as const;
 
@@ -52,6 +52,15 @@ const REFRESH_COOKIE_NAME = 'refresh_token';
 function refreshCookieOptions() {
   return {
     httpOnly: true as const,
+    // Explicit, rather than relying on the browser's implicit "default
+    // path" derivation (the directory of whichever URL set the cookie).
+    // That currently happens to resolve to /api/auth anyway since every
+    // route here lives under that prefix, but it's fragile — it would
+    // silently stop covering /api/auth/refresh if routes were ever
+    // reorganized. clearCookie() below must use the exact same options
+    // (path/sameSite/secure) or the browser won't recognize it as the same
+    // cookie to delete.
+    path: '/api/auth',
     sameSite: 'lax' as const,
     secure: env.NODE_ENV === 'production',
   };
@@ -218,18 +227,48 @@ export const totpEnroll = asyncHandler(async (req: Request, res: Response) => {
   }
 
   const { secret, otpauthUrl } = generateTotpSecret(user.email);
-  const qrCodeDataUrl = await generateQrCodeDataUrl(otpauthUrl);
 
-  await runInRequestContext(context, async (t) => {
-    if (existing) {
-      existing.secret = secret;
-      await existing.save({ transaction: t });
-    } else {
-      await TotpSecret.create({ userId: payload.sub, secret }, { transaction: t });
+  // Persist the secret first, before generating the QR code we send back —
+  // two concurrent enroll calls for the same user (a remounted page, a
+  // double-click, or React StrictMode's dev-mode double-invoke of effects)
+  // can both pass the `existing` check above before either commits, each
+  // generating a DIFFERENT random secret. Whichever create() loses the race
+  // hits the primary-key (user_id) uniqueness constraint on
+  // user_totp_secrets — previously uncaught, surfacing as a raw 500 instead
+  // of a handled response. Worse, even without an error, the "losing"
+  // request would have returned a QR/secret that was never actually saved,
+  // permanently mismatching the candidate's authenticator app. Catching the
+  // unique-constraint case and re-reading whichever secret actually won
+  // means both concurrent requests converge on the same, truly-persisted
+  // secret.
+  let persistedSecret = secret;
+  try {
+    await runInRequestContext(context, async (t) => {
+      if (existing) {
+        existing.secret = secret;
+        await existing.save({ transaction: t });
+      } else {
+        await TotpSecret.create({ userId: payload.sub, secret }, { transaction: t });
+      }
+    });
+  } catch (err) {
+    if (!(err instanceof UniqueConstraintError)) {
+      throw err;
     }
-  });
+    const winner = await runInRequestContext(context, (t) =>
+      TotpSecret.findOne({ where: { userId: payload.sub }, transaction: t }),
+    );
+    if (!winner) {
+      throw err;
+    }
+    persistedSecret = winner.secret;
+  }
 
-  res.json({ qrCodeDataUrl, secret });
+  const otpauthUrlToReturn =
+    persistedSecret === secret ? otpauthUrl : buildOtpauthUrl(user.email, persistedSecret);
+  const qrCodeDataUrl = await generateQrCodeDataUrl(otpauthUrlToReturn);
+
+  res.json({ qrCodeDataUrl, secret: persistedSecret });
 });
 
 export const totpVerify = asyncHandler(async (req: Request, res: Response) => {

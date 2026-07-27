@@ -7,6 +7,7 @@ import {
   SkillMaster,
   DomainMaster,
   CompanyRequest,
+  RejectionReasonMaster,
 } from '../models';
 import { asyncHandler } from '../utils/asyncHandler';
 import { runInRequestContext } from '../utils/withRequestContext';
@@ -50,6 +51,23 @@ export const listDomains = asyncHandler(async (req: Request, res: Response) => {
     DomainMaster.findAll({ order: [['domainName', 'ASC']], transaction: t }),
   );
   res.json(domains);
+});
+
+const listRejectionReasonsSchema = z.object({
+  scope: z.enum(['profile', 'item']).optional(),
+});
+
+export const listRejectionReasons = asyncHandler(async (req: Request, res: Response) => {
+  const { scope } = listRejectionReasonsSchema.parse(req.query);
+
+  const reasons = await runInRequestContext(null, (t) =>
+    RejectionReasonMaster.findAll({
+      where: scope ? { scope } : undefined,
+      order: [['reasonText', 'ASC']],
+      transaction: t,
+    }),
+  );
+  res.json(reasons);
 });
 
 const requestCompanySchema = z.object({

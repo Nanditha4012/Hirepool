@@ -20,6 +20,7 @@ import { CompanyRequest } from './CompanyRequest';
 import { PlanMaster } from './PlanMaster';
 import { Unlock } from './Unlock';
 import { CompanyBlock } from './CompanyBlock';
+import { RejectionReasonMaster } from './RejectionReasonMaster';
 
 // User <-> CandidateProfile (1:1)
 User.hasOne(CandidateProfile, { foreignKey: 'userId', as: 'candidateProfile' });
@@ -79,6 +80,11 @@ CandidateProfile.belongsTo(DomainMaster, { as: 'domain', foreignKey: 'domainId' 
 CandidateProfile.belongsTo(CompanyMaster, { as: 'currentCompany', foreignKey: 'currentCompanyId' });
 CandidateProfile.belongsTo(RoleMaster, { as: 'designationRole', foreignKey: 'designationRoleId' });
 
+// User <-> CandidateProfile (1:many, via assigned_verifier_id) — Phase 4:
+// the verifier currently assigned to review this profile.
+User.hasMany(CandidateProfile, { foreignKey: 'assignedVerifierId', as: 'assignedProfiles' });
+CandidateProfile.belongsTo(User, { as: 'assignedVerifier', foreignKey: 'assignedVerifierId' });
+
 // CompanyProfile <-> PlanMaster (many companies -> one plan)
 CompanyProfile.belongsTo(PlanMaster, { as: 'plan', foreignKey: 'planId' });
 
@@ -118,4 +124,5 @@ export {
   PlanMaster,
   Unlock,
   CompanyBlock,
+  RejectionReasonMaster,
 };

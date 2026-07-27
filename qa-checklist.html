@@ -1,0 +1,572 @@
+<title>Hirepool — Phase 2, 3 & 4 QA Checklist</title>
+<style>
+  :root {
+    --accent: #0A66C2;
+    --accent-ink: #08508f;
+    --accent-tint: #0A66C214;
+    --ink: #17212B;
+    --ink-muted: #57636F;
+    --ink-faint: #8996A4;
+    --paper: #F3F6FA;
+    --surface: #FFFFFF;
+    --surface-raised: #FFFFFF;
+    --line: #DFE6EE;
+    --line-soft: #ECF1F6;
+    --verified: #16A34A;
+    --verified-tint: #16A34A16;
+    --danger: #DC2626;
+    --danger-tint: #DC262614;
+    --flag: #B45309;
+    --flag-tint: #F59E0B1F;
+    --shadow: 0 1px 2px rgba(23, 33, 43, 0.04), 0 8px 24px -12px rgba(23, 33, 43, 0.12);
+    --font-display: ui-serif, Georgia, "Iowan Old Style", "Times New Roman", serif;
+    --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    --font-mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --accent: #5CA6EE; --accent-ink: #8CC0F5; --accent-tint: #5CA6EE1F;
+      --ink: #E7ECF2; --ink-muted: #96A4B4; --ink-faint: #667585;
+      --paper: #0A1420; --surface: #101B29; --surface-raised: #142132;
+      --line: #223349; --line-soft: #1A2836;
+      --verified: #34D399; --verified-tint: #34D3991F;
+      --danger: #F87171; --danger-tint: #F871711A;
+      --flag: #FBBF24; --flag-tint: #FBBF2422;
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 28px -14px rgba(0, 0, 0, 0.55);
+    }
+  }
+  :root[data-theme="dark"] {
+    --accent: #5CA6EE; --accent-ink: #8CC0F5; --accent-tint: #5CA6EE1F;
+    --ink: #E7ECF2; --ink-muted: #96A4B4; --ink-faint: #667585;
+    --paper: #0A1420; --surface: #101B29; --surface-raised: #142132;
+    --line: #223349; --line-soft: #1A2836;
+    --verified: #34D399; --verified-tint: #34D3991F;
+    --danger: #F87171; --danger-tint: #F871711A;
+    --flag: #FBBF24; --flag-tint: #FBBF2422;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 28px -14px rgba(0, 0, 0, 0.55);
+  }
+  :root[data-theme="light"] {
+    --accent: #0A66C2; --accent-ink: #08508f; --accent-tint: #0A66C214;
+    --ink: #17212B; --ink-muted: #57636F; --ink-faint: #8996A4;
+    --paper: #F3F6FA; --surface: #FFFFFF; --surface-raised: #FFFFFF;
+    --line: #DFE6EE; --line-soft: #ECF1F6;
+    --verified: #16A34A; --verified-tint: #16A34A16;
+    --danger: #DC2626; --danger-tint: #DC262614;
+    --flag: #B45309; --flag-tint: #F59E0B1F;
+    --shadow: 0 1px 2px rgba(23, 33, 43, 0.04), 0 8px 24px -12px rgba(23, 33, 43, 0.12);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--paper); color: var(--ink); font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased; line-height: 1.5;
+  }
+  ::selection { background: var(--accent-tint); }
+
+  .wrap { max-width: 860px; margin: 0 auto; padding: 2.5rem 1.25rem 6rem; }
+
+  .masthead { display: flex; flex-direction: column; gap: 0.4rem; margin-bottom: 1.75rem; }
+  .eyebrow {
+    font-family: var(--font-mono); font-size: 0.7rem; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--ink-faint); font-weight: 600;
+  }
+  h1 {
+    font-family: var(--font-display); font-weight: 600; font-size: clamp(1.6rem, 4vw, 2.2rem);
+    margin: 0; text-wrap: balance; letter-spacing: -0.01em;
+  }
+  .sub { color: var(--ink-muted); font-size: 0.95rem; max-width: 62ch; margin: 0.15rem 0 0; }
+
+  .overall {
+    margin-top: 1.4rem; display: flex; align-items: center; gap: 0.85rem;
+    padding: 0.85rem 1rem; background: var(--surface); border: 1px solid var(--line);
+    border-radius: 10px; box-shadow: var(--shadow);
+  }
+  .overall .bar { flex: 1; height: 8px; border-radius: 99px; background: var(--line-soft); overflow: hidden; }
+  .overall .bar > span {
+    display: block; height: 100%; border-radius: 99px;
+    background: linear-gradient(90deg, var(--accent), var(--verified));
+    width: 0%; transition: width 0.4s ease;
+  }
+  .overall .count {
+    font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 0.85rem;
+    color: var(--ink-muted); white-space: nowrap;
+  }
+
+  .tabs { display: flex; gap: 0.5rem; margin: 1.5rem 0 1.75rem; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  .tab {
+    appearance: none; border: none; background: none; cursor: pointer; font-family: var(--font-body);
+    font-size: 0.9rem; font-weight: 600; color: var(--ink-muted); padding: 0.65rem 0.2rem 0.85rem;
+    display: flex; align-items: center; gap: 0.5rem; border-bottom: 2px solid transparent;
+    margin-bottom: -1px; transition: color 0.15s ease, border-color 0.15s ease;
+  }
+  .tab + .tab { margin-left: 1.1rem; }
+  .tab:hover { color: var(--ink); }
+  .tab[aria-selected="true"] { color: var(--ink); border-color: var(--accent); }
+  .tab .ring {
+    --pct: 0; width: 20px; height: 20px; border-radius: 50%; flex-shrink: 0;
+    background: conic-gradient(var(--accent) calc(var(--pct) * 1%), var(--line-soft) 0);
+    display: grid; place-items: center;
+  }
+  .tab .ring::after { content: ""; width: 13px; height: 13px; border-radius: 50%; background: var(--surface); }
+  .tab .frac { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 0.72rem; color: var(--ink-faint); font-weight: 500; }
+
+  .panel { display: none; flex-direction: column; gap: 1.6rem; }
+  .panel.active { display: flex; }
+
+  .phase-progress { display: flex; align-items: center; gap: 0.75rem; }
+  .phase-progress .bar { flex: 1; height: 6px; border-radius: 99px; background: var(--line-soft); overflow: hidden; }
+  .phase-progress .bar > span {
+    display: block; height: 100%; border-radius: 99px; background: var(--accent);
+    width: 0%; transition: width 0.4s ease;
+  }
+  .phase-progress .label { font-size: 0.8rem; color: var(--ink-muted); font-family: var(--font-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  .fixed-note {
+    display: flex; gap: 0.6rem; align-items: flex-start; padding: 0.8rem 1rem;
+    background: var(--verified-tint); border: 1px solid color-mix(in srgb, var(--verified) 35%, transparent);
+    border-radius: 10px; font-size: 0.87rem; color: var(--ink);
+  }
+  .fixed-note .dot { color: var(--verified); font-size: 1rem; line-height: 1.3; }
+  .fixed-note b { font-weight: 700; }
+  .limit-note {
+    display: flex; gap: 0.6rem; align-items: flex-start; padding: 0.8rem 1rem;
+    background: var(--flag-tint); border: 1px solid color-mix(in srgb, var(--flag) 35%, transparent);
+    border-radius: 10px; font-size: 0.87rem; color: var(--ink);
+  }
+  .limit-note .dot { color: var(--flag); font-size: 1rem; line-height: 1.3; }
+
+  section.category {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+    box-shadow: var(--shadow); overflow: hidden;
+  }
+  .category > header {
+    padding: 0.95rem 1.1rem; border-bottom: 1px solid var(--line-soft);
+    display: flex; align-items: baseline; justify-content: space-between; gap: 1rem;
+  }
+  .category > header h2 {
+    font-family: var(--font-display); font-size: 1.12rem; font-weight: 600; margin: 0; letter-spacing: -0.005em;
+  }
+  .category > header .tally {
+    font-family: var(--font-mono); font-size: 0.78rem; color: var(--ink-faint); font-variant-numeric: tabular-nums; flex-shrink: 0;
+  }
+
+  ul.items { list-style: none; margin: 0; padding: 0.3rem 0; }
+  ul.items li { padding: 0.1rem 0.4rem; }
+  .item {
+    display: flex; align-items: flex-start; gap: 0.7rem; padding: 0.55rem 0.7rem; border-radius: 8px;
+    cursor: pointer; transition: background 0.12s ease;
+  }
+  .item:hover { background: var(--line-soft); }
+  .item input[type="checkbox"] {
+    margin-top: 0.2rem; width: 17px; height: 17px; flex-shrink: 0; accent-color: var(--accent); cursor: pointer;
+  }
+  .item .text { flex: 1; font-size: 0.92rem; }
+  .item .text .route {
+    font-family: var(--font-mono); font-size: 0.74rem; background: var(--accent-tint); color: var(--accent-ink);
+    padding: 0.08rem 0.4rem; border-radius: 5px; margin-left: 0.4rem; white-space: nowrap; display: inline-block;
+  }
+  .item.checked .text { color: var(--ink-faint); text-decoration: line-through; text-decoration-color: var(--line); text-decoration-thickness: 1.5px; }
+  .item .badge {
+    font-family: var(--font-mono); font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.05em;
+    padding: 0.15rem 0.45rem; border-radius: 99px; flex-shrink: 0; margin-top: 0.15rem; font-weight: 600;
+  }
+  .badge.needs-verifier, .badge.needs-admin { background: var(--flag-tint); color: var(--flag); }
+
+  .notes {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow);
+    padding: 1rem 1.1rem;
+  }
+  .notes h2 { font-family: var(--font-display); font-size: 1.05rem; margin: 0 0 0.6rem; font-weight: 600; }
+  .notes textarea {
+    width: 100%; min-height: 90px; resize: vertical; border: 1px solid var(--line); border-radius: 8px;
+    background: var(--paper); color: var(--ink); font-family: var(--font-body); font-size: 0.88rem;
+    padding: 0.6rem 0.7rem;
+  }
+  .notes textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .notes .hint { font-size: 0.76rem; color: var(--ink-faint); margin-top: 0.4rem; }
+
+  .footer-actions { display: flex; justify-content: space-between; align-items: center; padding-top: 0.3rem; }
+  .reset-btn {
+    appearance: none; border: 1px solid var(--line); background: var(--surface); color: var(--ink-muted);
+    font-family: var(--font-body); font-size: 0.82rem; font-weight: 600; padding: 0.45rem 0.85rem;
+    border-radius: 8px; cursor: pointer; transition: border-color 0.15s ease, color 0.15s ease;
+  }
+  .reset-btn:hover { border-color: var(--danger); color: var(--danger); }
+  .saved-hint { font-size: 0.78rem; color: var(--ink-faint); font-family: var(--font-mono); }
+
+  a { color: var(--accent); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  @media (max-width: 560px) {
+    .tab + .tab { margin-left: 0.8rem; }
+    .category > header { flex-direction: column; align-items: flex-start; gap: 0.15rem; }
+  }
+</style>
+
+<div class="wrap">
+  <div class="masthead">
+    <span class="eyebrow">Hirepool · internal QA</span>
+    <h1>Phase 2, 3 &amp; 4 verification checklist</h1>
+    <p class="sub">Walk through these in the running app — candidate side (Phase 2), company side (Phase 3), verifier side (Phase 4). Checks are saved in this browser, so you can close the tab and come back.</p>
+  </div>
+
+  <div class="overall">
+    <span class="count" id="overall-count">0 / 0 checked</span>
+    <div class="bar"><span id="overall-bar"></span></div>
+    <span class="count" id="overall-pct">0%</span>
+  </div>
+
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" id="tab-p2" aria-selected="true" data-panel="panel-p2">
+      <span class="ring" id="ring-p2"></span> Phase 2 — Candidate <span class="frac" id="frac-p2">0/0</span>
+    </button>
+    <button class="tab" role="tab" id="tab-p3" aria-selected="false" data-panel="panel-p3">
+      <span class="ring" id="ring-p3"></span> Phase 3 — Company <span class="frac" id="frac-p3">0/0</span>
+    </button>
+    <button class="tab" role="tab" id="tab-p4" aria-selected="false" data-panel="panel-p4">
+      <span class="ring" id="ring-p4"></span> Phase 4 — Verifier <span class="frac" id="frac-p4">0/0</span>
+    </button>
+  </div>
+
+  <!-- ============================= PHASE 2 ============================= -->
+  <div class="panel active" id="panel-p2" data-phase="p2">
+    <div class="phase-progress">
+      <span class="label">Phase 2</span>
+      <div class="bar"><span id="bar-p2"></span></div>
+      <span class="label" id="label-p2">0 / 0</span>
+    </div>
+
+    <div class="fixed-note"><span class="dot">●</span><span><b>Already fixed, no need to re-report:</b> the "400 Bad Request" on saving your profile draft, and the 3 RLS gaps found in review (candidates/companies couldn't see each other's names, and signup could fail at the profile-creation step). All confirmed fixed against the live database.</span></div>
+
+    <section class="category" data-cat="p2-onboarding">
+      <header><h2>Signup &amp; onboarding</h2><span class="tally"></span></header>
+      <ul class="items">
+        <li><label class="item"><input type="checkbox" data-id="p2-1"><span class="text">Sign up as a candidate with email + password <span class="route">POST /auth/signup</span></span></label></li>
+        <li><label class="item"><input type="checkbox" data-id="p2-2"><span class="text">You're asked to choose Fresher / Experienced / Executive right after signup</span></label></li>
+        <li><label class="item"><input type="checkbox" data-id="p2-3"><span class="text">Try Google sign-in as a candidate (if a Google client ID is configured)</span></label></li>
+      </ul>
+    </section>
+
+    <section class="category" data-cat="p2-basics">
+      <header><h2>Profile builder — basics</h2><span class="tally"></span></header>
+      <ul class="items">
+        <li><label class="item"><input type="checkbox" data-id="p2-4"><span class="text">The right section shows for your category — Fresher sees coding platforms, Experienced/Executive sees an Experience section instead</span></label></li>
+        <li><label class="item"><input type="checkbox" data-id="p2-5"><span class="text">Fill in Full Name, Phone, Primary Role, Domain, Resume link, Location, Notice period</span></label></li>
+        <li><label class="item"><input type="checkbox" data-id="p2-6"><span class="text">Add a couple of Secondary roles and Skills as chips, then remove one</span></label></li>
+        <li><label class="item"><input type="checkbox" data-id="p2-7"><span class="text">Click <b>Save draft</b>, then reload the page — everything you typed is still there</span></label></li>
+        <li><label class="item"><input type="checkbox" data-id="p2-8"><span class="text">Click <b>Submit for review</b> before finishing required fields — you get a clear "Missing required fields" message, not a generic error</span></label></li>
+      </ul>
+    </section>
+
+    <section class="category" data-cat="p2-fresher">
+      <header><h2>Fresher-only</h2><span class="tally"></span></header>
+      <ul class="items">
+        <li><label class="item"><input type="checkbox" data-id="p2-9"><span class="text">Add a coding platform (e.g. LeetCode) with a badge and profile link — it shows status <b>Pending</b></span></label></li>
+        <li><label class="item"><input type="checkbox" data-id="p2-10"><span class="text">Add 3 projects under Achievements &amp; Work — the "X/3 projects added" counter updates as you add them</span></label></li>
+        <li><label class="item"><input type="checkbox" data-id="p2-11"><span class="text">Submit now succeeds once you have full name, phone, role, domain, resume link, and 3+ projects</span></label></li>
+      </ul>
+    </section>
+
+    <section class="category" data-cat="p2-exp">
+      <header><h2>Experienced / Executive-only</h2><span class="tally"></span></header>
+      <ul class="items">
+        <li><label class="item"><input type="checkbox" data-id="p2-12"><span class="text">Fill Years of experience, Designation, Current company, Offer letter or LinkedIn URL</span></label></li>
+        <li><label class="item"><input type="checkbox" data-id="p2-13"><span class="text">Type a company that isn't in the list, click <b>Request company</b> <span class="route">POST /masters/companies/request</span> — confirmation message appears</span></label></li>
+        <li><label class="item"><input type="checkbox" data-id="p2-14"><span class="text">(Executive) Fill Team size managed — Budget owned stays optional</span></label></li>
+      </ul>
+    </section>
+
+    <section class="category" data-cat="p2-verified">
+      <header><h2>Verification-gated visibility</h2><span class="tally"></span></header>
+      <ul class="items">
+        <li><label class="item"><input type="checkbox" data-id="p2-15"><span class="text">Research/Achievement sections stay locked with "Available once your profile is approved" until you're Approved</span></label></li>
+        <li><label class="item"><input type="checkbox" data-id="p2-16"><span class="text">A Pending or Rejected badge/achievement never shows a rank or checkmark on your own profile preview</span></label></li>
+      </ul>
+    </section>
+
+    <section class="category" data-cat="p2-dash">
+      <header><h2>Post-approval dashboard</h2><span class="tally"></span></header>
+      <ul class="items">
+        <li><label class="item"><input type="checkbox" data-id="p2-17"><span class="badge needs-admin">use Phase 4 verifier</span><span class="text">Get approved — a verifier in the Phase 4 portal can now do this properly (Queue → Claim → Approve) instead of editing the database by hand</span></label></li>
+        <li><label class="item"><input type="checkbox" data-id="p2-18"><span class="text">Toggle <b>Actively looking</b> off, reload — it stuck <span class="route">PATCH /candidates/me/looking-status</span></span></label></li>
+        <li><label class="item"><input type="checkbox" data-id="p2-19"><span class="text">"Companies who unlocked your contact" shows real entries once a company unlocks you (Phase 3) — empty state otherwise</span></label></li>
+        <li><label class="item"><input type="checkbox" data-id="p2-20"><span class="text">Receive a message from a company (Phase 3), reply from your Inbox</span></label></li>
+        <li><label class="item"><input type="checkbox" data-id="p2-21"><span class="text">Use <b>Block this company</b> on a thread — confirm it asks before blocking</span></label></li>
+      </ul>
+    </section>
+
+    <div class="notes">
+      <h2>Notes &amp; bugs found — Phase 2</h2>
+      <textarea id="notes-p2" placeholder="Jot anything odd here as you go — saved automatically."></textarea>
+      <p class="hint">Saved to this browser only.</p>
+    </div>
+
+    <div class="footer-actions">
+      <button class="reset-btn" data-reset="p2">Reset Phase 2 checks</button>
+      <span class="saved-hint">autosaved locally</span>
+    </div>
+  </div>
+
+  <!-- ============================= PHASE 3 ============================= -->
+  <div class="panel" id="panel-p3" data-phase="p3">
+    <div class="phase-progress">
+      <span class="label">Phase 3</span>
+      <div class="bar"><span id="bar-p3"></span></div>
+      <span class="label" id="label-p3">0 / 0</span>
+    </div>
+
+    <div class="fixed-note"><span class="dot">●</span><span><b>Already fixed, no need to re-report:</b> search/unlock/messaging previously would have returned blank candidate &amp; company names due to a database access-rule gap — confirmed fixed. A "Message" action was also added to search so you can message a candidate without unlocking first.</span></div>
+
+    <section class="category" data-cat="p3-setup">
+      <header><h2>Company signup &amp; setup</h2><span class="tally"></span></header>
+      <ul class="items">
+        <li><label class="item"><input type="checkbox" data-id="p3-1"><span class="text">Sign up as a company <span class="route">POST /auth/signup</span></span></label></li>
+        <li><label class="item"><input type="checkbox" data-id="p3-2"><span class="text">Fill in Company name, Website, Industry, Size, GST number, save</span></label></li>
+        <li><label class="item"><input type="checkbox" data-id="p3-3"><span class="text">After saving, you land on the company dashboard automatically</span></label></li>
+        <li><label class="item"><input type="checkbox" data-id="p3-4"><span class="text">A free personal email (gmail/yahoo/etc.) shows a soft hint suggesting a company email — it doesn't block anything</span></label></li>
+      </ul>
+    </section>
+
+    <section class="category" data-cat="p3-dash">
+      <header><h2>Dashboard</h2><span class="tally"></span></header>
+      <ul class="items">
+        <li><label class="item"><input type="checkbox" data-id="p3-5"><span class="text">"Verification pending" badge shows until an admin verifies you (Phase 5 will build the approval side)</span></label></li>
+        <li><label class="item"><input type="checkbox" data-id="p3-6"><span class="text">Unlocks-used-vs-quota and messaging-cap numbers are visible and correct for the Free plan (0 unlocks / 5 messages by default, but your test account was seeded with 3 starter unlocks)</span></label></li>
+      </ul>
+    </section>
+
+    <section class="category" data-cat="p3-search">
+      <header><h2>Search &amp; filters</h2><span class="tally"></span></header>
+      <ul class="items">
+        <li><label class="item"><input type="checkbox" data-id="p3-7"><span class="text">Open Search — approved candidates appear as cards <span class="route">GET /companies/search</span></span></label></li>
+        <li><label class="item"><input type="checkbox" data-id="p3-8"><span class="text">Try Tier, Skills, Domain, Experience range filters one at a time</span></label></li>
+        <li><label class="item"><input type="checkbox" data-id="p3-9"><span class="text">Try Location and Notice period filters</span></label></li>
+        <li><label class="item"><input type="checkbox" data-id="p3-10"><span class="text">Try the MNC Alumni / Startup Experience / FAANG-MAANG Alumni toggle chips</span></label></li>
+        <li><label class="item"><input type="checkbox" data-id="p3-11"><span class="text">Pick a coding platform, then a badge, then a questions-solved range — badge/range are disabled until a platform is chosen</span></label></li>
+        <li><label class="item"><input type="checkbox" data-id="p3-12"><span class="text">Narrow filters until nothing matches — "No candidates match your filters" appears instead of an error</span></label></li>
+        <li><label class="item"><input type="checkbox" data-id="p3-13"><span class="text">Previous/Next pagination works once results span more than one page</span></label></li>
+      </ul>
+    </section>
+
+    <section class="category" data-cat="p3-unlock">
+      <header><h2>Unlock flow</h2><span class="tally"></span></header>
+      <ul class="items">
+        <li><label class="item"><input type="checkbox" data-id="p3-14"><span class="text">While unverified, "Unlock Contact" is disabled with "Verification required to unlock candidates"</span></label></li>
+        <li><label class="item"><input type="checkbox" data-id="p3-15"><span class="badge needs-verifier">needs verified: true in DB</span><span class="text">Flip your company's <span class="route">verified</span> column to true in the database, then unlock a candidate — phone, email, and WhatsApp link appear</span></label></li>
+        <li><label class="item"><input type="checkbox" data-id="p3-16"><span class="text">Reload the search page — that candidate still shows as unlocked, no second charge against your quota</span></label></li>
+        <li><label class="item"><input type="checkbox" data-id="p3-17"><span class="text">Open <b>My unlocked candidates</b> — the candidate is listed with full contact info</span></label></li>
+        <li><label class="item"><input type="checkbox" data-id="p3-18"><span class="text">Add a private note, save, reload — the note stuck</span></label></li>
+        <li><label class="item"><input type="checkbox" data-id="p3-19"><span class="text">Use up all your unlock credits, try one more — a clear "no unlocks remaining" message appears, not a crash</span></label></li>
+      </ul>
+    </section>
+
+    <section class="category" data-cat="p3-messaging">
+      <header><h2>Messaging &amp; blocking</h2><span class="tally"></span></header>
+      <ul class="items">
+        <li><label class="item"><input type="checkbox" data-id="p3-20"><span class="text">From Search, click <b>Message</b> on a candidate you have <i>not</i> unlocked — it still sends</span></label></li>
+        <li><label class="item"><input type="checkbox" data-id="p3-21"><span class="text">Open Messages — the conversation appears with the candidate's name</span></label></li>
+        <li><label class="item"><input type="checkbox" data-id="p3-22"><span class="text">As that candidate, the message shows up in their Inbox with your company's real name (not "Unknown company")</span></label></li>
+        <li><label class="item"><input type="checkbox" data-id="p3-23"><span class="text">Reply from the candidate side — it appears back in the company's thread</span></label></li>
+        <li><label class="item"><input type="checkbox" data-id="p3-24"><span class="text">As the candidate, click <b>Block this company</b> — the company's next message attempt is rejected</span></label></li>
+        <li><label class="item"><input type="checkbox" data-id="p3-25"><span class="text">Start 5 new conversations on the Free plan's default cap — the 6th is rejected with a clear upgrade-style message, not a crash</span></label></li>
+      </ul>
+    </section>
+
+    <div class="notes">
+      <h2>Notes &amp; bugs found — Phase 3</h2>
+      <textarea id="notes-p3" placeholder="Jot anything odd here as you go — saved automatically."></textarea>
+      <p class="hint">Saved to this browser only.</p>
+    </div>
+
+    <div class="footer-actions">
+      <button class="reset-btn" data-reset="p3">Reset Phase 3 checks</button>
+      <span class="saved-hint">autosaved locally</span>
+    </div>
+  </div>
+
+  <!-- ============================= PHASE 4 ============================= -->
+  <div class="panel" id="panel-p4" data-phase="p4">
+    <div class="phase-progress">
+      <span class="label">Phase 4</span>
+      <div class="bar"><span id="bar-p4"></span></div>
+      <span class="label" id="label-p4">0 / 0</span>
+    </div>
+
+    <div class="fixed-note"><span class="dot">●</span><span><b>Already fixed, no need to re-report:</b> verifiers previously had no way to see a candidate's name/phone/email at all (a database access-rule gap, same class of bug as Phase 3's) — every queue would have shown blank rows. Confirmed fixed against the live database.</span></div>
+
+    <div class="limit-note"><span class="dot">▲</span><span><b>Known limitation, not a bug:</b> verifier accounts are admin-provisioned, not self-signup. Since the Admin portal (Phase 5) doesn't exist yet, you'll need to manually insert a verifier user in the database first (role = <code>verifier</code>) to test this phase at all.</span></div>
+
+    <section class="category" data-cat="p4-setup">
+      <header><h2>Verifier login</h2><span class="tally"></span></header>
+      <ul class="items">
+        <li><label class="item"><input type="checkbox" data-id="p4-1"><span class="badge needs-admin">manual DB insert</span><span class="text">Insert a verifier user directly in the database, log in with it</span></label></li>
+        <li><label class="item"><input type="checkbox" data-id="p4-2"><span class="text">TOTP enrollment is still forced on first login for this role (unchanged Phase 1 behavior)</span></label></li>
+      </ul>
+    </section>
+
+    <section class="category" data-cat="p4-queue">
+      <header><h2>Track 1 — profile queue</h2><span class="tally"></span></header>
+      <ul class="items">
+        <li><label class="item"><input type="checkbox" data-id="p4-3"><span class="text">Submit a Fresher, an Experienced, and an Executive profile (as different candidates) — each appears in the matching tier tab, oldest-first</span></label></li>
+        <li><label class="item"><input type="checkbox" data-id="p4-4"><span class="text"><b>Claim</b> a profile — it moves to Under Review; a second verifier account can't claim the same one</span></label></li>
+        <li><label class="item"><input type="checkbox" data-id="p4-5"><span class="text">Open a claimed profile — the category-aware checklist shows the right guidance (project links + GitHub + resume for Fresher; LinkedIn + offer letter + company type for Experienced/Executive), with clickable links</span></label></li>
+      </ul>
+    </section>
+
+    <section class="category" data-cat="p4-decide">
+      <header><h2>Track 1 — decisions</h2><span class="tally"></span></header>
+      <ul class="items">
+        <li><label class="item"><input type="checkbox" data-id="p4-6"><span class="text"><b>Approve</b> a profile — the candidate now sees Approved + the green checkmark on their dashboard</span></label></li>
+        <li><label class="item"><input type="checkbox" data-id="p4-7"><span class="text"><b>Reject</b> another — picking a reason is mandatory; the candidate sees it as their "what to fix" note</span></label></li>
+        <li><label class="item"><input type="checkbox" data-id="p4-8"><span class="text"><b>Request More Info</b> on a third — same reason requirement, candidate sees the note and can resubmit</span></label></li>
+        <li><label class="item"><input type="checkbox" data-id="p4-9"><span class="text"><b>Flag as Suspicious</b> on a profile — the profile's status does <i>not</i> change (it stays visible in the queue, not silently approved or rejected)</span></label></li>
+      </ul>
+    </section>
+
+    <section class="category" data-cat="p4-track2">
+      <header><h2>Track 2 — badges &amp; achievements</h2><span class="tally"></span></header>
+      <ul class="items">
+        <li><label class="item"><input type="checkbox" data-id="p4-10"><span class="text">Open the Badges queue — a candidate's pending coding-platform badge appears, even if their main profile is still Draft/Submitted (not yet approved)</span></label></li>
+        <li><label class="item"><input type="checkbox" data-id="p4-11"><span class="text">Mark a badge <b>Verified</b> — it now shows its rank on the candidate's public profile card immediately</span></label></li>
+        <li><label class="item"><input type="checkbox" data-id="p4-12"><span class="text">Mark another badge <b>Incorrect</b> (reason required) — it stays hidden, and the candidate is notified to fix and resubmit just that one</span></label></li>
+        <li><label class="item"><input type="checkbox" data-id="p4-13"><span class="text">Repeat Verified/Incorrect for a project/achievement in the Achievements queue</span></label></li>
+        <li><label class="item"><input type="checkbox" data-id="p4-14"><span class="text">Confirm neither Track 2 decision ever changed the candidate's main profile status — the two tracks are truly independent</span></label></li>
+      </ul>
+    </section>
+
+    <section class="category" data-cat="p4-analytics">
+      <header><h2>Analytics</h2><span class="tally"></span></header>
+      <ul class="items">
+        <li><label class="item"><input type="checkbox" data-id="p4-15"><span class="text">Backlog counts (profiles in queue / badges pending / achievements pending) reflect what you've actually submitted and not yet decided</span></label></li>
+        <li><label class="item"><input type="checkbox" data-id="p4-16"><span class="text">After a couple of Approve decisions, "Avg. time to approve" shows a number instead of "not enough data yet"</span></label></li>
+        <li><label class="item"><input type="checkbox" data-id="p4-17"><span class="text">The rejection-reason breakdown table lists the reasons you picked above, with correct counts</span></label></li>
+      </ul>
+    </section>
+
+    <div class="notes">
+      <h2>Notes &amp; bugs found — Phase 4</h2>
+      <textarea id="notes-p4" placeholder="Jot anything odd here as you go — saved automatically."></textarea>
+      <p class="hint">Saved to this browser only.</p>
+    </div>
+
+    <div class="footer-actions">
+      <button class="reset-btn" data-reset="p4">Reset Phase 4 checks</button>
+      <span class="saved-hint">autosaved locally</span>
+    </div>
+  </div>
+</div>
+
+<script>
+  (function () {
+    var STORAGE_KEY = "hirepool-qa-checklist-v1";
+    var PHASES = ["p2", "p3", "p4"];
+
+    function load() {
+      try {
+        var raw = localStorage.getItem(STORAGE_KEY);
+        return raw ? JSON.parse(raw) : { checks: {}, notes: {} };
+      } catch (e) {
+        return { checks: {}, notes: {} };
+      }
+    }
+    function save(state) {
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
+    }
+
+    var state = load();
+    var checkboxes = Array.prototype.slice.call(document.querySelectorAll("[data-id]"));
+    var panels = { p2: document.getElementById("panel-p2"), p3: document.getElementById("panel-p3"), p4: document.getElementById("panel-p4") };
+
+    checkboxes.forEach(function (cb) {
+      var id = cb.getAttribute("data-id");
+      cb.checked = !!state.checks[id];
+      updateItemVisual(cb);
+      cb.addEventListener("change", function () {
+        state.checks[id] = cb.checked;
+        save(state);
+        updateItemVisual(cb);
+        recompute();
+      });
+    });
+
+    function updateItemVisual(cb) {
+      var item = cb.closest(".item");
+      if (item) item.classList.toggle("checked", cb.checked);
+    }
+
+    PHASES.forEach(function (phase) {
+      var ta = document.getElementById("notes-" + phase);
+      ta.value = state.notes[phase] || "";
+      ta.addEventListener("input", function () {
+        state.notes[phase] = ta.value;
+        save(state);
+      });
+    });
+
+    document.querySelectorAll(".reset-btn").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var phase = btn.getAttribute("data-reset");
+        var label = phase === "p2" ? "Phase 2" : phase === "p3" ? "Phase 3" : "Phase 4";
+        if (!confirm("Reset all checks for " + label + "? Notes are kept.")) return;
+        checkboxes
+          .filter(function (cb) { return cb.getAttribute("data-id").indexOf(phase + "-") === 0; })
+          .forEach(function (cb) {
+            cb.checked = false;
+            state.checks[cb.getAttribute("data-id")] = false;
+            updateItemVisual(cb);
+          });
+        save(state);
+        recompute();
+      });
+    });
+
+    function countPhase(phase) {
+      var items = checkboxes.filter(function (cb) { return cb.getAttribute("data-id").indexOf(phase + "-") === 0; });
+      var done = items.filter(function (cb) { return cb.checked; }).length;
+      return { done: done, total: items.length };
+    }
+
+    function recompute() {
+      var counts = {};
+      PHASES.forEach(function (phase) { counts[phase] = countPhase(phase); });
+
+      var total = 0, done = 0;
+      PHASES.forEach(function (phase) {
+        total += counts[phase].total;
+        done += counts[phase].done;
+        document.getElementById("bar-" + phase).style.width = (counts[phase].total ? (100 * counts[phase].done / counts[phase].total) : 0) + "%";
+        document.getElementById("label-" + phase).textContent = counts[phase].done + " / " + counts[phase].total;
+        document.getElementById("frac-" + phase).textContent = counts[phase].done + "/" + counts[phase].total;
+        document.getElementById("ring-" + phase).style.setProperty("--pct", counts[phase].total ? (100 * counts[phase].done / counts[phase].total) : 0);
+      });
+
+      var pct = total ? Math.round((100 * done) / total) : 0;
+      document.getElementById("overall-bar").style.width = pct + "%";
+      document.getElementById("overall-pct").textContent = pct + "%";
+      document.getElementById("overall-count").textContent = done + " / " + total + " checked";
+
+      document.querySelectorAll(".category").forEach(function (cat) {
+        var key = cat.getAttribute("data-cat");
+        var phase = key.split("-")[0];
+        var items = checkboxes.filter(function (cb) { return cb.getAttribute("data-id").indexOf(phase + "-") === 0 && cb.closest(".category") === cat; });
+        var d = items.filter(function (cb) { return cb.checked; }).length;
+        var tally = cat.querySelector(".tally");
+        if (tally) tally.textContent = d + " / " + items.length;
+      });
+    }
+
+    var tabs = [document.getElementById("tab-p2"), document.getElementById("tab-p3"), document.getElementById("tab-p4")];
+    tabs.forEach(function (tab) {
+      tab.addEventListener("click", function () {
+        tabs.forEach(function (t) { t.setAttribute("aria-selected", t === tab ? "true" : "false"); });
+        Object.keys(panels).forEach(function (key) {
+          panels[key].classList.toggle("active", tab.getAttribute("data-panel") === panels[key].id);
+        });
+      });
+    });
+
+    recompute();
+  })();
+</script>

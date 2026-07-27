@@ -32,6 +32,8 @@ export interface CandidateProfileAttributes {
   isActivelyLooking: boolean;
   location: string | null;
   noticePeriod: NoticePeriod | null;
+  assignedVerifierId: string | null;
+  submittedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -56,6 +58,8 @@ type CandidateProfileCreationAttributes = Optional<
   | 'isActivelyLooking'
   | 'location'
   | 'noticePeriod'
+  | 'assignedVerifierId'
+  | 'submittedAt'
   | 'createdAt'
   | 'updatedAt'
 >;
@@ -83,6 +87,8 @@ export class CandidateProfile
   declare isActivelyLooking: boolean;
   declare location: string | null;
   declare noticePeriod: NoticePeriod | null;
+  declare assignedVerifierId: string | null;
+  declare submittedAt: Date | null;
   declare readonly createdAt: Date;
   declare readonly updatedAt: Date;
 }
@@ -139,6 +145,8 @@ CandidateProfile.init(
       allowNull: true,
       field: 'notice_period',
     },
+    assignedVerifierId: { type: DataTypes.UUID, allowNull: true, field: 'assigned_verifier_id' },
+    submittedAt: { type: DataTypes.DATE, allowNull: true, field: 'submitted_at' },
     createdAt: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW, field: 'created_at' },
     updatedAt: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW, field: 'updated_at' },
   },

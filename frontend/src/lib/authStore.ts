@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { apiFetch, setAccessToken as setApiAccessToken } from './apiClient'
 
 export type Role = 'candidate' | 'company' | 'verifier' | 'admin'
@@ -161,26 +161,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // On mount: attempt a silent refresh using the httpOnly cookie from a
   // previous session, then fetch the current user if that succeeds.
+  //
+  // Guarded by a ref, not a `cancelled`-in-cleanup flag: React 18
+  // StrictMode double-invokes this effect once in dev (mount → cleanup →
+  // mount), and a `cancelled` closure gets marked true by that first
+  // cleanup before its request resolves — silently discarding the result
+  // (harmless here specifically, since a second real call still completes
+  // normally, but it shows up as a duplicate /auth/refresh call in the
+  // console every load). The ref survives the whole StrictMode dance, so
+  // it reliably keeps this to one real call. See TotpPage.tsx's enrollment
+  // effect for a case where this exact combination silently broke the page
+  // instead of just being noisy.
+  const bootstrappedRef = useRef(false)
+
   useEffect(() => {
-    let cancelled = false
+    if (bootstrappedRef.current) return
+    bootstrappedRef.current = true
+
     ;(async () => {
       const refreshed = await refreshAccessToken()
-      if (refreshed && !cancelled) {
+      if (refreshed) {
         try {
           const me = await apiFetch<AuthUser>('/auth/me')
-          if (!cancelled) setUser(me)
+          setUser(me)
         } catch {
-          if (!cancelled) {
-            applyToken(null)
-            setUser(null)
-          }
+          applyToken(null)
+          setUser(null)
         }
       }
-      if (!cancelled) setIsLoading(false)
+      setIsLoading(false)
     })()
-    return () => {
-      cancelled = true
-    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 

@@ -18,7 +18,12 @@ import CompanySetupPage from '@/pages/company/CompanySetupPage'
 import SearchPage from '@/pages/company/SearchPage'
 import UnlockedCandidatesPage from '@/pages/company/UnlockedCandidatesPage'
 import MessagesPage from '@/pages/company/MessagesPage'
-import VerifierStub from '@/pages/stubs/VerifierStub'
+import VerifierLayout from '@/pages/verifier/VerifierLayout'
+import QueuePage from '@/pages/verifier/QueuePage'
+import ProfileReviewPage from '@/pages/verifier/ProfileReviewPage'
+import BadgeQueuePage from '@/pages/verifier/BadgeQueuePage'
+import AchievementQueuePage from '@/pages/verifier/AchievementQueuePage'
+import AnalyticsPage from '@/pages/verifier/AnalyticsPage'
 import AdminStub from '@/pages/stubs/AdminStub'
 import NotFoundPage from '@/pages/NotFoundPage'
 
@@ -106,10 +111,17 @@ function AppShell() {
             path="/verify"
             element={
               <ProtectedRoute allow={['verifier']}>
-                <VerifierStub />
+                <VerifierLayout />
               </ProtectedRoute>
             }
-          />
+          >
+            <Route index element={<QueuePage />} />
+            <Route path="queue" element={<QueuePage />} />
+            <Route path="profiles/:id" element={<ProfileReviewPage />} />
+            <Route path="badges" element={<BadgeQueuePage />} />
+            <Route path="achievements" element={<AchievementQueuePage />} />
+            <Route path="analytics" element={<AnalyticsPage />} />
+          </Route>
           <Route
             path="/admin"
             element={

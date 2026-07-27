@@ -22,6 +22,17 @@ export function generateTotpSecret(email: string): TotpSecretResult {
   return { secret, otpauthUrl };
 }
 
+/**
+ * Rebuilds the otpauth:// URI for an ALREADY-ISSUED secret (as opposed to
+ * generateTotpSecret, which mints a brand-new random one). Needed when a
+ * concurrent enrollment race means the secret that actually got persisted
+ * differs from the one this request originally generated — see the
+ * unique-constraint recovery path in authController.totpEnroll.
+ */
+export function buildOtpauthUrl(email: string, secret: string): string {
+  return authenticator.keyuri(email, env.TOTP_ISSUER, secret);
+}
+
 export function verifyTotpToken(secret: string, token: string): boolean {
   try {
     return authenticator.verify({ token, secret });

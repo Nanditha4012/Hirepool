@@ -20,6 +20,7 @@ import type {
   CandidateCategory,
   CandidateStatus,
   CompanyType,
+  NoticePeriod,
 } from '../models/CandidateProfile';
 import type { RoleMasterAttributes } from '../models/RoleMaster';
 import type { DomainMasterAttributes } from '../models/DomainMaster';
@@ -85,6 +86,8 @@ interface CandidateProfileResponse {
   teamSizeManaged: number | null;
   budgetOwned: string | null;
   titleLevel: string | null;
+  location: string | null;
+  noticePeriod: NoticePeriod | null;
   isActivelyLooking: boolean;
   secondaryRoles: { id: string; roleName: string }[];
   skills: { id: string; skillName: string }[];
@@ -187,6 +190,8 @@ async function buildProfileResponse(
     teamSizeManaged: plainProfile.teamSizeManaged,
     budgetOwned: plainProfile.budgetOwned,
     titleLevel: plainProfile.titleLevel,
+    location: plainProfile.location,
+    noticePeriod: plainProfile.noticePeriod,
     isActivelyLooking: plainProfile.isActivelyLooking,
     secondaryRoles,
     skills,
@@ -216,20 +221,31 @@ const upsertProfileSchema = z.object({
   category: z.enum(['fresher', 'experienced', 'executive']).optional(),
   fullName: z.string().optional(),
   phone: z.string().optional(),
-  primaryRoleId: z.string().uuid().optional(),
+  // Combobox-backed id fields round-trip as `null` from the frontend
+  // (FormState types them `string | null`, defaulting to null until the
+  // candidate picks something) — `.nullable()` alongside `.optional()` is
+  // required so an unset field validates instead of 400ing on every save
+  // until every optional dropdown has been touched.
+  primaryRoleId: z.string().uuid().nullable().optional(),
   secondaryRoleIds: z.array(z.string().uuid()).optional(),
   skillIds: z.array(z.string().uuid()).optional(),
-  domainId: z.string().uuid().optional(),
+  domainId: z.string().uuid().nullable().optional(),
   resumeLink: z.string().optional(),
   portfolioLink: z.string().optional(),
   yearsOfExperience: z.number().int().optional(),
-  currentCompanyId: z.string().uuid().optional(),
-  designationRoleId: z.string().uuid().optional(),
+  currentCompanyId: z.string().uuid().nullable().optional(),
+  designationRoleId: z.string().uuid().nullable().optional(),
   offerLetterOrLinkedinLink: z.string().optional(),
   companyType: z.enum(['mnc', 'startup', 'agency']).optional(),
   teamSizeManaged: z.number().int().optional(),
   budgetOwned: z.string().optional(),
   titleLevel: z.string().optional(),
+  // Phase 3 additions — previously missing from this schema entirely, so
+  // the frontend's location/noticePeriod fields were silently dropped
+  // (zod ignores unknown keys on a plain z.object()) rather than erroring,
+  // but still never persisted.
+  location: z.string().optional(),
+  noticePeriod: z.enum(['immediate', '15_days', '30_days', '60_days', '90_plus_days']).nullable().optional(),
 });
 
 const PROFILE_FIELD_KEYS = [
@@ -246,6 +262,8 @@ const PROFILE_FIELD_KEYS = [
   'teamSizeManaged',
   'budgetOwned',
   'titleLevel',
+  'location',
+  'noticePeriod',
 ] as const;
 
 export const upsertMyProfile = asyncHandler(async (req: Request, res: Response) => {
@@ -374,6 +392,7 @@ export const submitMyProfile = asyncHandler(async (req: Request, res: Response) 
     }
 
     profile.status = 'submitted';
+    profile.submittedAt = new Date();
     await profile.save({ transaction: t });
 
     return buildProfileResponse(authUser.id, t);

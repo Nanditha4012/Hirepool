@@ -10,6 +10,7 @@ router.get('/platform-badges', masterController.listPlatformBadges);
 router.get('/companies', masterController.listCompanies);
 router.get('/skills', masterController.listSkills);
 router.get('/domains', masterController.listDomains);
+router.get('/rejection-reasons', masterController.listRejectionReasons);
 router.post(
   '/companies/request',
   requireAuth,
