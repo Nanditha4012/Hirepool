@@ -3,6 +3,7 @@ import * as candidateController from '../controllers/candidateController';
 import * as platformBadgeController from '../controllers/platformBadgeController';
 import * as achievementController from '../controllers/achievementController';
 import * as messageController from '../controllers/messageController';
+import * as candidateBlockController from '../controllers/candidateBlockController';
 import { requireAuth } from '../middleware/requireAuth';
 import { requireRole } from '../middleware/requireRole';
 
@@ -25,6 +26,12 @@ router.patch(
   requireAuth,
   requireRole('candidate'),
   candidateController.setLookingStatus,
+);
+router.get(
+  '/me/unlocked-by',
+  requireAuth,
+  requireRole('candidate'),
+  candidateController.listWhoUnlockedMe,
 );
 
 // Platform badges
@@ -76,6 +83,15 @@ router.post(
   requireAuth,
   requireRole('candidate'),
   messageController.replyToThread,
+);
+
+// Blocks (company-side messaging respects these — see
+// companyMessageController.startOrReplyThread)
+router.post(
+  '/me/blocks/:companyId',
+  requireAuth,
+  requireRole('candidate'),
+  candidateBlockController.blockCompany,
 );
 
 export default router;

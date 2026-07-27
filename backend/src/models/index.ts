@@ -17,6 +17,9 @@ import { DomainMaster } from './DomainMaster';
 import { CandidateSkill } from './CandidateSkill';
 import { CandidateSecondaryRole } from './CandidateSecondaryRole';
 import { CompanyRequest } from './CompanyRequest';
+import { PlanMaster } from './PlanMaster';
+import { Unlock } from './Unlock';
+import { CompanyBlock } from './CompanyBlock';
 
 // User <-> CandidateProfile (1:1)
 User.hasOne(CandidateProfile, { foreignKey: 'userId', as: 'candidateProfile' });
@@ -76,6 +79,22 @@ CandidateProfile.belongsTo(DomainMaster, { as: 'domain', foreignKey: 'domainId' 
 CandidateProfile.belongsTo(CompanyMaster, { as: 'currentCompany', foreignKey: 'currentCompanyId' });
 CandidateProfile.belongsTo(RoleMaster, { as: 'designationRole', foreignKey: 'designationRoleId' });
 
+// CompanyProfile <-> PlanMaster (many companies -> one plan)
+CompanyProfile.belongsTo(PlanMaster, { as: 'plan', foreignKey: 'planId' });
+
+// User <-> Unlock (1:many twice, as company and as candidate — same
+// double-hasMany pattern as Message above)
+User.hasMany(Unlock, { foreignKey: 'companyId', as: 'unlocksMade' });
+User.hasMany(Unlock, { foreignKey: 'candidateId', as: 'unlockedBy' });
+Unlock.belongsTo(User, { foreignKey: 'companyId', as: 'company' });
+Unlock.belongsTo(User, { foreignKey: 'candidateId', as: 'candidate' });
+
+// User <-> CompanyBlock (1:many twice, as company and as candidate)
+User.hasMany(CompanyBlock, { foreignKey: 'companyId', as: 'blocksMade' });
+User.hasMany(CompanyBlock, { foreignKey: 'candidateId', as: 'blockedBy' });
+CompanyBlock.belongsTo(User, { foreignKey: 'companyId', as: 'company' });
+CompanyBlock.belongsTo(User, { foreignKey: 'candidateId', as: 'candidate' });
+
 export {
   sequelize,
   User,
@@ -96,4 +115,7 @@ export {
   CandidateSkill,
   CandidateSecondaryRole,
   CompanyRequest,
+  PlanMaster,
+  Unlock,
+  CompanyBlock,
 };

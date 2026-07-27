@@ -27,4 +27,8 @@ export class ApiError extends Error {
   static conflict(message = 'Conflict'): ApiError {
     return new ApiError(409, message);
   }
+
+  static paymentRequired(message = 'Payment required'): ApiError {
+    return new ApiError(402, message);
+  }
 }

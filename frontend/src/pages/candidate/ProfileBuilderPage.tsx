@@ -41,6 +41,14 @@ const companyTypeOptions = [
   { value: 'agency', label: 'Agency' },
 ]
 
+const noticePeriodOptions = [
+  { value: 'immediate', label: 'Immediate' },
+  { value: '15_days', label: '15 days' },
+  { value: '30_days', label: '30 days' },
+  { value: '60_days', label: '60 days' },
+  { value: '90_plus_days', label: '90+ days' },
+]
+
 interface FormState {
   fullName: string
   phone: string
@@ -58,6 +66,8 @@ interface FormState {
   teamSizeManaged: string
   budgetOwned: string
   titleLevel: string
+  location: string
+  noticePeriod: string
 }
 
 function profileToForm(profile: CandidateProfileResponse): FormState {
@@ -78,6 +88,8 @@ function profileToForm(profile: CandidateProfileResponse): FormState {
     teamSizeManaged: profile.teamSizeManaged != null ? String(profile.teamSizeManaged) : '',
     budgetOwned: profile.budgetOwned || '',
     titleLevel: profile.titleLevel || '',
+    location: profile.location || '',
+    noticePeriod: profile.noticePeriod || '',
   }
 }
 
@@ -99,6 +111,8 @@ function formToBody(form: FormState): UpsertProfileBody {
     teamSizeManaged: form.teamSizeManaged !== '' ? Number(form.teamSizeManaged) : undefined,
     budgetOwned: form.budgetOwned,
     titleLevel: form.titleLevel,
+    location: form.location,
+    noticePeriod: (form.noticePeriod || undefined) as UpsertProfileBody['noticePeriod'],
   }
 }
 
@@ -340,6 +354,19 @@ export default function ProfileBuilderPage() {
               placeholder="https://..."
               value={form.portfolioLink}
               onChange={(e) => updateField('portfolioLink', e.target.value)}
+            />
+            <Input
+              label="Location"
+              placeholder="City, State"
+              value={form.location}
+              onChange={(e) => updateField('location', e.target.value)}
+            />
+            <Select
+              label="Notice period"
+              placeholder="Choose one"
+              options={noticePeriodOptions}
+              value={form.noticePeriod}
+              onChange={(e) => updateField('noticePeriod', e.target.value)}
             />
           </div>
         </Card>

@@ -1,0 +1,204 @@
+import { Request, Response } from 'express';
+import { z } from 'zod';
+import { CompanyProfile, Unlock, User, CandidateProfile, RoleMaster, CandidateAchievement, CandidatePlatformBadge } from '../models';
+import type { CandidateProfileAttributes } from '../models/CandidateProfile';
+import type { RoleMasterAttributes } from '../models/RoleMaster';
+import { asyncHandler } from '../utils/asyncHandler';
+import { ApiError } from '../utils/ApiError';
+import { runInRequestContext } from '../utils/withRequestContext';
+import { buildWhatsappLink } from '../utils/contact';
+
+// ---------------------------------------------------------------------
+// POST /unlock
+// ---------------------------------------------------------------------
+
+const unlockSchema = z.object({ candidateId: z.string().uuid() });
+
+export const unlockCandidate = asyncHandler(async (req: Request, res: Response) => {
+  const authUser = req.user!;
+  const { candidateId } = unlockSchema.parse(req.body);
+
+  const result = await runInRequestContext(authUser, async (t) => {
+    // Sequential — shares transaction `t` (see candidateController's
+    // buildProfileResponse comment for the full rationale).
+    const company = await CompanyProfile.findOne({ where: { userId: authUser.id }, transaction: t });
+    if (!company) {
+      throw ApiError.notFound('Company profile not found');
+    }
+    if (!company.verified) {
+      throw ApiError.forbidden('Your company must be verified before unlocking candidates');
+    }
+
+    const existing = await Unlock.findOne({
+      where: { companyId: authUser.id, candidateId },
+      transaction: t,
+    });
+
+    // Idempotent: an already-unlocked candidate is just returned again, no
+    // charge against remainingUnlocks.
+    if (existing) {
+      const candidateUser = await User.findByPk(candidateId, { transaction: t });
+      if (!candidateUser) {
+        throw ApiError.notFound('Candidate not found');
+      }
+      return {
+        unlock: existing,
+        phone: candidateUser.phone,
+        email: candidateUser.email,
+        whatsappLink: buildWhatsappLink(candidateUser.phone),
+      };
+    }
+
+    if (company.remainingUnlocks <= 0) {
+      throw ApiError.paymentRequired(
+        'No unlocks remaining on your current plan — upgrade to unlock more candidates',
+      );
+    }
+
+    const candidateUser = await User.findByPk(candidateId, { transaction: t });
+    if (!candidateUser || candidateUser.role !== 'candidate') {
+      throw ApiError.notFound('Candidate not found');
+    }
+
+    const created = await Unlock.create({ companyId: authUser.id, candidateId }, { transaction: t });
+
+    company.remainingUnlocks -= 1;
+    await company.save({ transaction: t });
+
+    return {
+      unlock: created,
+      phone: candidateUser.phone,
+      email: candidateUser.email,
+      whatsappLink: buildWhatsappLink(candidateUser.phone),
+    };
+  });
+
+  res.status(201).json(result);
+});
+
+// ---------------------------------------------------------------------
+// GET /me/unlocked
+// ---------------------------------------------------------------------
+
+interface UnlockedCandidateResponse {
+  candidateId: string;
+  fullName: string | null;
+  primaryRole: { id: string; roleName: string } | null;
+  category: string | null;
+  verifiedAchievementCounts: { projects: number; research: number; achievements: number };
+  platformBadges: {
+    id: string;
+    platformName: string;
+    badgeSelected: string;
+    platformProfileLink: string;
+    verificationStatus: string;
+    totalQuestionsSolved: number;
+  }[];
+  note: string | null;
+  unlockedAt: Date;
+  phone: string | null;
+  email: string | null;
+  whatsappLink: string | null;
+}
+
+export const listMyUnlocked = asyncHandler(async (req: Request, res: Response) => {
+  const authUser = req.user!;
+
+  const results = await runInRequestContext(authUser, async (t) => {
+    const unlocks = await Unlock.findAll({
+      where: { companyId: authUser.id },
+      order: [['unlockedAt', 'DESC']],
+      transaction: t,
+    });
+
+    const items: UnlockedCandidateResponse[] = [];
+    for (const unlock of unlocks) {
+      // Sequential per-unlock detail fetches — same reasoning as
+      // candidateController.buildProfileResponse.
+      const candidateUser = await User.findByPk(unlock.candidateId, { transaction: t });
+      const profile = await CandidateProfile.findOne({
+        where: { userId: unlock.candidateId },
+        include: [{ model: RoleMaster, as: 'primaryRole' }],
+        transaction: t,
+      });
+      const achievementRows = await CandidateAchievement.findAll({
+        where: { candidateId: unlock.candidateId, verificationStatus: 'verified' },
+        attributes: ['type'],
+        transaction: t,
+      });
+      const badgeRows = await CandidatePlatformBadge.findAll({
+        where: { candidateId: unlock.candidateId },
+        transaction: t,
+      });
+
+      const plainProfile = profile
+        ? (profile.get({ plain: true }) as CandidateProfileAttributes & {
+            primaryRole: RoleMasterAttributes | null;
+          })
+        : null;
+
+      const verifiedAchievementCounts = { projects: 0, research: 0, achievements: 0 };
+      for (const row of achievementRows) {
+        if (row.type === 'project') verifiedAchievementCounts.projects += 1;
+        else if (row.type === 'research') verifiedAchievementCounts.research += 1;
+        else if (row.type === 'achievement') verifiedAchievementCounts.achievements += 1;
+      }
+
+      items.push({
+        candidateId: unlock.candidateId,
+        fullName: candidateUser?.fullName ?? null,
+        primaryRole: plainProfile?.primaryRole
+          ? { id: plainProfile.primaryRole.id, roleName: plainProfile.primaryRole.roleName }
+          : null,
+        category: plainProfile?.category ?? null,
+        verifiedAchievementCounts,
+        platformBadges: badgeRows.map((b) => ({
+          id: b.id,
+          platformName: b.platformName,
+          badgeSelected: b.badgeSelected,
+          platformProfileLink: b.platformProfileLink,
+          verificationStatus: b.verificationStatus,
+          totalQuestionsSolved: b.totalQuestionsSolved,
+        })),
+        note: unlock.note,
+        unlockedAt: unlock.unlockedAt,
+        // Always shown here — being in this list means already unlocked.
+        phone: candidateUser?.phone ?? null,
+        email: candidateUser?.email ?? null,
+        whatsappLink: buildWhatsappLink(candidateUser?.phone),
+      });
+    }
+
+    return items;
+  });
+
+  res.json(results);
+});
+
+// ---------------------------------------------------------------------
+// PATCH /me/unlocked/:candidateId/note
+// ---------------------------------------------------------------------
+
+const updateNoteSchema = z.object({ note: z.string() });
+
+export const updateUnlockNote = asyncHandler(async (req: Request, res: Response) => {
+  const authUser = req.user!;
+  const { candidateId } = req.params;
+  const { note } = updateNoteSchema.parse(req.body);
+
+  const unlock = await runInRequestContext(authUser, async (t) => {
+    const existing = await Unlock.findOne({
+      where: { companyId: authUser.id, candidateId },
+      transaction: t,
+    });
+    if (!existing) {
+      throw ApiError.notFound('Unlock not found');
+    }
+
+    existing.note = note;
+    await existing.save({ transaction: t });
+    return existing;
+  });
+
+  res.json(unlock);
+});

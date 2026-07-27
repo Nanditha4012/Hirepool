@@ -13,7 +13,11 @@ import CategoryPage from '@/pages/onboarding/CategoryPage'
 import TotpPage from '@/pages/onboarding/TotpPage'
 import CandidateEntryPoint from '@/pages/candidate/CandidateEntryPoint'
 import ProfileBuilderPage from '@/pages/candidate/ProfileBuilderPage'
-import CompanyStub from '@/pages/stubs/CompanyStub'
+import CompanyEntryPoint from '@/pages/company/CompanyEntryPoint'
+import CompanySetupPage from '@/pages/company/CompanySetupPage'
+import SearchPage from '@/pages/company/SearchPage'
+import UnlockedCandidatesPage from '@/pages/company/UnlockedCandidatesPage'
+import MessagesPage from '@/pages/company/MessagesPage'
 import VerifierStub from '@/pages/stubs/VerifierStub'
 import AdminStub from '@/pages/stubs/AdminStub'
 import NotFoundPage from '@/pages/NotFoundPage'
@@ -62,7 +66,39 @@ function AppShell() {
             path="/company"
             element={
               <ProtectedRoute allow={['company']}>
-                <CompanyStub />
+                <CompanyEntryPoint />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/company/setup"
+            element={
+              <ProtectedRoute allow={['company']}>
+                <CompanySetupPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/company/search"
+            element={
+              <ProtectedRoute allow={['company']}>
+                <SearchPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/company/unlocked"
+            element={
+              <ProtectedRoute allow={['company']}>
+                <UnlockedCandidatesPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/company/messages"
+            element={
+              <ProtectedRoute allow={['company']}>
+                <MessagesPage />
               </ProtectedRoute>
             }
           />

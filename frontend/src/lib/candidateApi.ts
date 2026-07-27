@@ -97,6 +97,8 @@ export interface CandidateProfileResponse {
   teamSizeManaged: number | null
   budgetOwned: string | null
   titleLevel: string | null
+  location: string | null
+  noticePeriod: '15_days' | '30_days' | '60_days' | '90_plus_days' | 'immediate' | null
   isActivelyLooking: boolean
   secondaryRoles: RoleMaster[]
   skills: SkillMaster[]
@@ -123,6 +125,8 @@ export interface UpsertProfileBody {
   teamSizeManaged?: number
   budgetOwned?: string
   titleLevel?: string
+  location?: string
+  noticePeriod?: 'immediate' | '15_days' | '30_days' | '60_days' | '90_plus_days'
 }
 
 export function getMyProfile() {
@@ -291,4 +295,39 @@ export function replyToThread(companyId: string, body: string) {
     method: 'POST',
     body: JSON.stringify({ body }),
   })
+}
+
+// ---------------------------------------------------------------------------
+// Blocks
+// ---------------------------------------------------------------------------
+
+export interface CompanyBlockRow {
+  id: string
+  candidateId: string
+  companyId: string
+  reason: string | null
+  createdAt: string
+}
+
+export function blockCompany(companyId: string, reason?: string) {
+  return apiFetch<CompanyBlockRow>(`/candidates/me/blocks/${companyId}`, {
+    method: 'POST',
+    body: JSON.stringify({ reason }),
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Who unlocked me
+// ---------------------------------------------------------------------------
+
+export interface UnlockedByCompany {
+  companyId: string
+  companyName: string | null
+  logoLink: string | null
+  industry: string | null
+  unlockedAt: string
+}
+
+export function listWhoUnlockedMe() {
+  return apiFetch<UnlockedByCompany[]>('/candidates/me/unlocked-by')
 }

@@ -5,17 +5,20 @@ import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import ProfileCard, { type ProfileCardData } from '@/components/candidate/ProfileCard'
 import {
+  blockCompany,
   getMyProfile,
   listAchievements,
   listCompanies,
   listMyThreads,
   listPlatformBadges,
+  listWhoUnlockedMe,
   replyToThread,
   setLookingStatus,
   type CandidateProfileResponse,
   type CompanyMaster,
   type MessageThread,
   type PlatformBadgeRow,
+  type UnlockedByCompany,
 } from '@/lib/candidateApi'
 
 export default function DashboardPage() {
@@ -26,6 +29,7 @@ export default function DashboardPage() {
   const [platformBadges, setPlatformBadges] = useState<PlatformBadgeRow[]>([])
   const [verifiedCounts, setVerifiedCounts] = useState({ projects: 0, research: 0, achievements: 0 })
   const [threads, setThreads] = useState<MessageThread[]>([])
+  const [unlockedBy, setUnlockedBy] = useState<UnlockedByCompany[]>([])
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -34,21 +38,32 @@ export default function DashboardPage() {
   const [expandedThread, setExpandedThread] = useState<string | null>(null)
   const [replyBody, setReplyBody] = useState('')
   const [sendingReply, setSendingReply] = useState(false)
+  const [blockedCompanyIds, setBlockedCompanyIds] = useState<Set<string>>(new Set())
+  const [blockingCompanyId, setBlockingCompanyId] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
     ;(async () => {
       try {
-        const [profileResult, companiesResult, badgesResult, projects, research, achievements, threadsResult] =
-          await Promise.all([
-            getMyProfile(),
-            listCompanies(),
-            listPlatformBadges(),
-            listAchievements('project'),
-            listAchievements('research'),
-            listAchievements('achievement'),
-            listMyThreads(),
-          ])
+        const [
+          profileResult,
+          companiesResult,
+          badgesResult,
+          projects,
+          research,
+          achievements,
+          threadsResult,
+          unlockedByResult,
+        ] = await Promise.all([
+          getMyProfile(),
+          listCompanies(),
+          listPlatformBadges(),
+          listAchievements('project'),
+          listAchievements('research'),
+          listAchievements('achievement'),
+          listMyThreads(),
+          listWhoUnlockedMe(),
+        ])
         if (cancelled) return
         setProfile(profileResult)
         setCompanies(companiesResult)
@@ -59,6 +74,7 @@ export default function DashboardPage() {
           achievements: achievements.filter((p) => p.verificationStatus === 'verified').length,
         })
         setThreads(threadsResult)
+        setUnlockedBy(unlockedByResult)
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load your dashboard')
       } finally {
@@ -127,6 +143,19 @@ export default function DashboardPage() {
       setError(err instanceof Error ? err.message : 'Failed to send reply')
     } finally {
       setSendingReply(false)
+    }
+  }
+
+  const handleBlock = async (companyId: string) => {
+    if (!window.confirm('Block messages from this company?')) return
+    setBlockingCompanyId(companyId)
+    try {
+      await blockCompany(companyId)
+      setBlockedCompanyIds((prev) => new Set(prev).add(companyId))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to block company')
+    } finally {
+      setBlockingCompanyId(null)
     }
   }
 
@@ -239,22 +268,36 @@ export default function DashboardPage() {
                               </div>
                             ))}
                           </div>
-                          <div className="flex gap-2">
-                            <Input
-                              className="flex-1"
-                              placeholder="Write a reply…"
-                              value={expandedThread === thread.companyId ? replyBody : ''}
-                              onChange={(e) => setReplyBody(e.target.value)}
-                            />
-                            <Button
-                              type="button"
-                              size="sm"
-                              loading={sendingReply}
-                              onClick={() => handleReply(thread.companyId)}
-                            >
-                              Send
-                            </Button>
-                          </div>
+                          {blockedCompanyIds.has(thread.companyId) ? (
+                            <p className="text-sm text-ink/60">Blocked — they can no longer message you</p>
+                          ) : (
+                            <>
+                              <div className="flex gap-2">
+                                <Input
+                                  className="flex-1"
+                                  placeholder="Write a reply…"
+                                  value={expandedThread === thread.companyId ? replyBody : ''}
+                                  onChange={(e) => setReplyBody(e.target.value)}
+                                />
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  loading={sendingReply}
+                                  onClick={() => handleReply(thread.companyId)}
+                                >
+                                  Send
+                                </Button>
+                              </div>
+                              <button
+                                type="button"
+                                className="self-start text-xs text-danger underline disabled:opacity-50"
+                                disabled={blockingCompanyId === thread.companyId}
+                                onClick={() => handleBlock(thread.companyId)}
+                              >
+                                Block this company
+                              </button>
+                            </>
+                          )}
                         </div>
                       )}
                     </div>
@@ -277,7 +320,21 @@ export default function DashboardPage() {
 
           <Card>
             <h2 className="text-lg font-semibold text-ink">Companies who unlocked your contact</h2>
-            <p className="mt-2 text-sm text-ink/40">No companies have unlocked your profile yet.</p>
+            {unlockedBy.length === 0 ? (
+              <p className="mt-2 text-sm text-ink/40">No companies have unlocked your profile yet.</p>
+            ) : (
+              <div className="mt-3 flex flex-col gap-3">
+                {unlockedBy.map((entry) => (
+                  <div key={entry.companyId} className="border-b border-gray-100 pb-2 last:border-0 last:pb-0">
+                    <p className="font-medium text-ink">{entry.companyName || 'Unknown company'}</p>
+                    {entry.industry && <p className="text-sm text-ink/60">{entry.industry}</p>}
+                    <p className="text-xs text-ink/40">
+                      Unlocked {new Date(entry.unlockedAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
           </Card>
         </div>
       </div>

@@ -12,6 +12,8 @@ import {
   SkillMaster,
   VerificationLog,
   CandidateAchievement,
+  Unlock,
+  CompanyProfile,
 } from '../models';
 import type {
   CandidateProfileAttributes,
@@ -408,4 +410,52 @@ export const setLookingStatus = asyncHandler(async (req: Request, res: Response)
   });
 
   res.json(profile);
+});
+
+// ---------------------------------------------------------------------
+// GET /me/unlocked-by — Phase 3: companies who have unlocked this
+// candidate's contact info. Relies on the RLS policies added in
+// migrations/20240103000002-phase3-rls-policies.js
+// (unlocks_candidate_select, company_profiles_candidate_select).
+// ---------------------------------------------------------------------
+
+interface UnlockedByCompanyResponse {
+  companyId: string;
+  companyName: string | null;
+  logoLink: string | null;
+  industry: string | null;
+  unlockedAt: Date;
+}
+
+export const listWhoUnlockedMe = asyncHandler(async (req: Request, res: Response) => {
+  const authUser = req.user!;
+
+  const results = await runInRequestContext(authUser, async (t) => {
+    const unlocks = await Unlock.findAll({
+      where: { candidateId: authUser.id },
+      order: [['unlockedAt', 'DESC']],
+      transaction: t,
+    });
+
+    const items: UnlockedByCompanyResponse[] = [];
+    for (const unlock of unlocks) {
+      // Sequential — shares transaction `t` (see buildProfileResponse above).
+      const companyProfile = await CompanyProfile.findOne({
+        where: { userId: unlock.companyId },
+        transaction: t,
+      });
+
+      items.push({
+        companyId: unlock.companyId,
+        companyName: companyProfile?.companyName ?? null,
+        logoLink: companyProfile?.logoLink ?? null,
+        industry: companyProfile?.industry ?? null,
+        unlockedAt: unlock.unlockedAt,
+      });
+    }
+
+    return items;
+  });
+
+  res.json(results);
 });

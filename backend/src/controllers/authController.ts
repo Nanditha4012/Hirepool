@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { z } from 'zod';
 import { Op, UniqueConstraintError } from 'sequelize';
 import { OAuth2Client } from 'google-auth-library';
-import { User, CandidateProfile, CompanyProfile, TotpSecret } from '../models';
+import { User, CandidateProfile, CompanyProfile, TotpSecret, PlanMaster } from '../models';
 import { env } from '../config/env';
 import { asyncHandler } from '../utils/asyncHandler';
 import { ApiError } from '../utils/ApiError';
@@ -76,9 +76,16 @@ function issueSession(res: Response, user: { id: string; role: string }): string
  *
  * Note: CompanyProfile.company_name is NOT NULL, but neither
  * signup() nor googleAuth() collect a company name (spec's signup body is
- * only { email, password, role }) — the real company portal (Phase 3) is
- * expected to let the company fill this in properly. Using the account
+ * only { email, password, role }) — companyController.upsertMyCompanyProfile
+ * (Phase 3) is where the company fills this in properly. Using the account
  * email as a placeholder here so the row can exist at all.
+ *
+ * Phase 3: every new company is placed on the Free plan with the same
+ * small dev-friendly starter allotment (3 unlocks) used to backfill
+ * pre-Phase-3 rows in migrations/20240103000001-phase3-company-portal.js —
+ * set explicitly here rather than via a column DEFAULT (see that
+ * migration's comments for why), so this is the one place a signing-up
+ * company's quota is decided. Real quota top-ups via payment are Phase 6.
  */
 async function createProfileForNewUser(
   userId: string,
@@ -89,7 +96,14 @@ async function createProfileForNewUser(
   if (role === 'candidate') {
     await CandidateProfile.create({ userId, status: 'draft' }, options);
   } else {
-    await CompanyProfile.create({ userId, companyName: email }, options);
+    const freePlan = await PlanMaster.findOne({
+      where: { name: 'Free' },
+      transaction: options?.transaction,
+    });
+    await CompanyProfile.create(
+      { userId, companyName: email, planId: freePlan?.id ?? null, remainingUnlocks: 3 },
+      options,
+    );
   }
 }
 

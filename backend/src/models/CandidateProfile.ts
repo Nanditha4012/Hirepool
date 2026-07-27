@@ -10,6 +10,7 @@ export type CandidateStatus =
   | 'rejected'
   | 'needs_info';
 export type CompanyType = 'mnc' | 'startup' | 'agency';
+export type NoticePeriod = 'immediate' | '15_days' | '30_days' | '60_days' | '90_plus_days';
 
 export interface CandidateProfileAttributes {
   id: string;
@@ -29,6 +30,8 @@ export interface CandidateProfileAttributes {
   budgetOwned: string | null;
   titleLevel: string | null;
   isActivelyLooking: boolean;
+  location: string | null;
+  noticePeriod: NoticePeriod | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -51,6 +54,8 @@ type CandidateProfileCreationAttributes = Optional<
   | 'budgetOwned'
   | 'titleLevel'
   | 'isActivelyLooking'
+  | 'location'
+  | 'noticePeriod'
   | 'createdAt'
   | 'updatedAt'
 >;
@@ -76,6 +81,8 @@ export class CandidateProfile
   declare budgetOwned: string | null;
   declare titleLevel: string | null;
   declare isActivelyLooking: boolean;
+  declare location: string | null;
+  declare noticePeriod: NoticePeriod | null;
   declare readonly createdAt: Date;
   declare readonly updatedAt: Date;
 }
@@ -125,6 +132,12 @@ CandidateProfile.init(
       allowNull: false,
       defaultValue: true,
       field: 'is_actively_looking',
+    },
+    location: { type: DataTypes.STRING, allowNull: true },
+    noticePeriod: {
+      type: DataTypes.ENUM('immediate', '15_days', '30_days', '60_days', '90_plus_days'),
+      allowNull: true,
+      field: 'notice_period',
     },
     createdAt: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW, field: 'created_at' },
     updatedAt: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW, field: 'updated_at' },
