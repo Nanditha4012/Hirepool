@@ -11,7 +11,8 @@ import SignupPage from '@/pages/SignupPage'
 import LoginPage from '@/pages/LoginPage'
 import CategoryPage from '@/pages/onboarding/CategoryPage'
 import TotpPage from '@/pages/onboarding/TotpPage'
-import CandidateStub from '@/pages/stubs/CandidateStub'
+import CandidateEntryPoint from '@/pages/candidate/CandidateEntryPoint'
+import ProfileBuilderPage from '@/pages/candidate/ProfileBuilderPage'
 import CompanyStub from '@/pages/stubs/CompanyStub'
 import VerifierStub from '@/pages/stubs/VerifierStub'
 import AdminStub from '@/pages/stubs/AdminStub'
@@ -45,7 +46,15 @@ function AppShell() {
             path="/candidate"
             element={
               <ProtectedRoute allow={['candidate']}>
-                <CandidateStub />
+                <CandidateEntryPoint />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/candidate/edit"
+            element={
+              <ProtectedRoute allow={['candidate']}>
+                <ProfileBuilderPage />
               </ProtectedRoute>
             }
           />

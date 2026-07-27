@@ -11,13 +11,14 @@ export interface CandidatePlatformBadgeAttributes {
   platformProfileLink: string;
   verificationStatus: CandidatePlatformBadgeVerificationStatus;
   rejectionReason: string | null;
+  totalQuestionsSolved: number;
   createdAt: Date;
   updatedAt: Date;
 }
 
 type CandidatePlatformBadgeCreationAttributes = Optional<
   CandidatePlatformBadgeAttributes,
-  'id' | 'verificationStatus' | 'rejectionReason' | 'createdAt' | 'updatedAt'
+  'id' | 'verificationStatus' | 'rejectionReason' | 'totalQuestionsSolved' | 'createdAt' | 'updatedAt'
 >;
 
 export class CandidatePlatformBadge
@@ -31,6 +32,7 @@ export class CandidatePlatformBadge
   declare platformProfileLink: string;
   declare verificationStatus: CandidatePlatformBadgeVerificationStatus;
   declare rejectionReason: string | null;
+  declare totalQuestionsSolved: number;
   declare readonly createdAt: Date;
   declare readonly updatedAt: Date;
 }
@@ -53,6 +55,12 @@ CandidatePlatformBadge.init(
       field: 'verification_status',
     },
     rejectionReason: { type: DataTypes.TEXT, allowNull: true, field: 'rejection_reason' },
+    totalQuestionsSolved: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 0,
+      field: 'total_questions_solved',
+    },
     createdAt: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW, field: 'created_at' },
     updatedAt: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW, field: 'updated_at' },
   },

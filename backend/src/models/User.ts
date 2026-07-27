@@ -10,12 +10,13 @@ export interface UserAttributes {
   passwordHash: string | null;
   googleId: string | null;
   phone: string | null;
+  fullName: string | null;
   createdAt: Date;
 }
 
 type UserCreationAttributes = Optional<
   UserAttributes,
-  'id' | 'passwordHash' | 'googleId' | 'phone' | 'createdAt'
+  'id' | 'passwordHash' | 'googleId' | 'phone' | 'fullName' | 'createdAt'
 >;
 
 export class User extends Model<UserAttributes, UserCreationAttributes> implements UserAttributes {
@@ -25,6 +26,7 @@ export class User extends Model<UserAttributes, UserCreationAttributes> implemen
   declare passwordHash: string | null;
   declare googleId: string | null;
   declare phone: string | null;
+  declare fullName: string | null;
   declare readonly createdAt: Date;
 }
 
@@ -59,6 +61,11 @@ User.init(
     phone: {
       type: DataTypes.STRING,
       allowNull: true,
+    },
+    fullName: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      field: 'full_name',
     },
     createdAt: {
       type: DataTypes.DATE,

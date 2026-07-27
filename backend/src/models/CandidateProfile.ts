@@ -9,19 +9,50 @@ export type CandidateStatus =
   | 'approved'
   | 'rejected'
   | 'needs_info';
+export type CompanyType = 'mnc' | 'startup' | 'agency';
 
 export interface CandidateProfileAttributes {
   id: string;
   userId: string;
   category: CandidateCategory | null;
   status: CandidateStatus;
+  primaryRoleId: string | null;
+  domainId: string | null;
+  resumeLink: string | null;
+  portfolioLink: string | null;
+  yearsOfExperience: number | null;
+  currentCompanyId: string | null;
+  designationRoleId: string | null;
+  offerLetterOrLinkedinLink: string | null;
+  companyType: CompanyType | null;
+  teamSizeManaged: number | null;
+  budgetOwned: string | null;
+  titleLevel: string | null;
+  isActivelyLooking: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
 
 type CandidateProfileCreationAttributes = Optional<
   CandidateProfileAttributes,
-  'id' | 'category' | 'status' | 'createdAt' | 'updatedAt'
+  | 'id'
+  | 'category'
+  | 'status'
+  | 'primaryRoleId'
+  | 'domainId'
+  | 'resumeLink'
+  | 'portfolioLink'
+  | 'yearsOfExperience'
+  | 'currentCompanyId'
+  | 'designationRoleId'
+  | 'offerLetterOrLinkedinLink'
+  | 'companyType'
+  | 'teamSizeManaged'
+  | 'budgetOwned'
+  | 'titleLevel'
+  | 'isActivelyLooking'
+  | 'createdAt'
+  | 'updatedAt'
 >;
 
 export class CandidateProfile
@@ -32,6 +63,19 @@ export class CandidateProfile
   declare userId: string;
   declare category: CandidateCategory | null;
   declare status: CandidateStatus;
+  declare primaryRoleId: string | null;
+  declare domainId: string | null;
+  declare resumeLink: string | null;
+  declare portfolioLink: string | null;
+  declare yearsOfExperience: number | null;
+  declare currentCompanyId: string | null;
+  declare designationRoleId: string | null;
+  declare offerLetterOrLinkedinLink: string | null;
+  declare companyType: CompanyType | null;
+  declare teamSizeManaged: number | null;
+  declare budgetOwned: string | null;
+  declare titleLevel: string | null;
+  declare isActivelyLooking: boolean;
   declare readonly createdAt: Date;
   declare readonly updatedAt: Date;
 }
@@ -55,6 +99,32 @@ CandidateProfile.init(
       ),
       allowNull: false,
       defaultValue: 'draft',
+    },
+    primaryRoleId: { type: DataTypes.UUID, allowNull: true, field: 'primary_role_id' },
+    domainId: { type: DataTypes.UUID, allowNull: true, field: 'domain_id' },
+    resumeLink: { type: DataTypes.STRING, allowNull: true, field: 'resume_link' },
+    portfolioLink: { type: DataTypes.STRING, allowNull: true, field: 'portfolio_link' },
+    yearsOfExperience: { type: DataTypes.INTEGER, allowNull: true, field: 'years_of_experience' },
+    currentCompanyId: { type: DataTypes.UUID, allowNull: true, field: 'current_company_id' },
+    designationRoleId: { type: DataTypes.UUID, allowNull: true, field: 'designation_role_id' },
+    offerLetterOrLinkedinLink: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      field: 'offer_letter_or_linkedin_link',
+    },
+    companyType: {
+      type: DataTypes.ENUM('mnc', 'startup', 'agency'),
+      allowNull: true,
+      field: 'company_type',
+    },
+    teamSizeManaged: { type: DataTypes.INTEGER, allowNull: true, field: 'team_size_managed' },
+    budgetOwned: { type: DataTypes.STRING, allowNull: true, field: 'budget_owned' },
+    titleLevel: { type: DataTypes.STRING, allowNull: true, field: 'title_level' },
+    isActivelyLooking: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: true,
+      field: 'is_actively_looking',
     },
     createdAt: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW, field: 'created_at' },
     updatedAt: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW, field: 'updated_at' },

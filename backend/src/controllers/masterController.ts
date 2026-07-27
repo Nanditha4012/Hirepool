@@ -1,5 +1,13 @@
 import { Request, Response } from 'express';
-import { RoleMaster, PlatformBadgeMaster, CompanyMaster } from '../models';
+import { z } from 'zod';
+import {
+  RoleMaster,
+  PlatformBadgeMaster,
+  CompanyMaster,
+  SkillMaster,
+  DomainMaster,
+  CompanyRequest,
+} from '../models';
 import { asyncHandler } from '../utils/asyncHandler';
 import { runInRequestContext } from '../utils/withRequestContext';
 
@@ -28,4 +36,36 @@ export const listCompanies = asyncHandler(async (req: Request, res: Response) =>
     CompanyMaster.findAll({ order: [['companyName', 'ASC']], transaction: t }),
   );
   res.json(companies);
+});
+
+export const listSkills = asyncHandler(async (req: Request, res: Response) => {
+  const skills = await runInRequestContext(null, (t) =>
+    SkillMaster.findAll({ order: [['skillName', 'ASC']], transaction: t }),
+  );
+  res.json(skills);
+});
+
+export const listDomains = asyncHandler(async (req: Request, res: Response) => {
+  const domains = await runInRequestContext(null, (t) =>
+    DomainMaster.findAll({ order: [['domainName', 'ASC']], transaction: t }),
+  );
+  res.json(domains);
+});
+
+const requestCompanySchema = z.object({
+  companyName: z.string().min(1),
+});
+
+export const requestCompany = asyncHandler(async (req: Request, res: Response) => {
+  const authUser = req.user!;
+  const { companyName } = requestCompanySchema.parse(req.body);
+
+  const request = await runInRequestContext(authUser, (t) =>
+    CompanyRequest.create(
+      { requestedBy: authUser.id, companyName, status: 'pending' },
+      { transaction: t },
+    ),
+  );
+
+  res.status(201).json(request);
 });

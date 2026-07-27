@@ -12,6 +12,11 @@ import { Notification } from './Notification';
 import { CandidatePlatformBadge } from './CandidatePlatformBadge';
 import { CandidateAchievement } from './CandidateAchievement';
 import { TotpSecret } from './TotpSecret';
+import { SkillMaster } from './SkillMaster';
+import { DomainMaster } from './DomainMaster';
+import { CandidateSkill } from './CandidateSkill';
+import { CandidateSecondaryRole } from './CandidateSecondaryRole';
+import { CompanyRequest } from './CompanyRequest';
 
 // User <-> CandidateProfile (1:1)
 User.hasOne(CandidateProfile, { foreignKey: 'userId', as: 'candidateProfile' });
@@ -51,6 +56,26 @@ VerificationLog.belongsTo(User, { foreignKey: 'reviewerId', as: 'reviewer' });
 User.hasMany(AdminAuditLog, { foreignKey: 'adminId', as: 'adminAuditLogs' });
 AdminAuditLog.belongsTo(User, { foreignKey: 'adminId', as: 'admin' });
 
+// User <-> CandidateSkill (1:many, via candidate_id)
+User.hasMany(CandidateSkill, { foreignKey: 'candidateId', as: 'candidateSkills' });
+CandidateSkill.belongsTo(User, { foreignKey: 'candidateId', as: 'candidate' });
+CandidateSkill.belongsTo(SkillMaster, { foreignKey: 'skillId', as: 'skill' });
+
+// User <-> CandidateSecondaryRole (1:many, via candidate_id)
+User.hasMany(CandidateSecondaryRole, { foreignKey: 'candidateId', as: 'secondaryRoles' });
+CandidateSecondaryRole.belongsTo(User, { foreignKey: 'candidateId', as: 'candidate' });
+CandidateSecondaryRole.belongsTo(RoleMaster, { foreignKey: 'roleId', as: 'role' });
+
+// User <-> CompanyRequest (1:many, via requested_by)
+User.hasMany(CompanyRequest, { foreignKey: 'requestedBy', as: 'companyRequests' });
+CompanyRequest.belongsTo(User, { foreignKey: 'requestedBy', as: 'requester' });
+
+// CandidateProfile <-> new master tables
+CandidateProfile.belongsTo(RoleMaster, { as: 'primaryRole', foreignKey: 'primaryRoleId' });
+CandidateProfile.belongsTo(DomainMaster, { as: 'domain', foreignKey: 'domainId' });
+CandidateProfile.belongsTo(CompanyMaster, { as: 'currentCompany', foreignKey: 'currentCompanyId' });
+CandidateProfile.belongsTo(RoleMaster, { as: 'designationRole', foreignKey: 'designationRoleId' });
+
 export {
   sequelize,
   User,
@@ -66,4 +91,9 @@ export {
   CandidatePlatformBadge,
   CandidateAchievement,
   TotpSecret,
+  SkillMaster,
+  DomainMaster,
+  CandidateSkill,
+  CandidateSecondaryRole,
+  CompanyRequest,
 };
