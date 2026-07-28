@@ -5,59 +5,38 @@ import { requireRole } from '../middleware/requireRole';
 
 const router = Router();
 
-router.get('/ping', requireAuth, requireRole('verifier'), verifierController.ping);
+// Every route below is verifier-only; the pair is applied per-route rather
+// than via router.use() to keep each line self-documenting (same convention
+// as candidateRoutes/companyRoutes).
+const verifierOnly = [requireAuth, requireRole('verifier')] as const;
 
-router.get(
-  '/queue/profiles',
-  requireAuth,
-  requireRole('verifier'),
-  verifierController.listProfileQueue,
-);
-router.post(
-  '/profiles/:id/claim',
-  requireAuth,
-  requireRole('verifier'),
-  verifierController.claimProfile,
-);
-router.get(
-  '/profiles/:id',
-  requireAuth,
-  requireRole('verifier'),
-  verifierController.getProfileForReview,
-);
-router.post(
-  '/profiles/:id/decision',
-  requireAuth,
-  requireRole('verifier'),
-  verifierController.decideProfile,
-);
+router.get('/ping', ...verifierOnly, verifierController.ping);
 
-router.get(
-  '/queue/badges',
-  requireAuth,
-  requireRole('verifier'),
-  verifierController.listBadgeQueue,
-);
-router.post(
-  '/badges/:id/decision',
-  requireAuth,
-  requireRole('verifier'),
-  verifierController.decideBadge,
-);
+// Own account + personal stats. Declared before '/profiles/:id' so the
+// literal path can never be swallowed by the :id parameter.
+router.get('/me', ...verifierOnly, verifierController.getMyVerifierAccount);
+router.patch('/me', ...verifierOnly, verifierController.updateMyVerifierAccount);
+router.post('/me/password', ...verifierOnly, verifierController.changeMyVerifierPassword);
 
-router.get(
-  '/queue/achievements',
-  requireAuth,
-  requireRole('verifier'),
-  verifierController.listAchievementQueue,
-);
-router.post(
-  '/achievements/:id/decision',
-  requireAuth,
-  requireRole('verifier'),
-  verifierController.decideAchievement,
-);
+// The three catalogs (unverified / verified / rejected).
+router.get('/queue/profiles', ...verifierOnly, verifierController.listProfileQueue);
 
-router.get('/analytics', requireAuth, requireRole('verifier'), verifierController.getAnalytics);
+// Profile management — every reviewable profile, unconstrained by catalog.
+router.get('/profiles', ...verifierOnly, verifierController.listAllProfiles);
+
+router.post('/profiles/:id/claim', ...verifierOnly, verifierController.claimProfile);
+router.get('/profiles/:id', ...verifierOnly, verifierController.getProfileForReview);
+router.get('/profiles/:id/timeline', ...verifierOnly, verifierController.getProfileTimeline);
+router.post('/profiles/:id/field-checks', ...verifierOnly, verifierController.saveFieldChecks);
+router.post('/profiles/:id/decision', ...verifierOnly, verifierController.decideProfile);
+router.post('/profiles/:id/reopen', ...verifierOnly, verifierController.reopenProfile);
+
+router.get('/queue/badges', ...verifierOnly, verifierController.listBadgeQueue);
+router.post('/badges/:id/decision', ...verifierOnly, verifierController.decideBadge);
+
+router.get('/queue/achievements', ...verifierOnly, verifierController.listAchievementQueue);
+router.post('/achievements/:id/decision', ...verifierOnly, verifierController.decideAchievement);
+
+router.get('/analytics', ...verifierOnly, verifierController.getAnalytics);
 
 export default router;

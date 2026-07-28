@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import Card from '@/components/ui/Card'
 import Input from '@/components/ui/Input'
 import Button from '@/components/ui/Button'
@@ -7,6 +7,8 @@ import GoogleSignInButton from '@/components/GoogleSignInButton'
 import { useAuth } from '@/lib/authStore'
 import { isGoogleConfigured } from '@/lib/googleIdentity'
 import { navigateAfterAuth } from '@/lib/postAuthRoute'
+import { IMAGES } from '@/lib/images'
+import Logo from '@/components/ui/Logo'
 
 type SignupRole = 'candidate' | 'company'
 
@@ -56,13 +58,14 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="mx-auto flex max-w-md flex-col gap-6 px-4 py-16 sm:px-6">
-      <div className="text-center">
-        <h1 className="text-2xl font-bold text-ink">Create your account</h1>
-        <p className="mt-1 text-ink/60">Get verified once, get discovered forever.</p>
-      </div>
+    <div className="grid min-h-[calc(100vh-8rem)] lg:grid-cols-2">
+      <div className="mx-auto flex w-full max-w-md animate-fade-up flex-col justify-center gap-6 px-4 py-16 sm:px-6">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-ink">Create your account</h1>
+          <p className="mt-1 text-ink/60">Get verified once, get discovered forever.</p>
+        </div>
 
-      <Card>
+        <Card>
         {/* Role tabs */}
         <div className="mb-6 grid grid-cols-2 gap-2 rounded-card bg-surface p-1">
           <button
@@ -70,7 +73,7 @@ export default function SignupPage() {
             onClick={() => setRole('candidate')}
             className={[
               'rounded-card py-2 text-sm font-semibold transition-colors',
-              role === 'candidate' ? 'bg-white text-primary shadow-soft' : 'text-ink/60',
+              role === 'candidate' ? 'bg-card text-primary shadow-soft' : 'text-ink/60',
             ].join(' ')}
           >
             I&apos;m a candidate
@@ -80,7 +83,7 @@ export default function SignupPage() {
             onClick={() => setRole('company')}
             className={[
               'rounded-card py-2 text-sm font-semibold transition-colors',
-              role === 'company' ? 'bg-white text-primary shadow-soft' : 'text-ink/60',
+              role === 'company' ? 'bg-card text-primary shadow-soft' : 'text-ink/60',
             ].join(' ')}
           >
             I&apos;m a company
@@ -116,9 +119,9 @@ export default function SignupPage() {
         {isGoogleConfigured() && (
           <>
             <div className="my-6 flex items-center gap-3">
-              <div className="h-px flex-1 bg-gray-200" />
+              <div className="h-px flex-1 bg-line" />
               <span className="text-xs uppercase text-ink/40">or</span>
-              <div className="h-px flex-1 bg-gray-200" />
+              <div className="h-px flex-1 bg-line" />
             </div>
 
             <GoogleSignInButton
@@ -129,13 +132,51 @@ export default function SignupPage() {
           </>
         )}
 
-        <p className="mt-6 text-center text-sm text-ink/60">
-          Already have an account?{' '}
-          <a href="/login" className="font-semibold text-primary">
-            Log in
-          </a>
-        </p>
-      </Card>
+          <p className="mt-6 text-center text-sm text-ink/60">
+            Already have an account?{' '}
+            <Link to="/login" className="font-semibold text-primary hover:underline">
+              Log in
+            </Link>
+          </p>
+        </Card>
+      </div>
+
+      {/* Photo panel, swapping with the selected role so the picture matches
+          the account being created. Hidden below lg. */}
+      <div className="relative hidden overflow-hidden lg:block">
+        <div className="absolute inset-0 bg-gradient-to-br from-accent via-primary to-primary-dark" />
+        <img
+          key={role}
+          src={role === 'candidate' ? IMAGES.authCandidate : IMAGES.authCompany}
+          alt=""
+          aria-hidden="true"
+          className="absolute inset-0 h-full w-full animate-fade-in object-cover opacity-30"
+        />
+        <div className="photo-scrim absolute inset-0" />
+        <div className="relative flex h-full flex-col justify-end p-12">
+          <Logo inverted size="md" className="mb-6" />
+          <h2 className="on-photo text-3xl font-extrabold leading-tight text-white">
+            {role === 'candidate' ? (
+              <>
+                Stop applying.
+                <br />
+                Start being found.
+              </>
+            ) : (
+              <>
+                Skip the resume pile.
+                <br />
+                Hire from verified talent.
+              </>
+            )}
+          </h2>
+          <p className="on-photo mt-3 max-w-sm text-white/85">
+            {role === 'candidate'
+              ? 'One verified profile, checked field by field by a real reviewer, working for you around the clock.'
+              : 'Search a pool where every claim has already been checked, and unlock only the candidates you want.'}
+          </p>
+        </div>
+      </div>
     </div>
   )
 }

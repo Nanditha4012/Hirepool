@@ -21,9 +21,9 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
           id={inputId}
           ref={ref}
           className={[
-            'rounded-card border px-3 py-2 text-ink placeholder:text-ink/40',
+            'rounded-card border bg-card px-3 py-2 text-ink placeholder:text-ink/40',
             'focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary',
-            error ? 'border-danger' : 'border-gray-300',
+            error ? 'border-danger' : 'border-line',
             className,
           ].join(' ')}
           aria-invalid={Boolean(error)}

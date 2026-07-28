@@ -3,6 +3,7 @@ import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import ProfileCard, { type ProfileCardData } from '@/components/candidate/ProfileCard'
 import { listMyUnlocked, updateUnlockNote, type UnlockedCandidate } from '@/lib/companyApi'
+import PageLoader from '@/components/ui/PageLoader'
 
 function mapToProfileCardData(candidate: UnlockedCandidate): ProfileCardData {
   return {
@@ -85,7 +86,7 @@ export default function UnlockedCandidatesPage() {
   if (loading) {
     return (
       <div className="mx-auto max-w-6xl px-4 py-16 text-center sm:px-6">
-        <p className="text-ink/60">Loading your unlocked candidates…</p>
+        <PageLoader label="Loading your unlocked candidates…" />
       </div>
     )
   }
@@ -126,7 +127,7 @@ export default function UnlockedCandidatesPage() {
                     setNoteDrafts((prev) => ({ ...prev, [candidate.candidateId]: e.target.value }))
                   }
                   className={[
-                    'rounded-card border border-gray-300 px-3 py-2 text-ink placeholder:text-ink/40',
+                    'rounded-card border border-line px-3 py-2 text-ink placeholder:text-ink/40',
                     'focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary',
                   ].join(' ')}
                   placeholder="Add a private note about this candidate…"

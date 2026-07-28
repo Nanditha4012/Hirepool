@@ -49,7 +49,7 @@ function PlatformChip({ badge }: { badge: ProfileCardData['platformBadges'][numb
       href={badge.platformProfileLink}
       target="_blank"
       rel="noreferrer"
-      className="inline-flex items-center gap-1.5 rounded-full border border-gray-300 bg-white px-2.5 py-1 text-xs font-medium text-ink hover:border-primary hover:text-primary"
+      className="inline-flex items-center gap-1.5 rounded-full border border-line bg-card px-2.5 py-1 text-xs font-medium text-ink hover:border-primary hover:text-primary"
     >
       <span className="flex h-5 w-5 items-center justify-center rounded-full bg-surface text-[10px] font-semibold text-ink/70">
         {badge.platformName.charAt(0).toUpperCase()}
@@ -102,7 +102,7 @@ export default function ProfileCard({ profile }: ProfileCardProps) {
   ].filter(Boolean) as string[]
 
   return (
-    <div className="overflow-hidden rounded-card bg-white shadow-soft">
+    <div className="overflow-hidden rounded-card bg-card shadow-soft">
       {status !== 'approved' && (
         <div className="bg-surface px-6 py-1.5 text-xs font-medium text-ink/60">
           {statusBannerText[status]}
@@ -198,7 +198,7 @@ export default function ProfileCard({ profile }: ProfileCardProps) {
         )}
 
         {hasContactInfo && (
-          <div className="mt-4 flex flex-wrap gap-4 border-t border-gray-100 pt-3 text-sm">
+          <div className="mt-4 flex flex-wrap gap-4 border-t border-line pt-3 text-sm">
             {phone && (
               <a href={`tel:${phone}`} className="inline-flex items-center gap-1.5 text-ink/70 hover:text-primary">
                 <span aria-hidden="true">☎</span>

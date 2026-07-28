@@ -34,6 +34,15 @@ export interface CandidateProfileAttributes {
   noticePeriod: NoticePeriod | null;
   assignedVerifierId: string | null;
   submittedAt: Date | null;
+  /**
+   * True when an already-live candidate has changed something that needs a
+   * fresh look (a new project, an edited badge). The profile stays
+   * `approved` and visible to companies — only the new item is unverified —
+   * but the candidate has to explicitly ask for re-verification, which is
+   * what `reverificationRequestedAt` records.
+   */
+  pendingReverification: boolean;
+  reverificationRequestedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -60,6 +69,8 @@ type CandidateProfileCreationAttributes = Optional<
   | 'noticePeriod'
   | 'assignedVerifierId'
   | 'submittedAt'
+  | 'pendingReverification'
+  | 'reverificationRequestedAt'
   | 'createdAt'
   | 'updatedAt'
 >;
@@ -89,6 +100,8 @@ export class CandidateProfile
   declare noticePeriod: NoticePeriod | null;
   declare assignedVerifierId: string | null;
   declare submittedAt: Date | null;
+  declare pendingReverification: boolean;
+  declare reverificationRequestedAt: Date | null;
   declare readonly createdAt: Date;
   declare readonly updatedAt: Date;
 }
@@ -147,6 +160,17 @@ CandidateProfile.init(
     },
     assignedVerifierId: { type: DataTypes.UUID, allowNull: true, field: 'assigned_verifier_id' },
     submittedAt: { type: DataTypes.DATE, allowNull: true, field: 'submitted_at' },
+    pendingReverification: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+      field: 'pending_reverification',
+    },
+    reverificationRequestedAt: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      field: 'reverification_requested_at',
+    },
     createdAt: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW, field: 'created_at' },
     updatedAt: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW, field: 'updated_at' },
   },

@@ -126,7 +126,7 @@ const ChipMultiSelect = ({
           className={[
             'flex w-full flex-wrap items-center gap-1.5 rounded-card border px-2 py-1.5',
             'focus-within:ring-2 focus-within:ring-primary focus-within:border-primary',
-            error ? 'border-danger' : 'border-gray-300',
+            error ? 'border-danger' : 'border-line',
             atLimit ? 'bg-surface' : '',
             className,
           ].join(' ')}

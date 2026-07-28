@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import Card from '@/components/ui/Card'
 import { getAnalytics, type VerifierAnalytics } from '@/lib/verifierApi'
+import PageLoader from '@/components/ui/PageLoader'
 
 function StatTile({ label, value }: { label: string; value: string }) {
   return (
@@ -36,7 +37,7 @@ export default function AnalyticsPage() {
   if (loading) {
     return (
       <div className="mx-auto max-w-5xl px-4 py-16 text-center sm:px-6">
-        <p className="text-ink/60">Loading analytics…</p>
+        <PageLoader label="Loading analytics…" />
       </div>
     )
   }
@@ -76,14 +77,14 @@ export default function AnalyticsPage() {
           <div className="mt-4 overflow-x-auto">
             <table className="w-full min-w-[420px] table-auto text-left text-sm">
               <thead>
-                <tr className="border-b border-gray-200 text-ink/60">
+                <tr className="border-b border-line text-ink/60">
                   <th className="py-2 pr-4 font-medium">Reason</th>
                   <th className="py-2 pr-4 font-medium">Count</th>
                 </tr>
               </thead>
               <tbody>
                 {analytics.rejectionReasonBreakdown.map((entry, index) => (
-                  <tr key={`${entry.notes}-${index}`} className="border-b border-gray-100 last:border-0">
+                  <tr key={`${entry.notes}-${index}`} className="border-b border-line last:border-0">
                     <td className="py-2 pr-4 text-ink">{entry.notes || 'No reason given'}</td>
                     <td className="py-2 pr-4 text-ink/70">{entry.count}</td>
                   </tr>

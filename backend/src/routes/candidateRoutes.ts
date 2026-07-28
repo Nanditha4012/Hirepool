@@ -21,6 +21,12 @@ router.post(
   requireRole('candidate'),
   candidateController.submitMyProfile,
 );
+router.post(
+  '/me/profile/request-reverification',
+  requireAuth,
+  requireRole('candidate'),
+  candidateController.requestReverification,
+);
 router.patch(
   '/me/looking-status',
   requireAuth,

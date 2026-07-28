@@ -21,6 +21,7 @@ import { PlanMaster } from './PlanMaster';
 import { Unlock } from './Unlock';
 import { CompanyBlock } from './CompanyBlock';
 import { RejectionReasonMaster } from './RejectionReasonMaster';
+import { ProfileFieldCheck } from './ProfileFieldCheck';
 
 // User <-> CandidateProfile (1:1)
 User.hasOne(CandidateProfile, { foreignKey: 'userId', as: 'candidateProfile' });
@@ -101,6 +102,15 @@ User.hasMany(CompanyBlock, { foreignKey: 'candidateId', as: 'blockedBy' });
 CompanyBlock.belongsTo(User, { foreignKey: 'companyId', as: 'company' });
 CompanyBlock.belongsTo(User, { foreignKey: 'candidateId', as: 'candidate' });
 
+// CandidateProfile <-> ProfileFieldCheck (1:many) — Phase 5: the per-field
+// Yes/No verdicts recorded during review. Also joined to the reviewer and
+// to the picked rejection reason so the timeline can render names/text
+// without a second round-trip.
+CandidateProfile.hasMany(ProfileFieldCheck, { foreignKey: 'profileId', as: 'fieldChecks' });
+ProfileFieldCheck.belongsTo(CandidateProfile, { foreignKey: 'profileId', as: 'profile' });
+ProfileFieldCheck.belongsTo(User, { foreignKey: 'reviewerId', as: 'reviewer' });
+ProfileFieldCheck.belongsTo(RejectionReasonMaster, { foreignKey: 'reasonId', as: 'reason' });
+
 export {
   sequelize,
   User,
@@ -125,4 +135,5 @@ export {
   Unlock,
   CompanyBlock,
   RejectionReasonMaster,
+  ProfileFieldCheck,
 };

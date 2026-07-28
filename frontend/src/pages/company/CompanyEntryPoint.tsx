@@ -3,6 +3,7 @@ import Card from '@/components/ui/Card'
 import CompanySetupPage from './CompanySetupPage'
 import DashboardPage from './DashboardPage'
 import { getMyCompanyProfile, type CompanyProfileResponse } from '@/lib/companyApi'
+import PageLoader from '@/components/ui/PageLoader'
 
 // Thin routing gate for `/company`, mirroring CandidateEntryPoint: fetch the
 // profile once, then render the dashboard once the company has filled in
@@ -37,7 +38,7 @@ export default function CompanyEntryPoint() {
   if (loading) {
     return (
       <div className="mx-auto max-w-3xl px-4 py-16 text-center sm:px-6">
-        <p className="text-ink/60">Loading…</p>
+        <PageLoader label="Loading…" />
       </div>
     )
   }

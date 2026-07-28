@@ -4,6 +4,7 @@ import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Select from '@/components/ui/Select'
+import PageLoader from '@/components/ui/PageLoader'
 import {
   getMyCompanyProfile,
   upsertMyCompanyProfile,
@@ -124,7 +125,7 @@ export default function CompanySetupPage() {
   if (loading) {
     return (
       <div className="mx-auto max-w-3xl px-4 py-16 text-center sm:px-6">
-        <p className="text-ink/60">Loading your company profile…</p>
+        <PageLoader label="Loading your company profile…" />
       </div>
     )
   }

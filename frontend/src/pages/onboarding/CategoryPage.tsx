@@ -78,7 +78,7 @@ export default function CategoryPage() {
                     <span
                       className={[
                         'mt-1 h-4 w-4 flex-shrink-0 rounded-full border-2',
-                        isSelected ? 'border-primary bg-primary' : 'border-gray-300',
+                        isSelected ? 'border-primary bg-primary' : 'border-line',
                       ].join(' ')}
                       aria-hidden="true"
                     />

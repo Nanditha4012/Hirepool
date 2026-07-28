@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
@@ -8,6 +8,7 @@ import Combobox from '@/components/ui/Combobox'
 import ChipMultiSelect from '@/components/ui/ChipMultiSelect'
 import PlatformBadgesSection from './sections/PlatformBadgesSection'
 import AchievementsSection from './sections/AchievementsSection'
+import PageLoader from '@/components/ui/PageLoader'
 import {
   getMyProfile,
   listAchievements,
@@ -117,6 +118,8 @@ function formToBody(form: FormState): UpsertProfileBody {
 }
 
 export default function ProfileBuilderPage() {
+  const navigate = useNavigate()
+
   const [profile, setProfile] = useState<CandidateProfileResponse | null>(null)
   const [roles, setRoles] = useState<RoleMaster[]>([])
   const [skills, setSkills] = useState<SkillMaster[]>([])
@@ -218,6 +221,10 @@ export default function ProfileBuilderPage() {
       setProfile(updated)
       setForm(profileToForm(updated))
       setSaveNotice('Submitted for review.')
+      // Straight to the read-only report — staying on an editable form after
+      // submitting invites the candidate to keep tweaking a profile that is
+      // already in the verifier's queue.
+      navigate('/candidate')
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : 'Failed to submit')
     } finally {
@@ -240,7 +247,7 @@ export default function ProfileBuilderPage() {
   if (loading) {
     return (
       <div className="mx-auto max-w-3xl px-4 py-16 text-center sm:px-6">
-        <p className="text-ink/60">Loading your profile…</p>
+        <PageLoader label="Loading your profile…" />
       </div>
     )
   }

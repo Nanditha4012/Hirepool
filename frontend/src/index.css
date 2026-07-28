@@ -3,7 +3,131 @@
 @tailwind utilities;
 
 @layer base {
+  /*
+   * Semantic surface colours, as space-separated RGB channels so Tailwind's
+   * `rgb(var(--c-ink) / <alpha-value>)` can apply opacity modifiers to them.
+   *
+   * Everything theme-dependent in the app resolves through these five
+   * variables, which is why adding `.dark` to <html> re-themes the whole UI
+   * without any component needing a `dark:` variant.
+   */
+  :root {
+    --c-ink: 31 41 55; /* #1F2937 — primary text */
+    --c-surface: 243 244 246; /* #F3F4F6 — sunken/subtle fills */
+    --c-page: 255 255 255; /* page background */
+    --c-card: 255 255 255; /* raised surfaces */
+    --c-line: 229 231 235; /* #E5E7EB — borders */
+
+    color-scheme: light;
+  }
+
+  .dark {
+    --c-ink: 226 232 240; /* slate-200 — text inverts to light */
+    --c-surface: 30 41 59; /* slate-800 */
+    --c-page: 15 23 42; /* slate-900 */
+    --c-card: 30 41 59; /* slate-800 */
+    --c-line: 51 65 85; /* slate-700 */
+
+    /* Tells the browser to render native widgets (scrollbars, form
+       controls, the date picker) in their dark variants. Without this the
+       page goes dark but scrollbars stay bright white. */
+    color-scheme: dark;
+  }
+
   body {
-    @apply font-sans text-ink bg-white;
+    @apply bg-page font-sans text-ink;
+    /* Theme flips shouldn't snap. Limited to colour properties so it can't
+       accidentally animate layout. */
+    transition:
+      background-color 0.3s ease,
+      color 0.3s ease;
+  }
+
+  /* Anchor-jump and router navigations shouldn't fight the reveal
+     animations by teleporting mid-transition. */
+  html {
+    scroll-behavior: smooth;
+  }
+
+  /* Every animation in this app is decorative — none of it conveys
+     information that isn't also in the text. So for users who've asked their
+     OS to reduce motion, collapse the lot to a single frame rather than
+     trying to hand-tune softer variants. */
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer utilities {
+  /* Used by the scroll-reveal hook: elements start hidden and shifted, then
+     get `.is-revealed` added when they scroll into view. Kept as real CSS
+     rather than Tailwind classes toggled in JS so the initial (hidden) state
+     is applied by the stylesheet on first paint, with no flash of
+     already-visible content. */
+  .reveal {
+    opacity: 0;
+    transform: translateY(24px);
+    transition:
+      opacity 0.6s cubic-bezier(0.22, 1, 0.36, 1),
+      transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .reveal.is-revealed {
+    opacity: 1;
+    transform: none;
+  }
+
+  /* Cheap depth for photo panels — a top-lit inner edge plus a soft drop. */
+  .photo-frame {
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.25),
+      0 24px 48px -16px rgba(15, 23, 42, 0.35);
+  }
+
+  /*
+   * Text sitting directly on a photograph.
+   *
+   * An overlay alone can't guarantee contrast, because a photo's local
+   * brightness varies underneath the text — a white headline can be crisp
+   * over one part of an image and vanish over a bright patch of another.
+   * A tight dark shadow travels with the glyphs themselves, so legibility
+   * no longer depends on what the picture happens to be doing behind them.
+   */
+  .on-photo {
+    text-shadow:
+      0 1px 2px rgba(2, 6, 23, 0.55),
+      0 2px 12px rgba(2, 6, 23, 0.4);
+  }
+
+  /* Bottom-weighted scrim for text anchored to the foot of a photo panel. */
+  .photo-scrim {
+    background-image: linear-gradient(
+      to top,
+      rgba(2, 6, 23, 0.92) 0%,
+      rgba(2, 6, 23, 0.72) 28%,
+      rgba(2, 6, 23, 0.32) 58%,
+      rgba(2, 6, 23, 0.1) 100%
+    );
+  }
+
+  /* Centre-weighted scrim, for a hero whose text sits mid-panel. */
+  .photo-scrim-center {
+    background-image: radial-gradient(
+      ellipse at center,
+      rgba(2, 6, 23, 0.72) 0%,
+      rgba(2, 6, 23, 0.6) 45%,
+      rgba(2, 6, 23, 0.45) 100%
+    );
   }
 }
