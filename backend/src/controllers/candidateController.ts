@@ -92,6 +92,8 @@ interface CandidateProfileResponse {
   location: string | null;
   noticePeriod: NoticePeriod | null;
   isActivelyLooking: boolean;
+  isBoosted: boolean;
+  boostExpiresAt: Date | null;
   secondaryRoles: { id: string; roleName: string }[];
   skills: { id: string; skillName: string }[];
   latestVerificationNote: string | null;
@@ -299,6 +301,15 @@ async function buildProfileResponse(
     location: plainProfile.location,
     noticePeriod: plainProfile.noticePeriod,
     isActivelyLooking: plainProfile.isActivelyLooking,
+    // Effective, not just the stored flag: there's no cron job clearing
+    // `isBoosted` once `boostExpiresAt` passes (see Phase 6 scope decisions),
+    // so a candidate whose boost lapsed would otherwise show as boosted
+    // forever until they buy another one. Compute the true current state
+    // here instead of trusting the raw column.
+    isBoosted: Boolean(
+      plainProfile.isBoosted && (!plainProfile.boostExpiresAt || plainProfile.boostExpiresAt > new Date()),
+    ),
+    boostExpiresAt: plainProfile.boostExpiresAt,
     secondaryRoles,
     skills,
     latestVerificationNote: latestVerificationLog?.notes ?? null,

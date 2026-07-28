@@ -2,6 +2,7 @@ import { Router } from 'express';
 import * as companyController from '../controllers/companyController';
 import * as unlockController from '../controllers/unlockController';
 import * as companyMessageController from '../controllers/companyMessageController';
+import * as paymentController from '../controllers/paymentController';
 import { requireAuth } from '../middleware/requireAuth';
 import { requireRole } from '../middleware/requireRole';
 
@@ -34,5 +35,15 @@ router.post(
   requireRole('company'),
   companyMessageController.startOrReplyThread,
 );
+
+// Payments (Phase 6)
+router.post('/payments/subscribe', requireAuth, requireRole('company'), paymentController.subscribe);
+router.post(
+  '/payments/unlock-topup',
+  requireAuth,
+  requireRole('company'),
+  paymentController.unlockTopup,
+);
+router.get('/payments/history', requireAuth, requireRole('company'), paymentController.listMyPayments);
 
 export default router;

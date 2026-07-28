@@ -31,4 +31,8 @@ export class ApiError extends Error {
   static paymentRequired(message = 'Payment required'): ApiError {
     return new ApiError(402, message);
   }
+
+  static serviceUnavailable(message = 'Service unavailable'): ApiError {
+    return new ApiError(503, message);
+  }
 }

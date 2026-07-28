@@ -24,11 +24,13 @@ import {
   ProfileFieldCheck,
   Announcement,
   SiteSetting,
+  Payment,
 } from '../models';
 import type { CandidateProfileAttributes, CandidateStatus } from '../models/CandidateProfile';
 import type { UserAttributes } from '../models/User';
 import type { CompanyProfileAttributes } from '../models/CompanyProfile';
 import type { PlanMasterAttributes } from '../models/PlanMaster';
+import type { PaymentAttributes } from '../models/Payment';
 import type { AdminAuditLogAttributes } from '../models/AdminAuditLog';
 import type { VerificationDecision } from '../models/VerificationLog';
 import { asyncHandler } from '../utils/asyncHandler';
@@ -1394,6 +1396,70 @@ export const createAnnouncement = asyncHandler(async (req: Request, res: Respons
 });
 
 // =======================================================================
+// Financial ledger (Phase 6)
+// =======================================================================
+
+const listPaymentsQuerySchema = paginationQuerySchema.extend({
+  type: z.enum(['subscription', 'pay_per_unlock', 'boost']).optional(),
+  status: z.enum(['created', 'paid', 'failed', 'refunded']).optional(),
+});
+
+/**
+ * The "combined transaction ledger" the Phase 5 admin spec asked for —
+ * unbuildable until now because no payments table existed. Every row here
+ * is a real Razorpay-backed payment (see paymentController.razorpayWebhook),
+ * across all three purchase types (subscription/pay_per_unlock/boost).
+ */
+export const listPayments = asyncHandler(async (req: Request, res: Response) => {
+  const authUser = req.user!;
+  const query = listPaymentsQuerySchema.parse(req.query);
+  const { page, limit } = parsePagination(query.page, query.limit);
+
+  const result = await runInRequestContext(authUser, async (t) => {
+    const where: Record<string, unknown> = {};
+    if (query.type) where.type = query.type;
+    if (query.status) where.status = query.status;
+
+    const payments = await Payment.findAll({
+      where,
+      include: [{ model: User, as: 'payer' }],
+      order: [['createdAt', 'DESC']],
+      limit,
+      offset: (page - 1) * limit,
+      transaction: t,
+    });
+    const totalCount = await Payment.count({ where, transaction: t });
+
+    return {
+      results: payments.map((p) => {
+        const plain = p.get({ plain: true }) as PaymentAttributes & {
+          payer: UserAttributes | null;
+        };
+        return {
+          id: plain.id,
+          type: plain.type,
+          status: plain.status,
+          amount: Number(plain.amount),
+          currency: plain.currency,
+          payer: plain.payer
+            ? { id: plain.payer.id, email: plain.payer.email, fullName: plain.payer.fullName, role: plain.payer.role }
+            : null,
+          razorpayOrderId: plain.razorpayOrderId,
+          razorpayPaymentId: plain.razorpayPaymentId,
+          createdAt: plain.createdAt,
+          updatedAt: plain.updatedAt,
+        };
+      }),
+      page,
+      limit,
+      totalCount,
+    };
+  });
+
+  res.json(result);
+});
+
+// =======================================================================
 // Analytics
 // =======================================================================
 
@@ -1459,6 +1525,14 @@ export const getAnalyticsOverview = asyncHandler(async (req: Request, res: Respo
 
     const companyBlocksTotal = await CompanyBlock.count({ transaction: t });
 
+    const paidPayments = await Payment.findAll({ where: { status: 'paid' }, transaction: t });
+    const totalRevenue = paidPayments.reduce((sum, p) => sum + Number(p.amount), 0);
+    const revenueByType: Record<string, number> = { subscription: 0, pay_per_unlock: 0, boost: 0 };
+    for (const p of paidPayments) {
+      revenueByType[p.type] = (revenueByType[p.type] ?? 0) + Number(p.amount);
+    }
+    const failedPaymentsCount = await Payment.count({ where: { status: 'failed' }, transaction: t });
+
     return {
       candidateFunnel,
       companyFunnel: { total: totalCompanies, verified: verifiedCompanies, byPlan },
@@ -1468,7 +1542,17 @@ export const getAnalyticsOverview = asyncHandler(async (req: Request, res: Respo
         companiesWithHighUnlockVolume24h,
         companyBlocksTotal,
       },
-      revenue: { note: 'Payments not yet integrated — Phase 6' },
+      // MRR/churn still aren't computable from this alone — that needs
+      // subscription-period history, not just a running total — see the
+      // Phase 6 summary's scope decisions. This is total lifetime revenue
+      // and a type breakdown, both real, not placeholders.
+      revenue: {
+        totalPaid: totalRevenue,
+        currency: 'INR',
+        byType: revenueByType,
+        paidCount: paidPayments.length,
+        failedCount: failedPaymentsCount,
+      },
     };
   });
 

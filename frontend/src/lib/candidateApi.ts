@@ -46,6 +46,20 @@ export interface CompanyRequest {
   createdAt: string
 }
 
+export interface PlanCatalogEntry {
+  id: string
+  name: string
+  monthlyUnlocks: number
+  monthlyMessageCap: number | null
+  price: number
+  isActive: boolean
+}
+
+/** Public, active plans only — GET /masters/plans (added in Phase 6 so companies can actually pick a plan to subscribe to, not just renew their current one). */
+export function listPlanCatalog() {
+  return apiFetch<PlanCatalogEntry[]>('/masters/plans')
+}
+
 export function listRoles() {
   return apiFetch<RoleMaster[]>('/masters/roles')
 }
@@ -112,6 +126,19 @@ export interface CandidateProfileResponse {
   reverificationRequestedAt: string | null
   fieldReview: CandidateFieldReview[]
   history: CandidateHistoryEntry[]
+  /**
+   * Phase 6: the candidate_profiles table has had isBoosted/boostExpiresAt
+   * columns since the payments migration, but as of this build
+   * candidateController's buildProfileResponse() does not actually select
+   * them into GET /candidates/me/profile's response — so these are typed
+   * optional and will currently always be `undefined` here. DashboardPage.tsx
+   * only renders the "currently boosted" state when they're present; until
+   * the backend response includes them, candidates always see the purchase
+   * form (which is still correct, just not able to show live boost status
+   * without a follow-up GET /candidates/payments/history poll after checkout).
+   */
+  isBoosted?: boolean
+  boostExpiresAt?: string | null
 }
 
 /** One verifier verdict on one field, as shown back to the candidate. */

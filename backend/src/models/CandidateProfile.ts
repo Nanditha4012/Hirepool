@@ -43,6 +43,9 @@ export interface CandidateProfileAttributes {
    */
   pendingReverification: boolean;
   reverificationRequestedAt: Date | null;
+  /** Phase 6: candidate profile Boost (paid, see paymentController). */
+  isBoosted: boolean;
+  boostExpiresAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -71,6 +74,8 @@ type CandidateProfileCreationAttributes = Optional<
   | 'submittedAt'
   | 'pendingReverification'
   | 'reverificationRequestedAt'
+  | 'isBoosted'
+  | 'boostExpiresAt'
   | 'createdAt'
   | 'updatedAt'
 >;
@@ -102,6 +107,8 @@ export class CandidateProfile
   declare submittedAt: Date | null;
   declare pendingReverification: boolean;
   declare reverificationRequestedAt: Date | null;
+  declare isBoosted: boolean;
+  declare boostExpiresAt: Date | null;
   declare readonly createdAt: Date;
   declare readonly updatedAt: Date;
 }
@@ -170,6 +177,17 @@ CandidateProfile.init(
       type: DataTypes.DATE,
       allowNull: true,
       field: 'reverification_requested_at',
+    },
+    isBoosted: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+      field: 'is_boosted',
+    },
+    boostExpiresAt: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      field: 'boost_expires_at',
     },
     createdAt: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW, field: 'created_at' },
     updatedAt: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW, field: 'updated_at' },

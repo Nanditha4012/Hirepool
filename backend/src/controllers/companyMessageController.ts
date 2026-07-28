@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { Op } from 'sequelize';
 import { z } from 'zod';
-import { Message, User, CompanyBlock, CompanyProfile, PlanMaster } from '../models';
+import { Message, User, CompanyBlock, CompanyProfile, PlanMaster, Notification } from '../models';
 import type { CompanyProfileAttributes } from '../models/CompanyProfile';
 import type { PlanMasterAttributes } from '../models/PlanMaster';
 import { asyncHandler } from '../utils/asyncHandler';
@@ -144,6 +144,18 @@ export const startOrReplyThread = asyncHandler(async (req: Request, res: Respons
       company.messagesSentThisPeriod += 1;
       await company.save({ transaction: t });
     }
+
+    // Notify the recipient (the candidate on this thread) — same
+    // Notification.create shape verifierController.ts already uses.
+    await Notification.create(
+      {
+        userId: candidateId,
+        type: 'new_message',
+        message: `You have a new message from ${company.companyName}.`,
+        link: '/candidate/messages',
+      },
+      { transaction: t },
+    );
 
     return created;
   });

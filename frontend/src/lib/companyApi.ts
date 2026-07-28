@@ -13,11 +13,13 @@ export {
   listDomains,
   listCompanies,
   listPlatformBadgeMasters,
+  listPlanCatalog,
   type RoleMaster,
   type SkillMaster,
   type DomainMaster,
   type CompanyMaster,
   type PlatformBadgeMaster,
+  type PlanCatalogEntry,
 } from './candidateApi'
 
 // ---------------------------------------------------------------------------

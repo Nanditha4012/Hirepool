@@ -17,6 +17,8 @@ import {
   getRefreshCookieMaxAgeMs,
 } from '../utils/jwt';
 import { generateTotpSecret, verifyTotpToken, generateQrCodeDataUrl, buildOtpauthUrl } from '../utils/totp';
+import { sendEmail } from '../utils/email';
+import { signupConfirmationEmail } from '../utils/emailTemplates';
 
 const SELF_SIGNUP_ROLES = ['candidate', 'company'] as const;
 
@@ -208,6 +210,13 @@ export const signup = asyncHandler(async (req: Request, res: Response) => {
   }
 
   const accessToken = issueSession(res, { id: user.id, role: user.role, tokenVersion: user.tokenVersion });
+
+  // Fire-and-forget-safe (sendEmail never throws — see utils/email.ts) —
+  // called after the signup transaction has fully committed, so a slow or
+  // failed email can never roll back account creation or fail this request.
+  const { subject, html } = signupConfirmationEmail(user.fullName ?? user.email, user.role);
+  await sendEmail({ to: user.email, subject, html });
+
   res.status(201).json({
     accessToken,
     user: await buildAuthUserPayload(user),
@@ -435,6 +444,7 @@ export const googleAuth = asyncHandler(async (req: Request, res: Response) => {
     user = existingUser;
   }
 
+  let isNewUser = false;
   if (!user) {
     if (requestedRole !== 'candidate' && requestedRole !== 'company') {
       throw ApiError.forbidden('role must be "candidate" or "company" to sign up via Google');
@@ -449,6 +459,7 @@ export const googleAuth = asyncHandler(async (req: Request, res: Response) => {
         await createProfileForNewUser(created.id, email, requestedRole, { transaction: t });
         return created;
       });
+      isNewUser = true;
     } catch (err) {
       if (err instanceof UniqueConstraintError) {
         throw ApiError.conflict('An account with this email already exists');
@@ -472,6 +483,16 @@ export const googleAuth = asyncHandler(async (req: Request, res: Response) => {
   }
 
   const accessToken = issueSession(res, { id: user.id, role: user.role, tokenVersion: user.tokenVersion });
+
+  // Same fire-and-forget-safe placement as signup() above — after the
+  // account-creation transaction has committed, and only for a genuinely
+  // new account (an existing user signing back in via Google must not get
+  // a "welcome" email every login).
+  if (isNewUser) {
+    const { subject, html } = signupConfirmationEmail(user.fullName ?? user.email, user.role);
+    await sendEmail({ to: user.email, subject, html });
+  }
+
   res.json({ accessToken, user: await buildAuthUserPayload(user) });
 });
 

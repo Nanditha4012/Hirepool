@@ -24,6 +24,7 @@ import { RejectionReasonMaster } from './RejectionReasonMaster';
 import { ProfileFieldCheck } from './ProfileFieldCheck';
 import { Announcement } from './Announcement';
 import { SiteSetting } from './SiteSetting';
+import { Payment } from './Payment';
 
 // User <-> CandidateProfile (1:1)
 User.hasOne(CandidateProfile, { foreignKey: 'userId', as: 'candidateProfile' });
@@ -122,6 +123,10 @@ Announcement.belongsTo(User, { foreignKey: 'createdBy', as: 'creator' });
 User.hasMany(SiteSetting, { foreignKey: 'updatedBy', as: 'siteSettingsUpdated' });
 SiteSetting.belongsTo(User, { foreignKey: 'updatedBy', as: 'updatedByUser' });
 
+// User <-> Payment (1:many, via payer_user_id) — Phase 6 payments.
+User.hasMany(Payment, { foreignKey: 'payerUserId', as: 'payments' });
+Payment.belongsTo(User, { foreignKey: 'payerUserId', as: 'payer' });
+
 export {
   sequelize,
   User,
@@ -149,4 +154,5 @@ export {
   ProfileFieldCheck,
   Announcement,
   SiteSetting,
+  Payment,
 };

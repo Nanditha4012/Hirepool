@@ -9,6 +9,7 @@ import {
   CompanyRequest,
   RejectionReasonMaster,
   SiteSetting,
+  PlanMaster,
 } from '../models';
 import { asyncHandler } from '../utils/asyncHandler';
 import { runInRequestContext } from '../utils/withRequestContext';
@@ -38,6 +39,22 @@ export const listCompanies = asyncHandler(async (req: Request, res: Response) =>
     CompanyMaster.findAll({ order: [['companyName', 'ASC']], transaction: t }),
   );
   res.json(companies);
+});
+
+/**
+ * Public plan catalog — companies need this to actually pick/switch a plan
+ * before subscribing (paymentController.subscribe just takes a planId, it
+ * doesn't offer a catalog itself). Only `isActive` plans are listed; RLS
+ * (plans_master_select_all, from migrations/20240103000002) already permits
+ * anonymous SELECT on the whole table, so `isActive` is filtered here at the
+ * application layer rather than by policy — an inactive plan should still be
+ * readable by admin tooling, just not offered to a company signing up.
+ */
+export const listPlans = asyncHandler(async (req: Request, res: Response) => {
+  const plans = await runInRequestContext(null, (t) =>
+    PlanMaster.findAll({ where: { isActive: true }, order: [['price', 'ASC']], transaction: t }),
+  );
+  res.json(plans);
 });
 
 export const listSkills = asyncHandler(async (req: Request, res: Response) => {

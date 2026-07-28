@@ -38,6 +38,8 @@ import { asyncHandler } from '../utils/asyncHandler';
 import { ApiError } from '../utils/ApiError';
 import { runInRequestContext } from '../utils/withRequestContext';
 import { hashPassword, comparePassword } from '../utils/password';
+import { sendEmail } from '../utils/email';
+import { profileStatusChangedEmail } from '../utils/emailTemplates';
 
 export const ping = asyncHandler(async (req: Request, res: Response) => {
   res.json({ message: 'Signed in as verifier', userId: req.user!.id });
@@ -1097,10 +1099,27 @@ export const reopenProfile = asyncHandler(async (req: Request, res: Response) =>
       { transaction: t },
     );
 
-    return buildReviewProfileResponse(id, t);
+    // Not already loaded in this scope (unlike buildReviewProfileResponse,
+    // this handler never fetches the User row) — one extra lookup here,
+    // reusing transaction `t`.
+    const candidateUser = await User.findByPk(profile.userId, { transaction: t });
+
+    return { candidateUser, review: await buildReviewProfileResponse(id, t) };
   });
 
-  res.json(response);
+  // Email sent after runInRequestContext resolves (transaction already
+  // committed) — see the placement note on decideProfile's email send below
+  // for why this is deliberately outside the transaction callback.
+  if (response.candidateUser) {
+    const { subject, html } = profileStatusChangedEmail(
+      response.candidateUser.fullName ?? response.candidateUser.email,
+      'needs_info',
+      body.note,
+    );
+    await sendEmail({ to: response.candidateUser.email, subject, html });
+  }
+
+  res.json(response.review);
 });
 
 // ---------------------------------------------------------------------
@@ -1205,13 +1224,37 @@ export const decideProfile = asyncHandler(async (req: Request, res: Response) =>
       { transaction: t },
     );
 
+    // Not already loaded in this scope — the review response builder below
+    // fetches its own User row inside buildReviewProfileResponse, but that's
+    // a private local variable there, not something this function can reuse.
+    // One extra lookup here, reusing transaction `t`.
+    const candidateUser = await User.findByPk(existing.userId, { transaction: t });
+
     // Returns the full review shape, not the bare row: the page needs the
     // refreshed checklist/timeline to render the post-decision state, and
     // this saves it an immediate follow-up GET.
-    return buildReviewProfileResponse(id, t);
+    return { candidateUser, notes, review: await buildReviewProfileResponse(id, t) };
   });
 
-  res.json(response);
+  // Email sent AFTER runInRequestContext resolves (the decision transaction
+  // has already committed) rather than inside the callback — an email
+  // failure must never roll back a verifier's decision, and sendEmail's
+  // internal try/catch (see utils/email.ts) already guarantees it can't
+  // throw, but keeping it structurally outside the transaction is the
+  // clearer signal that it's an unrelated external side effect. Only sent
+  // for the three decisions the copy in profileStatusChangedEmail actually
+  // covers (approved/rejected/needs_info) — 'flagged' is an internal
+  // escalation to Admin, not a candidate-facing status change.
+  if (response.candidateUser && body.decision !== 'flagged') {
+    const { subject, html } = profileStatusChangedEmail(
+      response.candidateUser.fullName ?? response.candidateUser.email,
+      body.decision,
+      body.decision === 'rejected' || body.decision === 'needs_info' ? response.notes ?? undefined : undefined,
+    );
+    await sendEmail({ to: response.candidateUser.email, subject, html });
+  }
+
+  res.json(response.review);
 });
 
 // ---------------------------------------------------------------------

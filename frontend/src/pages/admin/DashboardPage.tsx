@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import Card from '@/components/ui/Card'
 import Badge from '@/components/ui/Badge'
 import PageLoader from '@/components/ui/PageLoader'
@@ -124,8 +125,27 @@ export default function DashboardPage() {
       <Card className="mt-6">
         <div className="flex items-center gap-2">
           <Badge tone="neutral">Revenue</Badge>
-          <p className="text-sm text-ink/60">{analytics.revenue.note}</p>
+          <p className="text-sm text-ink/60">
+            ₹{analytics.revenue.totalPaid.toLocaleString('en-IN')} collected across {analytics.revenue.paidCount}{' '}
+            paid transaction{analytics.revenue.paidCount === 1 ? '' : 's'}
+            {analytics.revenue.failedCount > 0 && ` (${analytics.revenue.failedCount} failed)`}
+          </p>
         </div>
+        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+          {Object.entries(analytics.revenue.byType).map(([type, amount]) => (
+            <div key={type} className="rounded-card bg-surface px-3 py-2">
+              <p className="text-xs uppercase text-ink/50">{type.replace(/_/g, ' ')}</p>
+              <p className="text-lg font-semibold text-ink">₹{amount.toLocaleString('en-IN')}</p>
+            </div>
+          ))}
+        </div>
+        <p className="mt-2 text-xs text-ink/40">
+          Lifetime total, not MRR — a real monthly-recurring/churn figure needs subscription-period history this
+          running total doesn't capture yet.
+        </p>
+        <Link to="/admin/payments" className="mt-3 inline-block text-sm font-semibold text-primary hover:underline">
+          View full transaction ledger →
+        </Link>
       </Card>
     </div>
   )

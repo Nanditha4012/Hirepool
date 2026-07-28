@@ -763,11 +763,45 @@ export interface AnalyticsOverview {
     companiesWithHighUnlockVolume24h: number
     companyBlocksTotal: number
   }
-  revenue: { note: string }
+  revenue: {
+    totalPaid: number
+    currency: string
+    byType: Record<string, number>
+    paidCount: number
+    failedCount: number
+  }
 }
 
 export function getAnalyticsOverview() {
   return apiFetch<AnalyticsOverview>('/admin/analytics/overview')
+}
+
+// =======================================================================
+// Financial ledger
+// =======================================================================
+
+export interface AdminPaymentRow {
+  id: string
+  type: 'subscription' | 'pay_per_unlock' | 'boost'
+  status: 'created' | 'paid' | 'failed' | 'refunded'
+  amount: number
+  currency: string
+  payer: { id: string; email: string; fullName: string | null; role: string } | null
+  razorpayOrderId: string
+  razorpayPaymentId: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ListPaymentsParams {
+  type?: 'subscription' | 'pay_per_unlock' | 'boost'
+  status?: 'created' | 'paid' | 'failed' | 'refunded'
+  page?: number
+  limit?: number
+}
+
+export function listPayments(params: ListPaymentsParams = {}) {
+  return apiFetch<AdminListResponse<AdminPaymentRow>>(`/admin/payments${buildQuery(params)}`)
 }
 
 // =======================================================================

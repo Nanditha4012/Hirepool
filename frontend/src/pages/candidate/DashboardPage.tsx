@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import ProfileCard, { type ProfileCardData } from '@/components/candidate/ProfileCard'
 import PageLoader from '@/components/ui/PageLoader'
+import BoostPurchaseCard from '@/components/candidate/BoostPurchaseCard'
+import { useSiteSettings } from '@/lib/siteSettings'
 import {
   blockCompany,
   getMyProfile,
@@ -25,6 +27,7 @@ import {
 
 export default function DashboardPage() {
   const navigate = useNavigate()
+  const { settings: siteSettings } = useSiteSettings()
 
   const [profile, setProfile] = useState<CandidateProfileResponse | null>(null)
   const [companies, setCompanies] = useState<CompanyMaster[]>([])
@@ -365,14 +368,14 @@ export default function DashboardPage() {
         </div>
 
         <div className="flex flex-col gap-6">
-          <Card>
-            <h2 className="text-lg font-semibold text-ink">Boost my profile</h2>
-            <p className="mt-1 text-sm text-ink/60">Get more visibility with companies.</p>
-            <Button type="button" className="mt-3" disabled>
-              Boost my profile
-            </Button>
-            <p className="mt-2 text-xs text-ink/40">Available once payments ship (Phase 6).</p>
-          </Card>
+          <BoostPurchaseCard
+            isBoosted={profile.isBoosted}
+            boostExpiresAt={profile.boostExpiresAt}
+            siteSettings={siteSettings}
+          />
+          <Link to="/candidate/payments" className="-mt-4 self-end text-xs font-semibold text-primary hover:underline">
+            View payment history
+          </Link>
 
           <Card>
             <h2 className="text-lg font-semibold text-ink">Companies who unlocked your contact</h2>

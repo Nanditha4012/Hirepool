@@ -90,6 +90,9 @@ router.post('/announcements', ...adminOnly, adminController.createAnnouncement);
 // ----- Analytics -----
 router.get('/analytics/overview', ...adminOnly, adminController.getAnalyticsOverview);
 
+// ----- Financial ledger (Phase 6) -----
+router.get('/payments', ...adminOnly, adminController.listPayments);
+
 // ----- Security -----
 router.get('/audit-log', ...adminOnly, adminController.listAuditLog);
 

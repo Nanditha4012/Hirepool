@@ -10,6 +10,7 @@ const navLinks = [
   { to: '/admin/masters', label: 'Master data' },
   { to: '/admin/settings', label: 'Site settings' },
   { to: '/admin/announcements', label: 'Announcements' },
+  { to: '/admin/payments', label: 'Payments' },
   { to: '/admin/audit-log', label: 'Audit log' },
 ]
 

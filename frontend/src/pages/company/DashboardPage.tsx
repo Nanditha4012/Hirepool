@@ -4,8 +4,12 @@ import Card from '@/components/ui/Card'
 import Badge from '@/components/ui/Badge'
 import { getMyCompanyProfile, type CompanyProfileResponse } from '@/lib/companyApi'
 import PageLoader from '@/components/ui/PageLoader'
+import UnlockTopUpCard from '@/components/company/UnlockTopUpCard'
+import PlanSubscribeCard from '@/components/company/PlanSubscribeCard'
+import { useSiteSettings } from '@/lib/siteSettings'
 
 export default function DashboardPage() {
+  const { settings: siteSettings } = useSiteSettings()
   const [profile, setProfile] = useState<CompanyProfileResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -84,6 +88,9 @@ export default function DashboardPage() {
             {unlocksUsed} <span className="text-base font-normal text-ink/50">/ {unlocksTotal}</span>
           </p>
           <p className="mt-1 text-sm text-ink/50">{profile.remainingUnlocks} remaining</p>
+          <Link to="/company/payments" className="mt-3 inline-block text-sm font-semibold text-primary hover:underline">
+            View payment history
+          </Link>
         </Card>
         <Card>
           <p className="text-sm font-medium text-ink/60">Messaging cap</p>
@@ -96,6 +103,11 @@ export default function DashboardPage() {
           </p>
           <p className="mt-1 text-sm text-ink/50">new conversations this period</p>
         </Card>
+      </div>
+
+      <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2">
+        <UnlockTopUpCard siteSettings={siteSettings} />
+        <PlanSubscribeCard plan={profile.plan} />
       </div>
 
       <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-3">
@@ -121,9 +133,14 @@ export default function DashboardPage() {
 
       <Card className="mt-8">
         <h2 className="text-lg font-semibold text-ink">Invoices &amp; team seats</h2>
-        <p className="mt-1 text-sm text-ink/40">
-          Invoice history and Enterprise team-seat management become available once payments ship (Phase 6).
+        <p className="mt-1 text-sm text-ink/60">
+          Every subscription and unlock top-up payment is on your{' '}
+          <Link to="/company/payments" className="font-semibold text-primary hover:underline">
+            payment history
+          </Link>{' '}
+          page.
         </p>
+        <p className="mt-1 text-sm text-ink/40">Enterprise team-seat management isn&apos;t available yet.</p>
       </Card>
     </div>
   )

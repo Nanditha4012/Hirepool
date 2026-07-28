@@ -15,6 +15,7 @@ import {
   CandidatePlatformBadge,
   CandidateAchievement,
   Unlock,
+  Notification,
 } from '../models';
 import type { CompanyProfileAttributes, CompanySize } from '../models/CompanyProfile';
 import type { PlanMasterAttributes } from '../models/PlanMaster';
@@ -33,6 +34,8 @@ import { asyncHandler } from '../utils/asyncHandler';
 import { ApiError } from '../utils/ApiError';
 import { runInRequestContext } from '../utils/withRequestContext';
 import { buildWhatsappLink } from '../utils/contact';
+import { sendEmail } from '../utils/email';
+import { renewalReminderEmail } from '../utils/emailTemplates';
 
 export const ping = asyncHandler(async (req: Request, res: Response) => {
   res.json({ message: 'Signed in as company', userId: req.user!.id });
@@ -116,17 +119,92 @@ async function buildCompanyProfileResponse(
 }
 
 // ---------------------------------------------------------------------
+// Subscription renewal reminder (Phase 6)
+//
+// There's no cron/scheduled-job infrastructure in this codebase (no
+// node-cron, no background worker) — building a real time-based reminder
+// scheduler is out of scope for this phase. Instead, this is a
+// "checked on read, not on a schedule" MVP substitute: every time a company
+// loads its own dashboard (this GET), if unlocksResetAt is within the next
+// few days, fire a renewal_reminder Notification as a side effect of the
+// read — unless one was already sent recently, checked by looking for an
+// existing renewal_reminder Notification for this user created within the
+// dedup window below. This is a deliberate scope decision, not a bug: it
+// means the reminder is only as timely as the company's next dashboard
+// visit, not a guaranteed "N days before renewal" push.
+// ---------------------------------------------------------------------
+
+const RENEWAL_REMINDER_WINDOW_MS = 3 * 24 * 60 * 60 * 1000;
+const RENEWAL_REMINDER_DEDUP_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Returns the number of days remaining (rounded up) if a reminder was
+ * actually created this call, or null if no reminder was due/needed (no
+ * reset date, outside the window, or one was already sent recently) — the
+ * caller uses a non-null return to decide whether to also send the email,
+ * so the email stays in lockstep with the in-app Notification's own dedup
+ * logic instead of duplicating it.
+ */
+async function maybeSendRenewalReminder(
+  userId: string,
+  unlocksResetAt: Date | null,
+  t: Transaction,
+): Promise<number | null> {
+  if (!unlocksResetAt) return null;
+
+  const msUntilReset = unlocksResetAt.getTime() - Date.now();
+  if (msUntilReset < 0 || msUntilReset > RENEWAL_REMINDER_WINDOW_MS) return null;
+
+  const recentReminder = await Notification.findOne({
+    where: {
+      userId,
+      type: 'renewal_reminder',
+      createdAt: { [Op.gte]: new Date(Date.now() - RENEWAL_REMINDER_DEDUP_MS) },
+    },
+    transaction: t,
+  });
+  if (recentReminder) return null;
+
+  await Notification.create(
+    {
+      userId,
+      type: 'renewal_reminder',
+      message: 'Your plan renews soon — your unlock and message quotas will reset shortly.',
+      link: '/company/billing',
+    },
+    { transaction: t },
+  );
+
+  return Math.ceil(msUntilReset / (24 * 60 * 60 * 1000));
+}
+
+// ---------------------------------------------------------------------
 // GET /me/profile
 // ---------------------------------------------------------------------
 
 export const getMyCompanyProfile = asyncHandler(async (req: Request, res: Response) => {
   const authUser = req.user!;
 
-  const response = await runInRequestContext(authUser, (t) =>
-    buildCompanyProfileResponse(authUser.id, t),
-  );
+  const result = await runInRequestContext(authUser, async (t) => {
+    const built = await buildCompanyProfileResponse(authUser.id, t);
+    const daysRemaining = await maybeSendRenewalReminder(authUser.id, built.unlocksResetAt, t);
+    return { built, daysRemaining };
+  });
 
-  res.json(response);
+  // Sent after runInRequestContext resolves (this GET's transaction has
+  // already committed the Notification row, if any) — a read endpoint's
+  // response must never be delayed-to-failure by an outbound email, and
+  // this keeps the email an unrelated side effect of the read rather than
+  // part of its transactional work. daysRemaining is only non-null when
+  // maybeSendRenewalReminder actually created a fresh reminder this call,
+  // so the email can never fire more often than the in-app notification it
+  // accompanies.
+  if (result.daysRemaining !== null) {
+    const { subject, html } = renewalReminderEmail(result.built.companyName, result.daysRemaining);
+    await sendEmail({ to: result.built.email, subject, html });
+  }
+
+  res.json(result.built);
 });
 
 // ---------------------------------------------------------------------

@@ -5,6 +5,7 @@ import { useAuth, type Role } from '@/lib/authStore'
 import Button from '@/components/ui/Button'
 import Logo from '@/components/ui/Logo'
 import ThemeToggle from '@/components/ui/ThemeToggle'
+import NotificationBell from '@/components/layout/NotificationBell'
 
 /** Where each signed-in role's "home" link points, and what to call it. */
 const roleHome: Record<Role, { to: string; label: string }> = {
@@ -77,6 +78,7 @@ export default function Header() {
               <span className="ml-2 hidden text-sm text-ink/50 lg:inline">
                 {user.fullName || user.username || user.email}
               </span>
+              <NotificationBell />
               <Button variant="secondary" size="sm" onClick={handleLogout}>
                 Log out
               </Button>
@@ -119,6 +121,7 @@ export default function Header() {
         {/* Mobile: the theme switch stays outside the collapsed menu, so it
             is reachable in one tap rather than two. */}
         <div className="flex items-center gap-1 md:hidden">
+          {user && <NotificationBell />}
           <ThemeToggle />
           <button
             type="button"

@@ -1,6 +1,15 @@
 import { Request, Response } from 'express';
 import { z } from 'zod';
-import { CompanyProfile, Unlock, User, CandidateProfile, RoleMaster, CandidateAchievement, CandidatePlatformBadge } from '../models';
+import {
+  CompanyProfile,
+  Unlock,
+  User,
+  CandidateProfile,
+  RoleMaster,
+  CandidateAchievement,
+  CandidatePlatformBadge,
+  Notification,
+} from '../models';
 import type { CandidateProfileAttributes } from '../models/CandidateProfile';
 import type { RoleMasterAttributes } from '../models/RoleMaster';
 import { asyncHandler } from '../utils/asyncHandler';
@@ -13,6 +22,14 @@ import { buildWhatsappLink } from '../utils/contact';
 // ---------------------------------------------------------------------
 
 const unlockSchema = z.object({ candidateId: z.string().uuid() });
+
+// Low-unlock-quota notification fires exactly once, the moment
+// remainingUnlocks crosses DOWN to this value — not on every unlock spent
+// while already at/below it. A coarse threshold-crossing check, not a
+// "notify once per period" dedup mechanism (there's no reset-tracking
+// infrastructure to key that off yet) — good enough at this scale per the
+// Phase 6 spec.
+const LOW_UNLOCK_QUOTA_THRESHOLD = 2;
 
 export const unlockCandidate = asyncHandler(async (req: Request, res: Response) => {
   const authUser = req.user!;
@@ -64,6 +81,20 @@ export const unlockCandidate = asyncHandler(async (req: Request, res: Response) 
 
     company.remainingUnlocks -= 1;
     await company.save({ transaction: t });
+
+    // Fires exactly on the crossing, not on every unlock spent below it —
+    // see LOW_UNLOCK_QUOTA_THRESHOLD's comment above.
+    if (company.remainingUnlocks === LOW_UNLOCK_QUOTA_THRESHOLD) {
+      await Notification.create(
+        {
+          userId: authUser.id,
+          type: 'low_unlock_quota',
+          message: `You're running low on unlocks — ${company.remainingUnlocks} remaining on your current plan.`,
+          link: '/company/billing',
+        },
+        { transaction: t },
+      );
+    }
 
     return {
       unlock: created,

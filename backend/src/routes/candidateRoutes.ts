@@ -4,6 +4,7 @@ import * as platformBadgeController from '../controllers/platformBadgeController
 import * as achievementController from '../controllers/achievementController';
 import * as messageController from '../controllers/messageController';
 import * as candidateBlockController from '../controllers/candidateBlockController';
+import * as paymentController from '../controllers/paymentController';
 import { requireAuth } from '../middleware/requireAuth';
 import { requireRole } from '../middleware/requireRole';
 
@@ -99,5 +100,9 @@ router.post(
   requireRole('candidate'),
   candidateBlockController.blockCompany,
 );
+
+// Payments (Phase 6)
+router.post('/payments/boost', requireAuth, requireRole('candidate'), paymentController.boost);
+router.get('/payments/history', requireAuth, requireRole('candidate'), paymentController.listMyPayments);
 
 export default router;

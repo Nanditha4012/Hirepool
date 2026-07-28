@@ -16,11 +16,13 @@ import CategoryPage from '@/pages/onboarding/CategoryPage'
 import TotpPage from '@/pages/onboarding/TotpPage'
 import CandidateEntryPoint from '@/pages/candidate/CandidateEntryPoint'
 import ProfileBuilderPage from '@/pages/candidate/ProfileBuilderPage'
+import CandidatePaymentHistoryPage from '@/pages/candidate/PaymentHistoryPage'
 import CompanyEntryPoint from '@/pages/company/CompanyEntryPoint'
 import CompanySetupPage from '@/pages/company/CompanySetupPage'
 import SearchPage from '@/pages/company/SearchPage'
 import UnlockedCandidatesPage from '@/pages/company/UnlockedCandidatesPage'
 import MessagesPage from '@/pages/company/MessagesPage'
+import CompanyPaymentHistoryPage from '@/pages/company/PaymentHistoryPage'
 import VerifierLayout from '@/pages/verifier/VerifierLayout'
 import QueuePage from '@/pages/verifier/QueuePage'
 import ProfileReviewPage from '@/pages/verifier/ProfileReviewPage'
@@ -41,6 +43,7 @@ import AdminMasterDataPage from '@/pages/admin/MasterDataPage'
 import AdminSiteSettingsPage from '@/pages/admin/SiteSettingsPage'
 import AdminAnnouncementsPage from '@/pages/admin/AnnouncementsPage'
 import AdminAuditLogPage from '@/pages/admin/AuditLogPage'
+import AdminPaymentsPage from '@/pages/admin/AdminPaymentsPage'
 import NotFoundPage from '@/pages/NotFoundPage'
 
 function AppShell() {
@@ -86,6 +89,14 @@ function AppShell() {
             }
           />
           <Route
+            path="/candidate/payments"
+            element={
+              <ProtectedRoute allow={['candidate']}>
+                <CandidatePaymentHistoryPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/company"
             element={
               <ProtectedRoute allow={['company']}>
@@ -122,6 +133,14 @@ function AppShell() {
             element={
               <ProtectedRoute allow={['company']}>
                 <MessagesPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/company/payments"
+            element={
+              <ProtectedRoute allow={['company']}>
+                <CompanyPaymentHistoryPage />
               </ProtectedRoute>
             }
           />
@@ -165,6 +184,7 @@ function AppShell() {
             <Route path="masters" element={<AdminMasterDataPage />} />
             <Route path="settings" element={<AdminSiteSettingsPage />} />
             <Route path="announcements" element={<AdminAnnouncementsPage />} />
+            <Route path="payments" element={<AdminPaymentsPage />} />
             <Route path="audit-log" element={<AdminAuditLogPage />} />
           </Route>
 

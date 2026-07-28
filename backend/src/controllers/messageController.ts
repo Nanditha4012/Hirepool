@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { Op } from 'sequelize';
 import { z } from 'zod';
-import { Message, CompanyProfile } from '../models';
+import { Message, CompanyProfile, Notification } from '../models';
 import { asyncHandler } from '../utils/asyncHandler';
 import { runInRequestContext } from '../utils/withRequestContext';
 
@@ -49,8 +49,8 @@ export const replyToThread = asyncHandler(async (req: Request, res: Response) =>
   const { companyId } = req.params;
   const { body } = replySchema.parse(req.body);
 
-  const message = await runInRequestContext(authUser, (t) =>
-    Message.create(
+  const message = await runInRequestContext(authUser, async (t) => {
+    const created = await Message.create(
       {
         companyId,
         candidateId: authUser.id,
@@ -58,8 +58,22 @@ export const replyToThread = asyncHandler(async (req: Request, res: Response) =>
         body,
       },
       { transaction: t },
-    ),
-  );
+    );
+
+    // Notify the recipient (the company on this thread) — same
+    // Notification.create shape verifierController.ts already uses.
+    await Notification.create(
+      {
+        userId: companyId,
+        type: 'new_message',
+        message: `You have a new message from a candidate.`,
+        link: '/company/messages',
+      },
+      { transaction: t },
+    );
+
+    return created;
+  });
 
   res.status(201).json(message);
 });
