@@ -4,6 +4,13 @@ import { env } from '../config/env';
 export interface AccessTokenPayload {
   sub: string;
   role: string;
+  /**
+   * Phase 5: force-logout support. Carried on the access token too (not just
+   * the refresh token) purely for symmetry/completeness — requireAuth does
+   * NOT check it against the DB (see migrations/20240106000001-phase5-admin-portal.js
+   * for why that's a deliberate stateless-vs-checked-on-refresh tradeoff).
+   */
+  tokenVersion: number;
 }
 
 /**
@@ -18,10 +25,17 @@ export interface AccessTokenPayload {
  * blocked by RLS. Carrying `role` in the refresh token (still
  * signed/verified with JWT_REFRESH_SECRET, so it can't be forged) avoids
  * that DB round-trip entirely and sidesteps the gap.
+ *
+ * Phase 5 also adds `tokenVersion`: authController.refresh now looks the
+ * user up in the DB anyway (to check accountStatus), so this is compared
+ * against the DB's current users.token_version on every refresh — a
+ * mismatch means the session was force-logged-out (suspend/ban) since this
+ * refresh token was issued, and the refresh is rejected.
  */
 export interface RefreshTokenPayload {
   sub: string;
   role: string;
+  tokenVersion: number;
 }
 
 /**
@@ -37,10 +51,16 @@ export interface TotpChallengePayload {
   purpose: 'totp_challenge';
 }
 
-export function signAccessToken(payload: AccessTokenPayload): string {
-  return jwt.sign(payload, env.JWT_ACCESS_SECRET, {
-    expiresIn: env.JWT_ACCESS_EXPIRES_IN as jwt.SignOptions['expiresIn'],
-  });
+/**
+ * `expiresIn` defaults to the env-configured session lifetime, but callers
+ * can override it — used by admin impersonation (adminController.impersonate)
+ * to issue a short-lived (5m) access token instead of a normal session.
+ */
+export function signAccessToken(
+  payload: AccessTokenPayload,
+  expiresIn: jwt.SignOptions['expiresIn'] = env.JWT_ACCESS_EXPIRES_IN as jwt.SignOptions['expiresIn'],
+): string {
+  return jwt.sign(payload, env.JWT_ACCESS_SECRET, { expiresIn });
 }
 
 export function signRefreshToken(payload: RefreshTokenPayload): string {

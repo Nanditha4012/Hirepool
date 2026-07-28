@@ -11,6 +11,7 @@ router.get('/companies', masterController.listCompanies);
 router.get('/skills', masterController.listSkills);
 router.get('/domains', masterController.listDomains);
 router.get('/rejection-reasons', masterController.listRejectionReasons);
+router.get('/site-settings', masterController.getSiteSettings);
 router.post(
   '/companies/request',
   requireAuth,

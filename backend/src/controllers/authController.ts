@@ -83,9 +83,16 @@ function refreshCookieOptions() {
 }
 
 /** Signs a fresh access+refresh token pair and sets the refresh cookie. */
-function issueSession(res: Response, user: { id: string; role: string }): string {
-  const accessToken = signAccessToken({ sub: user.id, role: user.role });
-  const refreshToken = signRefreshToken({ sub: user.id, role: user.role });
+function issueSession(
+  res: Response,
+  user: { id: string; role: string; tokenVersion: number },
+): string {
+  const accessToken = signAccessToken({ sub: user.id, role: user.role, tokenVersion: user.tokenVersion });
+  const refreshToken = signRefreshToken({
+    sub: user.id,
+    role: user.role,
+    tokenVersion: user.tokenVersion,
+  });
 
   res.cookie(REFRESH_COOKIE_NAME, refreshToken, {
     ...refreshCookieOptions(),
@@ -200,7 +207,7 @@ export const signup = asyncHandler(async (req: Request, res: Response) => {
     throw err;
   }
 
-  const accessToken = issueSession(res, { id: user.id, role: user.role });
+  const accessToken = issueSession(res, { id: user.id, role: user.role, tokenVersion: user.tokenVersion });
   res.status(201).json({
     accessToken,
     user: await buildAuthUserPayload(user),
@@ -244,15 +251,30 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
     throw ApiError.unauthorized('Invalid credentials');
   }
 
+  if (user.accountStatus !== 'active') {
+    throw ApiError.forbidden(
+      user.accountStatus === 'banned'
+        ? 'This account has been banned.'
+        : `This account is suspended${user.statusReason ? ': ' + user.statusReason : '.'}`,
+    );
+  }
+
   // Phase 5: verifiers now sign in on plain JWT like every other role — the
   // TOTP second factor is kept for admins only. (Previously both were
   // funnelled through the /onboarding/2fa challenge.)
-  if (user.role === 'admin') {
+  //
+  // Dev convenience: outside production, admin logins skip the TOTP
+  // challenge entirely so a freshly-seeded admin account can be used
+  // immediately without an authenticator app. Gated on NODE_ENV rather than
+  // a manual toggle so it can never accidentally ship enabled — a real
+  // deployment always sets NODE_ENV=production, which restores the full
+  // 2FA requirement unconditionally.
+  if (user.role === 'admin' && env.NODE_ENV === 'production') {
     res.json(await buildTotpChallengeResponse(user));
     return;
   }
 
-  const accessToken = issueSession(res, { id: user.id, role: user.role });
+  const accessToken = issueSession(res, { id: user.id, role: user.role, tokenVersion: user.tokenVersion });
   res.json({ accessToken, user: await buildAuthUserPayload(user) });
 });
 
@@ -368,15 +390,28 @@ export const totpVerify = asyncHandler(async (req: Request, res: Response) => {
     throw ApiError.notFound('User not found');
   }
 
-  const accessToken = issueSession(res, { id: user.id, role: user.role });
+  if (user.accountStatus !== 'active') {
+    throw ApiError.forbidden(
+      user.accountStatus === 'banned'
+        ? 'This account has been banned.'
+        : `This account is suspended${user.statusReason ? ': ' + user.statusReason : '.'}`,
+    );
+  }
+
+  const accessToken = issueSession(res, { id: user.id, role: user.role, tokenVersion: user.tokenVersion });
   res.json({ accessToken, user: await buildAuthUserPayload(user) });
 });
 
 export const googleAuth = asyncHandler(async (req: Request, res: Response) => {
   const { idToken, role: requestedRole } = googleAuthSchema.parse(req.body);
 
-  const ticket = await googleClient.verifyIdToken({ idToken, audience: env.GOOGLE_CLIENT_ID });
-  const tokenPayload = ticket.getPayload();
+  let tokenPayload;
+  try {
+    const ticket = await googleClient.verifyIdToken({ idToken, audience: env.GOOGLE_CLIENT_ID });
+    tokenPayload = ticket.getPayload();
+  } catch {
+    throw ApiError.unauthorized('Invalid Google token');
+  }
 
   if (!tokenPayload?.email || !tokenPayload.sub) {
     throw ApiError.unauthorized('Invalid Google token');
@@ -422,12 +457,21 @@ export const googleAuth = asyncHandler(async (req: Request, res: Response) => {
     }
   }
 
-  if (user.role === 'admin') {
+  if (user.accountStatus !== 'active') {
+    throw ApiError.forbidden(
+      user.accountStatus === 'banned'
+        ? 'This account has been banned.'
+        : `This account is suspended${user.statusReason ? ': ' + user.statusReason : '.'}`,
+    );
+  }
+
+  // Same dev-only TOTP bypass as login() above — see the comment there.
+  if (user.role === 'admin' && env.NODE_ENV === 'production') {
     res.json(await buildTotpChallengeResponse(user));
     return;
   }
 
-  const accessToken = issueSession(res, { id: user.id, role: user.role });
+  const accessToken = issueSession(res, { id: user.id, role: user.role, tokenVersion: user.tokenVersion });
   res.json({ accessToken, user: await buildAuthUserPayload(user) });
 });
 
@@ -444,7 +488,19 @@ export const refresh = asyncHandler(async (req: Request, res: Response) => {
     throw ApiError.unauthorized('Invalid or expired refresh token');
   }
 
-  const accessToken = issueSession(res, { id: payload.sub, role: payload.role });
+  // Phase 5: no longer trusts the refresh JWT's signature alone — re-checks
+  // the DB so that a suspend/ban/force-logout (token_version bump) takes
+  // effect on the very next refresh, instead of silently staying valid until
+  // the refresh token's own multi-week expiry. Same null-context pattern as
+  // login()'s lookup above, protected by the users_select_for_auth RLS
+  // policy (see migrations/20240101000004).
+  const user = await runInRequestContext(null, (t) => User.findByPk(payload.sub, { transaction: t }));
+
+  if (!user || user.accountStatus !== 'active' || payload.tokenVersion !== user.tokenVersion) {
+    throw ApiError.unauthorized('Session expired, please log in again');
+  }
+
+  const accessToken = issueSession(res, { id: user.id, role: user.role, tokenVersion: user.tokenVersion });
   res.json({ accessToken });
 });
 

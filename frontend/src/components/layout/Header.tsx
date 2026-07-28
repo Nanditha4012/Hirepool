@@ -89,6 +89,17 @@ export default function Header() {
               >
                 Verifier login
               </Link>
+              {/* Dev convenience — dropped from the production bundle, same
+                  gate as the credential hints on the login pages. Temporary
+                  until there's a real internal-tools nav. */}
+              {import.meta.env.DEV && (
+                <Link
+                  to="/admin/login"
+                  className="rounded-card px-3 py-1.5 text-sm font-semibold text-ink/60 transition-colors hover:bg-surface hover:text-primary"
+                >
+                  Admin login
+                </Link>
+              )}
               <Link
                 to="/login"
                 className="rounded-card px-3 py-1.5 text-sm font-semibold text-ink transition-colors hover:bg-surface hover:text-primary"
@@ -150,6 +161,11 @@ export default function Header() {
               <Link to="/verifier/login" className="text-sm font-medium text-ink/60 hover:text-primary">
                 Verifier login
               </Link>
+              {import.meta.env.DEV && (
+                <Link to="/admin/login" className="text-sm font-medium text-ink/60 hover:text-primary">
+                  Admin login
+                </Link>
+              )}
               <Link to="/signup">
                 <Button size="sm" className="w-full">
                   Get started

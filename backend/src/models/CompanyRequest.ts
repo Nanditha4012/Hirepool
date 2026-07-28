@@ -8,12 +8,15 @@ export interface CompanyRequestAttributes {
   requestedBy: string | null;
   companyName: string;
   status: CompanyRequestStatus;
+  reviewedBy: string | null;
+  reviewedAt: Date | null;
+  rejectionReason: string | null;
   createdAt: Date;
 }
 
 type CompanyRequestCreationAttributes = Optional<
   CompanyRequestAttributes,
-  'id' | 'requestedBy' | 'status' | 'createdAt'
+  'id' | 'requestedBy' | 'status' | 'reviewedBy' | 'reviewedAt' | 'rejectionReason' | 'createdAt'
 >;
 
 export class CompanyRequest
@@ -24,6 +27,9 @@ export class CompanyRequest
   declare requestedBy: string | null;
   declare companyName: string;
   declare status: CompanyRequestStatus;
+  declare reviewedBy: string | null;
+  declare reviewedAt: Date | null;
+  declare rejectionReason: string | null;
   declare readonly createdAt: Date;
 }
 
@@ -37,6 +43,9 @@ CompanyRequest.init(
       allowNull: false,
       defaultValue: 'pending',
     },
+    reviewedBy: { type: DataTypes.UUID, allowNull: true, field: 'reviewed_by' },
+    reviewedAt: { type: DataTypes.DATE, allowNull: true, field: 'reviewed_at' },
+    rejectionReason: { type: DataTypes.TEXT, allowNull: true, field: 'rejection_reason' },
     createdAt: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW, field: 'created_at' },
   },
   {

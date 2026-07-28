@@ -11,6 +11,7 @@ import LandingPage from '@/pages/LandingPage'
 import SignupPage from '@/pages/SignupPage'
 import LoginPage from '@/pages/LoginPage'
 import VerifierLoginPage from '@/pages/VerifierLoginPage'
+import AdminLoginPage from '@/pages/AdminLoginPage'
 import CategoryPage from '@/pages/onboarding/CategoryPage'
 import TotpPage from '@/pages/onboarding/TotpPage'
 import CandidateEntryPoint from '@/pages/candidate/CandidateEntryPoint'
@@ -28,7 +29,18 @@ import VerifierAccountPage from '@/pages/verifier/VerifierAccountPage'
 import BadgeQueuePage from '@/pages/verifier/BadgeQueuePage'
 import AchievementQueuePage from '@/pages/verifier/AchievementQueuePage'
 import AnalyticsPage from '@/pages/verifier/AnalyticsPage'
-import AdminStub from '@/pages/stubs/AdminStub'
+import AdminLayout from '@/pages/admin/AdminLayout'
+import AdminDashboardPage from '@/pages/admin/DashboardPage'
+import AdminCandidatesPage from '@/pages/admin/CandidatesPage'
+import AdminCandidateDetailPage from '@/pages/admin/CandidateDetailPage'
+import AdminCompaniesPage from '@/pages/admin/CompaniesPage'
+import AdminCompanyDetailPage from '@/pages/admin/CompanyDetailPage'
+import AdminVerifiersPage from '@/pages/admin/VerifiersPage'
+import AdminCompanyRequestsPage from '@/pages/admin/CompanyRequestsPage'
+import AdminMasterDataPage from '@/pages/admin/MasterDataPage'
+import AdminSiteSettingsPage from '@/pages/admin/SiteSettingsPage'
+import AdminAnnouncementsPage from '@/pages/admin/AnnouncementsPage'
+import AdminAuditLogPage from '@/pages/admin/AuditLogPage'
 import NotFoundPage from '@/pages/NotFoundPage'
 
 function AppShell() {
@@ -45,6 +57,7 @@ function AppShell() {
           <Route path="/signup" element={<SignupPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/verifier/login" element={<VerifierLoginPage />} />
+          <Route path="/admin/login" element={<AdminLoginPage />} />
 
           <Route
             path="/onboarding/category"
@@ -135,10 +148,25 @@ function AppShell() {
             path="/admin"
             element={
               <ProtectedRoute allow={['admin']}>
-                <AdminStub />
+                <AdminLayout />
               </ProtectedRoute>
             }
-          />
+          >
+            <Route index element={<AdminDashboardPage />} />
+            {/* The literal /candidates list must precede /candidates/:id so
+                the param route can't swallow it — same ordering discipline
+                as /verify's profiles routes below. */}
+            <Route path="candidates" element={<AdminCandidatesPage />} />
+            <Route path="candidates/:id" element={<AdminCandidateDetailPage />} />
+            <Route path="companies" element={<AdminCompaniesPage />} />
+            <Route path="companies/:id" element={<AdminCompanyDetailPage />} />
+            <Route path="verifiers" element={<AdminVerifiersPage />} />
+            <Route path="company-requests" element={<AdminCompanyRequestsPage />} />
+            <Route path="masters" element={<AdminMasterDataPage />} />
+            <Route path="settings" element={<AdminSiteSettingsPage />} />
+            <Route path="announcements" element={<AdminAnnouncementsPage />} />
+            <Route path="audit-log" element={<AdminAuditLogPage />} />
+          </Route>
 
           <Route path="*" element={<NotFoundPage />} />
         </Routes>

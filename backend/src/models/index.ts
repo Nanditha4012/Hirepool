@@ -22,6 +22,8 @@ import { Unlock } from './Unlock';
 import { CompanyBlock } from './CompanyBlock';
 import { RejectionReasonMaster } from './RejectionReasonMaster';
 import { ProfileFieldCheck } from './ProfileFieldCheck';
+import { Announcement } from './Announcement';
+import { SiteSetting } from './SiteSetting';
 
 // User <-> CandidateProfile (1:1)
 User.hasOne(CandidateProfile, { foreignKey: 'userId', as: 'candidateProfile' });
@@ -111,6 +113,15 @@ ProfileFieldCheck.belongsTo(CandidateProfile, { foreignKey: 'profileId', as: 'pr
 ProfileFieldCheck.belongsTo(User, { foreignKey: 'reviewerId', as: 'reviewer' });
 ProfileFieldCheck.belongsTo(RejectionReasonMaster, { foreignKey: 'reasonId', as: 'reason' });
 
+// User <-> Announcement (1:many, via created_by) — Phase 5 admin portal.
+User.hasMany(Announcement, { foreignKey: 'createdBy', as: 'announcements' });
+Announcement.belongsTo(User, { foreignKey: 'createdBy', as: 'creator' });
+
+// User <-> SiteSetting (1:many, via updated_by — nullable, same shape as
+// CandidateProfile <-> assignedVerifier above) — Phase 5 admin portal.
+User.hasMany(SiteSetting, { foreignKey: 'updatedBy', as: 'siteSettingsUpdated' });
+SiteSetting.belongsTo(User, { foreignKey: 'updatedBy', as: 'updatedByUser' });
+
 export {
   sequelize,
   User,
@@ -136,4 +147,6 @@ export {
   CompanyBlock,
   RejectionReasonMaster,
   ProfileFieldCheck,
+  Announcement,
+  SiteSetting,
 };

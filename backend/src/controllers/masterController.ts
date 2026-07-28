@@ -8,6 +8,7 @@ import {
   DomainMaster,
   CompanyRequest,
   RejectionReasonMaster,
+  SiteSetting,
 } from '../models';
 import { asyncHandler } from '../utils/asyncHandler';
 import { runInRequestContext } from '../utils/withRequestContext';
@@ -86,4 +87,23 @@ export const requestCompany = asyncHandler(async (req: Request, res: Response) =
   );
 
   res.status(201).json(request);
+});
+
+/**
+ * Public, unauthenticated — the landing page / header reads this at runtime
+ * for app_name/hero copy/FAQ/Boost price before any session exists. Backed
+ * by site_settings' public `site_settings_select_all` RLS policy (see
+ * migrations/20240106000001-phase5-admin-portal.js). Admin-side reads of the
+ * same data go through GET /admin/site-settings instead — identical shape,
+ * separate route because that one requires an admin session.
+ */
+export const getSiteSettings = asyncHandler(async (req: Request, res: Response) => {
+  const rows = await runInRequestContext(null, (t) => SiteSetting.findAll({ transaction: t }));
+
+  const result: Record<string, string | null> = {};
+  for (const row of rows) {
+    result[row.key] = row.value;
+  }
+
+  res.json(result);
 });
