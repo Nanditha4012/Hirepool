@@ -370,8 +370,17 @@ const upsertProfileSchema = z.object({
   noticePeriod: z.enum(['immediate', '15_days', '30_days', '60_days', '90_plus_days']).nullable().optional(),
 });
 
+// Handled separately from PROFILE_FIELD_KEYS below — a plain unconditional
+// assignment was a real bug: it let an already-approved, live candidate
+// silently relabel themselves e.g. Fresher -> Experienced with none of that
+// category's required fields filled in and no re-verification of any kind,
+// since this endpoint never touched `status`/`pendingReverification`. See
+// CATEGORY_CHANGE_DESIGN.md for the reasoning behind upgrade-only + "stays
+// live, flagged for re-check" rather than either silently allowing it or
+// yanking the profile offline.
+const CATEGORY_RANK: Record<CandidateCategory, number> = { fresher: 0, experienced: 1, executive: 2 };
+
 const PROFILE_FIELD_KEYS = [
-  'category',
   'primaryRoleId',
   'domainId',
   'resumeLink',
@@ -409,6 +418,35 @@ export const upsertMyProfile = asyncHandler(async (req: Request, res: Response) 
       throw ApiError.notFound('Candidate profile not found');
     }
 
+    let categoryChanged = false;
+    if (body.category !== undefined && body.category !== profile.category) {
+      if (profile.status === 'approved') {
+        // Upgrade-only: fresher -> experienced -> executive. Blocked
+        // sideways/backward so a rejected Experienced profile can't be
+        // resubmitted as Fresher to dodge the original rejection reason.
+        if (profile.category === null || CATEGORY_RANK[body.category] <= CATEGORY_RANK[profile.category]) {
+          throw ApiError.badRequest(
+            'Once your profile is approved, category can only move forward (Fresher → Experienced → Executive), not sideways or backward. Contact support for anything else.',
+          );
+        }
+        profile.category = body.category;
+        // Stays `approved` and visible to companies with its OLD data — see
+        // markProfileNeedsReverification's identical convention for
+        // badges/achievements. The candidate fills in the new category's
+        // required fields, then explicitly asks for a look via
+        // requestReverification (which now also validates those fields are
+        // actually complete before it lets the ask through).
+        profile.pendingReverification = true;
+        profile.reverificationRequestedAt = null;
+      } else {
+        // Not live yet (draft/submitted/under_review/rejected/needs_info) —
+        // nothing to protect, freely settable exactly as every other field
+        // on this form already is.
+        profile.category = body.category;
+      }
+      categoryChanged = true;
+    }
+
     const profileUpdates: Partial<Record<(typeof PROFILE_FIELD_KEYS)[number], unknown>> = {};
     for (const key of PROFILE_FIELD_KEYS) {
       if (body[key] !== undefined) {
@@ -417,6 +455,8 @@ export const upsertMyProfile = asyncHandler(async (req: Request, res: Response) 
     }
     if (Object.keys(profileUpdates).length > 0) {
       Object.assign(profile, profileUpdates);
+    }
+    if (categoryChanged || Object.keys(profileUpdates).length > 0) {
       await profile.save({ transaction: t });
     }
 
@@ -446,6 +486,55 @@ export const upsertMyProfile = asyncHandler(async (req: Request, res: Response) 
   res.json(response);
 });
 
+/**
+ * The category-conditional required-field set — shared by the initial
+ * submission (submitMyProfile) and by re-verification requests made after an
+ * approved profile's category was upgraded (requestReverification). Both
+ * cases mean the same thing: "this profile, under its current category, is
+ * about to be judged against that category's Track 1 checklist — is it
+ * actually complete?"
+ */
+async function findMissingCategoryFields(
+  profile: CandidateProfile,
+  candidateUserId: string,
+  t: Transaction,
+): Promise<string[]> {
+  const missing: string[] = [];
+  const require = (condition: boolean, field: string) => {
+    if (!condition) missing.push(field);
+  };
+
+  if (profile.category === 'fresher') {
+    require(!!profile.domainId, 'domainId');
+    require(!!profile.resumeLink, 'resumeLink');
+
+    const projectCount = await CandidateAchievement.count({
+      where: { candidateId: candidateUserId, type: 'project' },
+      transaction: t,
+    });
+    require(projectCount >= 3, 'projects (at least 3 required)');
+  } else if (profile.category === 'experienced' || profile.category === 'executive') {
+    require(!!profile.domainId, 'domainId');
+    require(!!profile.resumeLink, 'resumeLink');
+    require(
+      profile.yearsOfExperience !== null && profile.yearsOfExperience !== undefined,
+      'yearsOfExperience',
+    );
+    require(!!profile.currentCompanyId, 'currentCompanyId');
+    require(!!profile.designationRoleId, 'designationRoleId');
+    require(!!profile.offerLetterOrLinkedinLink, 'offerLetterOrLinkedinLink');
+
+    if (profile.category === 'executive') {
+      require(
+        profile.teamSizeManaged !== null && profile.teamSizeManaged !== undefined,
+        'teamSizeManaged',
+      );
+    }
+  }
+
+  return missing;
+}
+
 // ---------------------------------------------------------------------
 // POST /me/profile/submit
 // ---------------------------------------------------------------------
@@ -470,6 +559,10 @@ export const submitMyProfile = asyncHandler(async (req: Request, res: Response) 
       throw ApiError.conflict('Profile cannot be submitted from its current status');
     }
 
+    if (!profile.category) {
+      throw ApiError.badRequest('Candidate category must be set before submitting');
+    }
+
     const missing: string[] = [];
     const require = (condition: boolean, field: string) => {
       if (!condition) missing.push(field);
@@ -478,36 +571,7 @@ export const submitMyProfile = asyncHandler(async (req: Request, res: Response) 
     require(!!user.fullName, 'fullName');
     require(!!user.phone, 'phone');
     require(!!profile.primaryRoleId, 'primaryRoleId');
-
-    if (profile.category === 'fresher') {
-      require(!!profile.domainId, 'domainId');
-      require(!!profile.resumeLink, 'resumeLink');
-
-      const projectCount = await CandidateAchievement.count({
-        where: { candidateId: authUser.id, type: 'project' },
-        transaction: t,
-      });
-      require(projectCount >= 3, 'projects (at least 3 required)');
-    } else if (profile.category === 'experienced' || profile.category === 'executive') {
-      require(!!profile.domainId, 'domainId');
-      require(!!profile.resumeLink, 'resumeLink');
-      require(
-        profile.yearsOfExperience !== null && profile.yearsOfExperience !== undefined,
-        'yearsOfExperience',
-      );
-      require(!!profile.currentCompanyId, 'currentCompanyId');
-      require(!!profile.designationRoleId, 'designationRoleId');
-      require(!!profile.offerLetterOrLinkedinLink, 'offerLetterOrLinkedinLink');
-
-      if (profile.category === 'executive') {
-        require(
-          profile.teamSizeManaged !== null && profile.teamSizeManaged !== undefined,
-          'teamSizeManaged',
-        );
-      }
-    } else {
-      throw ApiError.badRequest('Candidate category must be set before submitting');
-    }
+    missing.push(...(await findMissingCategoryFields(profile, authUser.id, t)));
 
     if (missing.length > 0) {
       throw ApiError.badRequest(`Missing required fields: ${missing.join(', ')}`);
@@ -531,14 +595,19 @@ export const submitMyProfile = asyncHandler(async (req: Request, res: Response) 
 // POST /me/profile/request-reverification
 //
 // For an already-approved candidate who has added or edited something since
-// going live (a new project, an updated badge). The profile does NOT leave
-// the portal — it stays `approved` and visible to companies; only the new
-// items are unverified, and they are already sitting in the verifier's
-// badge/achievement queues via their own `pending` status.
+// going live (a new project, an updated badge, or — since the category
+// upgrade flow below — a category change like Fresher becoming Experienced).
+// The profile does NOT leave the portal — it stays `approved` and visible to
+// companies; only what changed is unverified. For badges/achievements those
+// items are already sitting in the verifier's own pending-item queues; for a
+// category upgrade, `pendingReverification` was already set to true the
+// moment the category changed (see upsertMyProfile), which is what the
+// `|| profile.pendingReverification` branch below picks up.
 //
 // What this endpoint adds is the explicit ask. Without it, a candidate could
-// keep appending unverified work indefinitely and nothing would tell the
-// verifier the candidate considers it ready to look at.
+// keep appending unverified work (or sit on a just-upgraded, half-filled-in
+// category) indefinitely and nothing would tell the verifier the candidate
+// considers it ready to look at.
 // ---------------------------------------------------------------------
 
 export const requestReverification = asyncHandler(async (req: Request, res: Response) => {
@@ -569,8 +638,20 @@ export const requestReverification = asyncHandler(async (req: Request, res: Resp
       transaction: t,
     });
 
-    if (pendingAchievements + pendingBadges === 0) {
+    if (pendingAchievements + pendingBadges === 0 && !profile.pendingReverification) {
       throw ApiError.badRequest('You have no unverified items to submit');
+    }
+
+    // Only relevant for the category-upgrade path — a pending badge/
+    // achievement doesn't need this (those are validated on their own way in
+    // via platformBadgeController/achievementController), but a candidate who
+    // upgraded category shouldn't be able to ask a verifier to look before
+    // they've actually filled in the new category's required fields (years
+    // of experience, current company, etc.) — that would just bounce as
+    // needs_info and waste the review pass.
+    const missing = await findMissingCategoryFields(profile, authUser.id, t);
+    if (missing.length > 0) {
+      throw ApiError.badRequest(`Finish these fields before requesting re-verification: ${missing.join(', ')}`);
     }
 
     profile.pendingReverification = true;

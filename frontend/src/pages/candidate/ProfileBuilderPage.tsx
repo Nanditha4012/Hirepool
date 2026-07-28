@@ -27,6 +27,18 @@ import {
   type UpsertProfileBody,
 } from '@/lib/candidateApi'
 
+const CATEGORY_OPTIONS = [
+  { value: 'fresher', label: 'Fresher' },
+  { value: 'experienced', label: 'Experienced' },
+  { value: 'executive', label: 'Executive' },
+]
+
+const CATEGORY_RANK: Record<'fresher' | 'experienced' | 'executive', number> = {
+  fresher: 0,
+  experienced: 1,
+  executive: 2,
+}
+
 const statusText: Record<CandidateProfileResponse['status'], string> = {
   draft: 'Draft — not yet submitted for review.',
   submitted: 'Submitted — waiting for a verifier to pick it up.',
@@ -51,6 +63,7 @@ const noticePeriodOptions = [
 ]
 
 interface FormState {
+  category: string
   fullName: string
   phone: string
   primaryRoleId: string | null
@@ -73,6 +86,7 @@ interface FormState {
 
 function profileToForm(profile: CandidateProfileResponse): FormState {
   return {
+    category: profile.category || '',
     fullName: profile.fullName || '',
     phone: profile.phone || '',
     primaryRoleId: profile.primaryRole?.id || null,
@@ -96,6 +110,7 @@ function profileToForm(profile: CandidateProfileResponse): FormState {
 
 function formToBody(form: FormState): UpsertProfileBody {
   return {
+    category: (form.category || undefined) as UpsertProfileBody['category'],
     fullName: form.fullName,
     phone: form.phone,
     primaryRoleId: form.primaryRoleId,
@@ -193,6 +208,7 @@ export default function ProfileBuilderPage() {
 
   const handleSaveDraft = async () => {
     if (!form) return
+    const wasUpgrade = isApproved && form.category !== profile?.category
     setSaving(true)
     setSaveError(null)
     setSaveNotice(null)
@@ -201,7 +217,11 @@ export default function ProfileBuilderPage() {
       const updated = await upsertMyProfile(formToBody(form))
       setProfile(updated)
       setForm(profileToForm(updated))
-      setSaveNotice('Saved.')
+      setSaveNotice(
+        wasUpgrade
+          ? 'Category updated. Fill in every required field above, then request re-verification from your dashboard.'
+          : 'Saved.',
+      )
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : 'Failed to save')
     } finally {
@@ -275,11 +295,28 @@ export default function ProfileBuilderPage() {
     )
   }
 
-  const isFresher = profile.category === 'fresher'
+  // Derived from the FORM's category (not the saved profile's) so the field
+  // set below updates immediately when the candidate picks a new category,
+  // before they've hit Save — otherwise picking "Experienced" would keep
+  // showing Fresher fields until a round trip completed.
+  const isFresher = form.category === 'fresher'
   const isApproved = profile.status === 'approved'
   const canSubmit = ['draft', 'rejected', 'needs_info'].includes(profile.status)
   const showVerificationNote =
     (profile.status === 'rejected' || profile.status === 'needs_info') && profile.latestVerificationNote
+
+  // Once approved, category can only move forward (see
+  // CATEGORY_CHANGE_DESIGN.md) — options below current rank are hidden
+  // entirely rather than shown-then-rejected, since the backend blocks them
+  // anyway and there's no legitimate reason to offer a choice that always errors.
+  const categoryOptions = isApproved
+    ? CATEGORY_OPTIONS.filter(
+        (opt) =>
+          CATEGORY_RANK[opt.value as keyof typeof CATEGORY_RANK] >=
+          CATEGORY_RANK[profile.category as keyof typeof CATEGORY_RANK],
+      )
+    : CATEGORY_OPTIONS
+  const categoryIsUpgradePending = isApproved && form.category !== profile.category
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
@@ -307,6 +344,34 @@ export default function ProfileBuilderPage() {
       )}
 
       <div className="mt-8 flex flex-col gap-8">
+        <Card>
+          <h2 className="text-lg font-semibold text-ink">Category</h2>
+          {isApproved && (
+            <p className="mt-1 text-sm text-ink/60">
+              Career moved on? You can move up (Fresher → Experienced → Executive) — you can&apos;t move
+              backward once approved.
+            </p>
+          )}
+          <div className="mt-4 max-w-xs">
+            <Select
+              label="Category"
+              options={categoryOptions}
+              value={form.category}
+              onChange={(e) => updateField('category', e.target.value)}
+            />
+          </div>
+          {categoryIsUpgradePending && (
+            <div className="mt-3 rounded-card border border-boost/30 bg-boost/10 px-4 py-3 text-sm text-ink/70">
+              <p className="font-semibold text-boost">Upgrading to {form.category}</p>
+              <p className="mt-1">
+                Your profile stays live under your current approved details until this is saved and
+                re-verified. Fill in the new fields below, hit Save, then request re-verification from
+                your dashboard.
+              </p>
+            </div>
+          )}
+        </Card>
+
         <Card>
           <h2 className="text-lg font-semibold text-ink">Basics</h2>
           <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -447,7 +512,7 @@ export default function ProfileBuilderPage() {
               {companyRequestNotice && <p className="w-full text-sm text-ink/60">{companyRequestNotice}</p>}
             </div>
 
-            {profile.category === 'executive' && (
+            {form.category === 'executive' && (
               <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <Input
                   label="Team size managed"
