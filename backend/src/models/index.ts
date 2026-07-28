@@ -25,6 +25,7 @@ import { ProfileFieldCheck } from './ProfileFieldCheck';
 import { Announcement } from './Announcement';
 import { SiteSetting } from './SiteSetting';
 import { Payment } from './Payment';
+import { VerifierInvite } from './VerifierInvite';
 
 // User <-> CandidateProfile (1:1)
 User.hasOne(CandidateProfile, { foreignKey: 'userId', as: 'candidateProfile' });
@@ -127,6 +128,13 @@ SiteSetting.belongsTo(User, { foreignKey: 'updatedBy', as: 'updatedByUser' });
 User.hasMany(Payment, { foreignKey: 'payerUserId', as: 'payments' });
 Payment.belongsTo(User, { foreignKey: 'payerUserId', as: 'payer' });
 
+// User <-> VerifierInvite — an admin invites (invitedBy), and at most one
+// user ever consumes a given invite (consumedByUserId, set by
+// authController.signup on success).
+User.hasMany(VerifierInvite, { foreignKey: 'invitedBy', as: 'verifierInvitesSent' });
+VerifierInvite.belongsTo(User, { foreignKey: 'invitedBy', as: 'inviter' });
+VerifierInvite.belongsTo(User, { foreignKey: 'consumedByUserId', as: 'consumedByUser' });
+
 export {
   sequelize,
   User,
@@ -155,4 +163,5 @@ export {
   Announcement,
   SiteSetting,
   Payment,
+  VerifierInvite,
 };

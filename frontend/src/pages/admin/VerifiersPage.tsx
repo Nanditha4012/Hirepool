@@ -5,7 +5,15 @@ import Input from '@/components/ui/Input'
 import Badge from '@/components/ui/Badge'
 import PageLoader from '@/components/ui/PageLoader'
 import UserModerationActions from '@/components/admin/UserModerationActions'
-import { createVerifier, listVerifiers, type AdminVerifierRow } from '@/lib/adminApi'
+import {
+  createVerifier,
+  listVerifiers,
+  createVerifierInvite,
+  listVerifierInvites,
+  deleteVerifierInvite,
+  type AdminVerifierRow,
+  type AdminVerifierInviteRow,
+} from '@/lib/adminApi'
 
 export default function VerifiersPage() {
   const [verifiers, setVerifiers] = useState<AdminVerifierRow[]>([])
@@ -20,6 +28,14 @@ export default function VerifiersPage() {
 
   const [managingId, setManagingId] = useState<string | null>(null)
 
+  const [invites, setInvites] = useState<AdminVerifierInviteRow[]>([])
+  const [invitesLoading, setInvitesLoading] = useState(true)
+  const [invitesError, setInvitesError] = useState<string | null>(null)
+  const [inviteEmail, setInviteEmail] = useState('')
+  const [inviting, setInviting] = useState(false)
+  const [inviteError, setInviteError] = useState<string | null>(null)
+  const [revokingId, setRevokingId] = useState<string | null>(null)
+
   const load = async () => {
     setLoading(true)
     setError(null)
@@ -33,9 +49,53 @@ export default function VerifiersPage() {
     }
   }
 
+  const loadInvites = async () => {
+    setInvitesLoading(true)
+    setInvitesError(null)
+    try {
+      const result = await listVerifierInvites({ limit: 50 })
+      setInvites(result.results)
+    } catch (err) {
+      setInvitesError(err instanceof Error ? err.message : 'Failed to load invites')
+    } finally {
+      setInvitesLoading(false)
+    }
+  }
+
   useEffect(() => {
     load()
+    loadInvites()
   }, [])
+
+  const handleInvite = async () => {
+    if (!inviteEmail.trim() || !inviteEmail.includes('@')) {
+      setInviteError('Enter a valid email.')
+      return
+    }
+    setInviting(true)
+    setInviteError(null)
+    try {
+      await createVerifierInvite(inviteEmail.trim())
+      setInviteEmail('')
+      await loadInvites()
+    } catch (err) {
+      setInviteError(err instanceof Error ? err.message : 'Failed to send invite')
+    } finally {
+      setInviting(false)
+    }
+  }
+
+  const handleRevoke = async (id: string) => {
+    setRevokingId(id)
+    try {
+      await deleteVerifierInvite(id)
+      await loadInvites()
+    } catch (err) {
+      setInvitesError(err instanceof Error ? err.message : 'Failed to revoke invite')
+    } finally {
+      setRevokingId(null)
+    }
+  }
 
   const handleCreate = async () => {
     if (username.trim().length < 3) {
@@ -83,6 +143,72 @@ export default function VerifiersPage() {
         <Button type="button" size="sm" className="mt-4" loading={creating} onClick={handleCreate}>
           Create verifier
         </Button>
+      </Card>
+
+      <Card className="mt-6">
+        <h2 className="text-lg font-semibold text-ink">Invite by email</h2>
+        <p className="mt-1 text-sm text-ink/60">
+          Whitelist an email so the invited person can set their own password at{' '}
+          <span className="font-mono text-xs">/verifier/signup</span>, instead of you choosing one for them.
+        </p>
+        <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-end">
+          <Input
+            label="Email"
+            type="email"
+            value={inviteEmail}
+            onChange={(e) => setInviteEmail(e.target.value)}
+            className="sm:flex-1"
+          />
+          <Button type="button" size="sm" loading={inviting} onClick={handleInvite}>
+            Send invite
+          </Button>
+        </div>
+        {inviteError && <p className="mt-2 text-sm text-danger">{inviteError}</p>}
+
+        {invitesLoading && <PageLoader compact label="Loading invites…" />}
+        {!invitesLoading && invitesError && <p className="mt-3 text-sm text-danger">{invitesError}</p>}
+        {!invitesLoading && !invitesError && invites.length > 0 && (
+          <div className="mt-4 overflow-x-auto">
+            <table className="w-full min-w-[640px] table-auto text-left text-sm">
+              <thead>
+                <tr className="border-b border-line text-ink/60">
+                  <th className="py-2 pr-4 font-medium">Email</th>
+                  <th className="py-2 pr-4 font-medium">Invited by</th>
+                  <th className="py-2 pr-4 font-medium">Status</th>
+                  <th className="py-2 pr-4 font-medium" />
+                </tr>
+              </thead>
+              <tbody>
+                {invites.map((invite) => (
+                  <tr key={invite.id} className="border-b border-line last:border-0">
+                    <td className="py-2 pr-4 text-ink">{invite.email}</td>
+                    <td className="py-2 pr-4 text-ink/60">{invite.invitedByEmail || '—'}</td>
+                    <td className="py-2 pr-4">
+                      {invite.consumedAt ? (
+                        <Badge tone="verified">Used{invite.consumedByUserFullName ? ` — ${invite.consumedByUserFullName}` : ''}</Badge>
+                      ) : (
+                        <Badge tone="boost">Pending</Badge>
+                      )}
+                    </td>
+                    <td className="py-2 pr-4">
+                      {!invite.consumedAt && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="danger"
+                          loading={revokingId === invite.id}
+                          onClick={() => handleRevoke(invite.id)}
+                        >
+                          Revoke
+                        </Button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </Card>
 
       <Card className="mt-6">

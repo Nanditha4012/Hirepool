@@ -11,6 +11,7 @@ import LandingPage from '@/pages/LandingPage'
 import SignupPage from '@/pages/SignupPage'
 import LoginPage from '@/pages/LoginPage'
 import VerifierLoginPage from '@/pages/VerifierLoginPage'
+import VerifierSignupPage from '@/pages/VerifierSignupPage'
 import AdminLoginPage from '@/pages/AdminLoginPage'
 import CategoryPage from '@/pages/onboarding/CategoryPage'
 import TotpPage from '@/pages/onboarding/TotpPage'
@@ -60,6 +61,7 @@ function AppShell() {
           <Route path="/signup" element={<SignupPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/verifier/login" element={<VerifierLoginPage />} />
+          <Route path="/verifier/signup" element={<VerifierSignupPage />} />
           <Route path="/admin/login" element={<AdminLoginPage />} />
 
           <Route

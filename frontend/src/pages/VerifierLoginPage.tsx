@@ -146,6 +146,12 @@ export default function VerifierLoginPage() {
 
         <div className="rounded-card border border-dashed border-line bg-surface/60 px-4 py-3 text-center">
           <p className="text-sm text-ink/60">
+            Invited by email but haven&apos;t set a password yet?{' '}
+            <Link to="/verifier/signup" className="font-semibold text-primary hover:underline">
+              Finish setup →
+            </Link>
+          </p>
+          <p className="mt-2 text-sm text-ink/60">
             Not a reviewer?{' '}
             <Link to="/login" className="font-semibold text-primary hover:underline">
               Candidate &amp; company login →

@@ -421,6 +421,42 @@ export function createVerifier(body: CreateVerifierBody) {
   })
 }
 
+// -----------------------------------------------------------------------
+// Verifier invites (email whitelist) — the alternative to createVerifier
+// above: an admin whitelists an email instead of picking a password for
+// them, and the invited person signs up themselves at /verifier/signup.
+// -----------------------------------------------------------------------
+
+export interface AdminVerifierInviteRow {
+  id: string
+  email: string
+  invitedByEmail: string | null
+  createdAt: string
+  consumedAt: string | null
+  consumedByUserFullName: string | null
+}
+
+export interface ListVerifierInvitesParams {
+  status?: 'pending' | 'consumed'
+  page?: number
+  limit?: number
+}
+
+export function listVerifierInvites(params: ListVerifierInvitesParams = {}) {
+  return apiFetch<AdminListResponse<AdminVerifierInviteRow>>(`/admin/verifier-invites${buildQuery(params)}`)
+}
+
+export function createVerifierInvite(email: string) {
+  return apiFetch<{ id: string; email: string; createdAt: string }>('/admin/verifier-invites', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  })
+}
+
+export function deleteVerifierInvite(id: string) {
+  return apiFetch<void>(`/admin/verifier-invites/${id}`, { method: 'DELETE' })
+}
+
 // =======================================================================
 // Company requests
 // =======================================================================

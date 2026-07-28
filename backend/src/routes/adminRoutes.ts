@@ -38,6 +38,11 @@ router.post('/companies/:id/grant-unlocks', ...adminOnly, adminController.grantU
 router.get('/verifiers', ...adminOnly, adminController.listVerifiers);
 router.post('/verifiers', ...adminOnly, adminController.createVerifier);
 
+// ----- Verifier invites (email whitelist) -----
+router.get('/verifier-invites', ...adminOnly, adminController.listVerifierInvites);
+router.post('/verifier-invites', ...adminOnly, adminController.createVerifierInvite);
+router.delete('/verifier-invites/:id', ...adminOnly, adminController.deleteVerifierInvite);
+
 // ----- Company requests -----
 router.get('/company-requests', ...adminOnly, adminController.listCompanyRequests);
 router.post('/company-requests/:id/approve', ...adminOnly, adminController.approveCompanyRequest);

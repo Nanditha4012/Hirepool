@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { z } from 'zod';
 import { Op, UniqueConstraintError } from 'sequelize';
 import { OAuth2Client } from 'google-auth-library';
-import { User, CandidateProfile, CompanyProfile, TotpSecret, PlanMaster } from '../models';
+import { User, CandidateProfile, CompanyProfile, TotpSecret, PlanMaster, VerifierInvite } from '../models';
 import { env } from '../config/env';
 import { asyncHandler } from '../utils/asyncHandler';
 import { ApiError } from '../utils/ApiError';
@@ -22,10 +22,18 @@ import { signupConfirmationEmail } from '../utils/emailTemplates';
 
 const SELF_SIGNUP_ROLES = ['candidate', 'company'] as const;
 
+// Verifier is self-signup too, but ONLY when the submitted email has a live
+// invite row (see VERIFIER_INVITE_ROLE handling in signup() below) — kept as
+// a separate constant from SELF_SIGNUP_ROLES rather than folded in, because
+// createProfileForNewUser/googleAuth intentionally still only ever accept
+// 'candidate'|'company': Google sign-in for a whitelisted-email flow isn't
+// part of this feature, and verifiers get no profile row.
+const VERIFIER_INVITE_ROLE = 'verifier' as const;
+
 const signupSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8),
-  role: z.enum(SELF_SIGNUP_ROLES),
+  role: z.enum([...SELF_SIGNUP_ROLES, VERIFIER_INVITE_ROLE]),
 });
 
 /**
@@ -198,6 +206,29 @@ export const signup = asyncHandler(async (req: Request, res: Response) => {
   let user: User;
   try {
     user = await runInRequestContext(null, async (t) => {
+      if (role === VERIFIER_INVITE_ROLE) {
+        // Case-insensitive match against the whitelist — invites are always
+        // stored lowercased by adminController.createVerifierInvite.
+        const invite = await VerifierInvite.findOne({
+          where: { email: email.toLowerCase().trim(), consumedAt: null },
+          transaction: t,
+        });
+        if (!invite) {
+          throw ApiError.forbidden(
+            "This email hasn't been whitelisted as a verifier. Ask an admin to invite it first.",
+          );
+        }
+
+        const created = await User.create({ email, passwordHash, role }, { transaction: t });
+        // Verifiers get no candidate_profiles/company_profiles row — there's
+        // nothing for createProfileForNewUser to do here, unlike
+        // candidate/company signup below.
+        invite.consumedAt = new Date();
+        invite.consumedByUserId = created.id;
+        await invite.save({ transaction: t });
+        return created;
+      }
+
       const created = await User.create({ email, passwordHash, role }, { transaction: t });
       await createProfileForNewUser(created.id, email, role, { transaction: t });
       return created;

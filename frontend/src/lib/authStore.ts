@@ -54,7 +54,8 @@ interface AuthContextValue extends AuthState {
    * provisioned verifier/admin accounts — the backend accepts either.
    */
   login: (identifier: string, password: string) => Promise<LoginResult>
-  signup: (email: string, password: string, role: 'candidate' | 'company') => Promise<AuthSuccess>
+  /** 'verifier' is only accepted by the backend when `email` has a live admin-issued invite — see VerifierSignupPage. */
+  signup: (email: string, password: string, role: 'candidate' | 'company' | 'verifier') => Promise<AuthSuccess>
   loginWithGoogle: (idToken: string, role: 'candidate' | 'company') => Promise<LoginResult>
   verifyTotp: (challengeToken: string, code: string) => Promise<AuthSuccess>
   logout: () => Promise<void>
@@ -91,7 +92,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   )
 
   const signup = useCallback(
-    async (email: string, password: string, role: 'candidate' | 'company'): Promise<AuthSuccess> => {
+    async (email: string, password: string, role: 'candidate' | 'company' | 'verifier'): Promise<AuthSuccess> => {
       const result = await apiFetch<AuthSuccess>('/auth/signup', {
         method: 'POST',
         body: JSON.stringify({ email, password, role }),

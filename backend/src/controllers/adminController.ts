@@ -25,12 +25,14 @@ import {
   Announcement,
   SiteSetting,
   Payment,
+  VerifierInvite,
 } from '../models';
 import type { CandidateProfileAttributes, CandidateStatus } from '../models/CandidateProfile';
 import type { UserAttributes } from '../models/User';
 import type { CompanyProfileAttributes } from '../models/CompanyProfile';
 import type { PlanMasterAttributes } from '../models/PlanMaster';
 import type { PaymentAttributes } from '../models/Payment';
+import type { VerifierInviteAttributes } from '../models/VerifierInvite';
 import type { AdminAuditLogAttributes } from '../models/AdminAuditLog';
 import type { VerificationDecision } from '../models/VerificationLog';
 import { asyncHandler } from '../utils/asyncHandler';
@@ -786,6 +788,111 @@ export const createVerifier = asyncHandler(async (req: Request, res: Response) =
     fullName: user.fullName,
     email: user.email,
   });
+});
+
+// =======================================================================
+// Verifier invites (email whitelist) — the self-signup alternative to
+// createVerifier above. An admin whitelists an email instead of choosing a
+// password on the verifier's behalf; the invited person signs up themselves
+// through POST /auth/signup with role:'verifier' (see authController.ts,
+// which enforces the whitelist check).
+// =======================================================================
+
+const listVerifierInvitesSchema = paginationQuerySchema.extend({
+  status: z.enum(['pending', 'consumed']).optional(),
+});
+
+export const listVerifierInvites = asyncHandler(async (req: Request, res: Response) => {
+  const authUser = req.user!;
+  const query = listVerifierInvitesSchema.parse(req.query);
+  const { page, limit } = parsePagination(query.page, query.limit);
+
+  const result = await runInRequestContext(authUser, async (t) => {
+    const where: Record<string, unknown> = {};
+    if (query.status === 'pending') where.consumedAt = null;
+    if (query.status === 'consumed') where.consumedAt = { [Op.ne]: null };
+
+    const invites = await VerifierInvite.findAll({
+      where,
+      include: [
+        { model: User, as: 'inviter' },
+        { model: User, as: 'consumedByUser' },
+      ],
+      order: [['createdAt', 'DESC']],
+      limit,
+      offset: (page - 1) * limit,
+      transaction: t,
+    });
+    const totalCount = await VerifierInvite.count({ where, transaction: t });
+
+    return {
+      results: invites.map((invite) => {
+        const plain = invite.get({ plain: true }) as VerifierInviteAttributes & {
+          inviter: UserAttributes | null;
+          consumedByUser: UserAttributes | null;
+        };
+        return {
+          id: plain.id,
+          email: plain.email,
+          invitedByEmail: plain.inviter?.email ?? null,
+          createdAt: plain.createdAt,
+          consumedAt: plain.consumedAt,
+          consumedByUserFullName: plain.consumedByUser?.fullName ?? plain.consumedByUser?.email ?? null,
+        };
+      }),
+      page,
+      limit,
+      totalCount,
+    };
+  });
+
+  res.json(result);
+});
+
+const createVerifierInviteSchema = z.object({
+  email: z.string().trim().email(),
+});
+
+export const createVerifierInvite = asyncHandler(async (req: Request, res: Response) => {
+  const authUser = req.user!;
+  const { email } = createVerifierInviteSchema.parse(req.body);
+  const normalizedEmail = email.toLowerCase();
+
+  let invite: VerifierInvite;
+  try {
+    invite = await runInRequestContext(authUser, async (t) => {
+      const created = await VerifierInvite.create(
+        { email: normalizedEmail, invitedBy: authUser.id },
+        { transaction: t },
+      );
+      await logAdminAction(authUser.id, 'verifier_invite_create', `verifier_invite:${created.id}`, t);
+      return created;
+    });
+  } catch (err) {
+    if (err instanceof UniqueConstraintError) {
+      throw ApiError.conflict('This email has already been invited (or already used its invite)');
+    }
+    throw err;
+  }
+
+  res.status(201).json({ id: invite.id, email: invite.email, createdAt: invite.createdAt });
+});
+
+export const deleteVerifierInvite = asyncHandler(async (req: Request, res: Response) => {
+  const authUser = req.user!;
+  const { id } = req.params;
+
+  await runInRequestContext(authUser, async (t) => {
+    const existing = await VerifierInvite.findByPk(id, { transaction: t });
+    if (!existing) throw ApiError.notFound('Invite not found');
+    if (existing.consumedAt) {
+      throw ApiError.conflict('This invite has already been used and can no longer be revoked');
+    }
+    await logAdminAction(authUser.id, 'verifier_invite_revoke', `verifier_invite:${id}`, t);
+    await existing.destroy({ transaction: t });
+  });
+
+  res.status(204).send();
 });
 
 // =======================================================================
