@@ -7,6 +7,7 @@ import adminRoutes from './adminRoutes';
 import masterRoutes from './masterRoutes';
 import meRoutes from './meRoutes';
 import paymentRoutes from './paymentRoutes';
+import contestRoutes from './contestRoutes';
 
 const router = Router();
 
@@ -16,6 +17,7 @@ router.use('/companies', companyRoutes);
 router.use('/verify', verifierRoutes);
 router.use('/admin', adminRoutes);
 router.use('/masters', masterRoutes);
+router.use('/contests', contestRoutes);
 router.use('/me', meRoutes);
 // Phase 6: only the public Razorpay webhook lives here — the authenticated
 // checkout/history endpoints are mounted under /companies and /candidates

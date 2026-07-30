@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { z } from 'zod';
-import { Op, UniqueConstraintError } from 'sequelize';
+import { Op, UniqueConstraintError, col, fn, where as sqlWhere } from 'sequelize';
 import { OAuth2Client } from 'google-auth-library';
 import { User, CandidateProfile, CompanyProfile, TotpSecret, PlanMaster, VerifierInvite } from '../models';
 import { env } from '../config/env';
@@ -75,7 +75,75 @@ const googleClient = new OAuth2Client(env.GOOGLE_CLIENT_ID);
 
 const REFRESH_COOKIE_NAME = 'refresh_token';
 
+// ---------------------------------------------------------------------
+// One email = one account = one role
+//
+// `users.email` has always been UNIQUE, but a Postgres unique index is
+// case-sensitive — so 'Manoj@gmail.com' and 'manoj@gmail.com' were two
+// different values and the same mailbox could hold a candidate account AND
+// a company (or verifier) account at once. Every write path below now
+// lowercases before touching the DB, and every lookup compares on
+// lower(email), so casing can't be used to slip past the constraint.
+// migrations/20240109000001 adds the matching UNIQUE INDEX on lower(email)
+// so this holds even if a future code path forgets to normalize.
+// ---------------------------------------------------------------------
+
+/** Canonical storage/lookup form for an email address. */
+function normalizeEmail(email: string): string {
+  return email.trim().toLowerCase();
+}
+
+/**
+ * A case-insensitive `WHERE lower(email) = ?`.
+ *
+ * Deliberately not `{ email: { [Op.iLike]: value } }`: iLike treats `_` and
+ * `%` as wildcards, and `_` is a perfectly legal character in a local-part —
+ * so `a_b@x.com` would also match `axb@x.com`.
+ */
+function whereEmailEquals(email: string) {
+  return sqlWhere(fn('lower', col('email')), normalizeEmail(email));
+}
+
+const ROLE_LABELS: Record<string, string> = {
+  candidate: 'candidate',
+  company: 'company',
+  verifier: 'verifier',
+  admin: 'admin',
+};
+
+/**
+ * Explains *why* the signup was refused. "An account with this email already
+ * exists" is technically true but actively unhelpful when the collision is
+ * cross-role — someone trying to register their company with the mailbox
+ * they already used as a candidate needs to be told that's the rule, not
+ * left guessing whether they forgot a password.
+ */
+function emailTakenMessage(existingRole: string, attemptedRole: string): string {
+  const existingLabel = ROLE_LABELS[existingRole] ?? existingRole;
+  const attemptedLabel = ROLE_LABELS[attemptedRole] ?? attemptedRole;
+
+  if (existingRole === attemptedRole) {
+    return `An account with this email already exists — log in instead.`;
+  }
+
+  return (
+    `This email is already registered as a ${existingLabel} account. ` +
+    `One email can only be used for one role on Hirepool, so please use a ` +
+    `different email address to sign up as a ${attemptedLabel}.`
+  );
+}
+
 function refreshCookieOptions() {
+  // On Vercel the API and the web app are two different deployments on two
+  // different hostnames, so every call from the frontend is cross-site. A
+  // SameSite=Lax cookie is simply not attached to a cross-site fetch, which
+  // meant the refresh cookie was set at login and then never sent again —
+  // /auth/refresh would 401 on the very next page load and silently sign the
+  // user out. SameSite=None is what makes it travel, and browsers only accept
+  // None together with Secure (which needs HTTPS — hence keeping Lax on
+  // localhost, where dev is same-site anyway and http:// would reject Secure).
+  const isProduction = env.NODE_ENV === 'production';
+
   return {
     httpOnly: true as const,
     // Explicit, rather than relying on the browser's implicit "default
@@ -87,8 +155,8 @@ function refreshCookieOptions() {
     // (path/sameSite/secure) or the browser won't recognize it as the same
     // cookie to delete.
     path: '/api/auth',
-    sameSite: 'lax' as const,
-    secure: env.NODE_ENV === 'production',
+    sameSite: (isProduction ? 'none' : 'lax') as 'none' | 'lax',
+    secure: isProduction,
   };
 }
 
@@ -200,8 +268,21 @@ async function buildTotpChallengeResponse(user: User): Promise<Record<string, un
 }
 
 export const signup = asyncHandler(async (req: Request, res: Response) => {
-  const { email, password, role } = signupSchema.parse(req.body);
+  const parsed = signupSchema.parse(req.body);
+  const email = normalizeEmail(parsed.email);
+  const { password, role } = parsed;
   const passwordHash = await hashPassword(password);
+
+  // Pre-flight check purely so the caller gets a message that names the role
+  // the mailbox is already tied to. The DB's unique index on lower(email) is
+  // still the real guard — a concurrent signup that slips between this read
+  // and the create below is caught by the UniqueConstraintError handler.
+  const existingUser = await runInRequestContext(null, (t) =>
+    User.findOne({ where: whereEmailEquals(email), transaction: t }),
+  );
+  if (existingUser) {
+    throw ApiError.conflict(emailTakenMessage(existingUser.role, role));
+  }
 
   let user: User;
   try {
@@ -210,7 +291,7 @@ export const signup = asyncHandler(async (req: Request, res: Response) => {
         // Case-insensitive match against the whitelist — invites are always
         // stored lowercased by adminController.createVerifierInvite.
         const invite = await VerifierInvite.findOne({
-          where: { email: email.toLowerCase().trim(), consumedAt: null },
+          where: { email, consumedAt: null },
           transaction: t,
         });
         if (!invite) {
@@ -235,7 +316,7 @@ export const signup = asyncHandler(async (req: Request, res: Response) => {
     });
   } catch (err) {
     if (err instanceof UniqueConstraintError) {
-      throw ApiError.conflict('An account with this email already exists');
+      throw ApiError.conflict('An account with this email already exists — log in instead.');
     }
     throw err;
   }
@@ -275,9 +356,14 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
   // Matched against email OR username in one query — an email address can't
   // collide with a username here because usernames are only ever issued to
   // provisioned accounts and never contain '@'.
+  //
+  // The email half compares on lower(email) so a user who typed their address
+  // with different capitalisation than they registered it still signs in.
+  // `username` stays an exact match: provisioned handles are issued by us,
+  // are already lowercase, and are matched literally on purpose.
   const user = await runInRequestContext(null, (t) =>
     User.findOne({
-      where: { [Op.or]: [{ email: identifier }, { username: identifier }] },
+      where: { [Op.or]: [whereEmailEquals(identifier), { username: identifier }] },
       transaction: t,
     }),
   );
@@ -458,13 +544,22 @@ export const googleAuth = asyncHandler(async (req: Request, res: Response) => {
   }
 
   const googleId = tokenPayload.sub;
-  const email = tokenPayload.email;
+  const email = normalizeEmail(tokenPayload.email);
 
   // Same known RLS caveat as login() above — this lookup runs with a
   // null context because no session exists until the user is resolved.
   let user = await runInRequestContext(null, (t) =>
-    User.findOne({ where: { [Op.or]: [{ googleId }, { email }] }, transaction: t }),
+    User.findOne({ where: { [Op.or]: [{ googleId }, whereEmailEquals(email)] }, transaction: t }),
   );
+
+  // Cross-role guard. Without this, "Sign up with Google as a company" using
+  // a mailbox that already has a candidate account silently signed the user
+  // straight into their *candidate* account — no error, no explanation, just
+  // the wrong portal. An explicitly requested role that disagrees with the
+  // account on file is a conflict, exactly as it is on the password path.
+  if (user && requestedRole && user.role !== requestedRole) {
+    throw ApiError.conflict(emailTakenMessage(user.role, requestedRole));
+  }
 
   if (user && !user.googleId) {
     const existingUser = user;
@@ -493,7 +588,7 @@ export const googleAuth = asyncHandler(async (req: Request, res: Response) => {
       isNewUser = true;
     } catch (err) {
       if (err instanceof UniqueConstraintError) {
-        throw ApiError.conflict('An account with this email already exists');
+        throw ApiError.conflict('An account with this email already exists — log in instead.');
       }
       throw err;
     }

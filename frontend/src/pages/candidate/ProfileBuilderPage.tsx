@@ -9,6 +9,8 @@ import ChipMultiSelect from '@/components/ui/ChipMultiSelect'
 import PlatformBadgesSection from './sections/PlatformBadgesSection'
 import AchievementsSection from './sections/AchievementsSection'
 import PageLoader from '@/components/ui/PageLoader'
+import PageHero from '@/components/ui/PageHero'
+import SupportNote from '@/components/ui/SupportNote'
 import {
   getMyProfile,
   listAchievements,
@@ -318,10 +320,26 @@ export default function ProfileBuilderPage() {
     : CATEGORY_OPTIONS
   const categoryIsUpgradePending = isApproved && form.category !== profile.category
 
+  // A candidate who has already submitted arrived here from the "Edit" pencil
+  // on their profile card, so there is a saved version to go back to and
+  // Cancel is meaningful. A first-time draft has nothing to return to —
+  // /candidate would just route straight back here — so Cancel is hidden.
+  const canCancel = profile.status !== 'draft'
+
   return (
     <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
-      <h1 className="text-2xl font-bold text-ink">Build your profile</h1>
-      <p className="mt-1 text-ink/60">This is what companies will see once you&apos;re approved.</p>
+      <PageHero
+        eyebrow="Candidate"
+        title={canCancel ? 'Edit your profile' : 'Build your profile'}
+        subtitle="This is what companies will see once you’re approved."
+        actions={
+          canCancel && (
+            <Button variant="outlineInverse" size="sm" onClick={() => navigate('/candidate')}>
+              Back to profile
+            </Button>
+          )
+        }
+      />
 
       <div
         className={[
@@ -560,10 +578,24 @@ export default function ProfileBuilderPage() {
               Submit for review
             </Button>
           )}
+          {canCancel && (
+            // Discards by navigating away without saving — nothing is written
+            // until Save is pressed, so leaving is the whole of the undo.
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={saving || submitting}
+              onClick={() => navigate('/candidate')}
+            >
+              Cancel
+            </Button>
+          )}
           {saveNotice && <p className="text-sm text-verified">{saveNotice}</p>}
         </div>
         {saveError && <p className="text-sm text-danger">{saveError}</p>}
         {submitError && <p className="text-sm text-danger">{submitError}</p>}
+
+        <SupportNote className="mt-2">Stuck on something here?</SupportNote>
       </div>
     </div>
   )

@@ -10,7 +10,19 @@ const envSchema = z.object({
   JWT_ACCESS_SECRET: z.string().min(1),
   JWT_REFRESH_SECRET: z.string().min(1),
   JWT_ACCESS_EXPIRES_IN: z.string().default('15m'),
-  JWT_REFRESH_EXPIRES_IN: z.string().default('30d'),
+  /**
+   * Absolute session ceiling — how long the httpOnly refresh cookie stays
+   * valid, and therefore the hard limit on how long a session can be revived
+   * without re-entering credentials.
+   *
+   * Was 30d, which meant a browser left open (or simply reopened) resumed a
+   * month-old session silently. 12h caps that at "one working day": combined
+   * with the 30-minute idle timeout the frontend enforces (see
+   * SESSION_IDLE_MINUTES in frontend/src/lib/config.ts), a walked-away-from
+   * machine logs itself out, and a machine that never comes back can't be
+   * used to resume tomorrow either.
+   */
+  JWT_REFRESH_EXPIRES_IN: z.string().default('12h'),
   GOOGLE_CLIENT_ID: z.string().optional().default(''),
   GOOGLE_CLIENT_SECRET: z.string().optional().default(''),
   GOOGLE_CALLBACK_URL: z.string().optional().default(''),

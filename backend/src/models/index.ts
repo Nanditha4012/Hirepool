@@ -26,6 +26,10 @@ import { Announcement } from './Announcement';
 import { SiteSetting } from './SiteSetting';
 import { Payment } from './Payment';
 import { VerifierInvite } from './VerifierInvite';
+import { Contest } from './Contest';
+import { ContestQuestion } from './ContestQuestion';
+import { ContestAttempt } from './ContestAttempt';
+import { ContestQuestionResponse } from './ContestQuestionResponse';
 
 // User <-> CandidateProfile (1:1)
 User.hasOne(CandidateProfile, { foreignKey: 'userId', as: 'candidateProfile' });
@@ -135,6 +139,23 @@ User.hasMany(VerifierInvite, { foreignKey: 'invitedBy', as: 'verifierInvitesSent
 VerifierInvite.belongsTo(User, { foreignKey: 'invitedBy', as: 'inviter' });
 VerifierInvite.belongsTo(User, { foreignKey: 'consumedByUserId', as: 'consumedByUser' });
 
+// Contest module. A contest owns its questions; a candidate's attempt at a
+// contest owns one response row per question answered.
+Contest.hasMany(ContestQuestion, { foreignKey: 'contestId', as: 'questions' });
+ContestQuestion.belongsTo(Contest, { foreignKey: 'contestId', as: 'contest' });
+
+Contest.hasMany(ContestAttempt, { foreignKey: 'contestId', as: 'attempts' });
+ContestAttempt.belongsTo(Contest, { foreignKey: 'contestId', as: 'contest' });
+
+User.hasMany(ContestAttempt, { foreignKey: 'candidateId', as: 'contestAttempts' });
+ContestAttempt.belongsTo(User, { foreignKey: 'candidateId', as: 'candidate' });
+
+ContestAttempt.hasMany(ContestQuestionResponse, { foreignKey: 'attemptId', as: 'responses' });
+ContestQuestionResponse.belongsTo(ContestAttempt, { foreignKey: 'attemptId', as: 'attempt' });
+
+ContestQuestion.hasMany(ContestQuestionResponse, { foreignKey: 'questionId', as: 'responses' });
+ContestQuestionResponse.belongsTo(ContestQuestion, { foreignKey: 'questionId', as: 'question' });
+
 export {
   sequelize,
   User,
@@ -164,4 +185,8 @@ export {
   SiteSetting,
   Payment,
   VerifierInvite,
+  Contest,
+  ContestQuestion,
+  ContestAttempt,
+  ContestQuestionResponse,
 };

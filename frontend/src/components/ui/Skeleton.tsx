@@ -17,7 +17,11 @@ export default function Skeleton({ className = '' }: SkeletonProps) {
       aria-hidden="true"
       className={['relative overflow-hidden rounded-card bg-surface', className].join(' ')}
     >
-      <div className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-white/60 to-transparent" />
+      {/* via-card, not via-white: a white sweep over a slate-800 skeleton in
+          dark mode read as a bright flash rather than a highlight. bg-card is
+          one step lighter than bg-surface in both themes, which is exactly
+          what a shimmer wants. */}
+      <div className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-card/70 to-transparent" />
     </div>
   )
 }

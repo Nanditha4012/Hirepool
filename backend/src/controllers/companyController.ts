@@ -364,6 +364,19 @@ export const searchCandidates = asyncHandler(async (req: Request, res: Response)
     });
     const companyVerified = companyProfile?.verified ?? false;
 
+    // The candidate portal is now gated on admin verification outright,
+    // rather than being browsable-but-blurred. Candidate profiles are the
+    // product; an unverified company shouldn't be able to enumerate who is
+    // on the platform, their roles, skills and employers, just because the
+    // phone number happens to be withheld. The frontend checks
+    // `verified` on the company profile and shows a "pending" screen instead
+    // of calling this at all — this 403 is the enforcement, not the UX.
+    if (!companyVerified) {
+      throw ApiError.forbidden(
+        'Your company is awaiting admin verification. Candidate search unlocks as soon as that is approved.',
+      );
+    }
+
     // ----- Multi-valued filters (skills, platform badge, achievements) -----
     // Resolved as separate candidate-id-set subqueries rather than joined
     // `include`s on the main findAll, because those relations are
@@ -438,7 +451,13 @@ export const searchCandidates = asyncHandler(async (req: Request, res: Response)
     }
 
     // ----- Main where/include -----
-    const where: Record<string, unknown> = { status: 'approved' };
+    // `isActivelyLooking` was missing here, which made the candidate's
+    // "Actively looking" switch purely decorative: it wrote `false` to the
+    // profile happily enough, but search never consulted the column, so a
+    // candidate who had explicitly paused their visibility stayed fully
+    // listed and unlockable. Pausing now genuinely removes them from the
+    // portal — which is the only thing that toggle claims to do.
+    const where: Record<string, unknown> = { status: 'approved', isActivelyLooking: true };
     if (query.category) where.category = query.category;
     if (query.primaryRoleId) where.primaryRoleId = query.primaryRoleId;
     if (query.domainId) where.domainId = query.domainId;

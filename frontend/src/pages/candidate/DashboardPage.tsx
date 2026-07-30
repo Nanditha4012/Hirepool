@@ -5,6 +5,9 @@ import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import ProfileCard, { type ProfileCardData } from '@/components/candidate/ProfileCard'
 import PageLoader from '@/components/ui/PageLoader'
+import PageHero, { HeroStat } from '@/components/ui/PageHero'
+import Badge from '@/components/ui/Badge'
+import SupportNote from '@/components/ui/SupportNote'
 import BoostPurchaseCard from '@/components/candidate/BoostPurchaseCard'
 import { useSiteSettings } from '@/lib/siteSettings'
 import {
@@ -198,15 +201,38 @@ export default function DashboardPage() {
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-ink">Your dashboard</h1>
-          <p className="mt-1 text-ink/60">Your profile is approved and visible to companies.</p>
+      <PageHero
+        eyebrow="Candidate"
+        title={profile.fullName || 'Your dashboard'}
+        subtitle="Your profile is verified and visible to hiring companies."
+        meta={
+          <>
+            <Badge tone="verified">✓ Verified</Badge>
+            {profile.category && <Badge tone="neutral">{profile.category}</Badge>}
+            {profile.isBoosted && <Badge tone="boost">Boosted</Badge>}
+          </>
+        }
+        actions={
+          <Button type="button" variant="inverse" size="sm" onClick={() => navigate('/candidate/edit')}>
+            Edit profile
+          </Button>
+        }
+      >
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <HeroStat label="Companies" value={unlockedBy.length} hint="unlocked your contact" />
+          <HeroStat label="Conversations" value={threads.length} hint="in your inbox" />
+          <HeroStat
+            label="Verified work"
+            value={verifiedCounts.projects + verifiedCounts.research + verifiedCounts.achievements}
+            hint="projects, papers, wins"
+          />
+          <HeroStat
+            label="Visibility"
+            value={profile.isActivelyLooking ? 'On' : 'Paused'}
+            hint={profile.isActivelyLooking ? 'discoverable' : 'hidden from search'}
+          />
         </div>
-        <Button type="button" variant="secondary" onClick={() => navigate('/candidate/edit')}>
-          Edit profile
-        </Button>
-      </div>
+      </PageHero>
 
       {/* Re-verification prompt. An approved candidate who adds a project
           stays live on the portal — only the new item is unverified — but
@@ -251,8 +277,18 @@ export default function DashboardPage() {
           <Card>
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="font-semibold text-ink">Actively looking</p>
-                <p className="text-sm text-ink/60">Toggle this off if you want to pause being seen by companies.</p>
+                <p className="font-semibold text-ink">
+                  Actively looking · {profile.isActivelyLooking ? 'On' : 'Paused'}
+                </p>
+                {/* States what the switch actually does *right now*, rather
+                    than always describing the off position — the old copy read
+                    identically whether you were visible or hidden, which is
+                    why it never looked like it had worked. */}
+                <p className="text-sm text-ink/60">
+                  {profile.isActivelyLooking
+                    ? 'Companies can find you in candidate search. Switch off to pause.'
+                    : "You're hidden from candidate search. Switch on to be discoverable again."}
+                </p>
               </div>
               <button
                 type="button"
@@ -397,6 +433,8 @@ export default function DashboardPage() {
           </Card>
         </div>
       </div>
+
+      <SupportNote className="mt-10" />
     </div>
   )
 }

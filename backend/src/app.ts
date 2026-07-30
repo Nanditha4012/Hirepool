@@ -35,7 +35,38 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', appName: env.APP_NAME });
 });
 
+/**
+ * Root index.
+ *
+ * This is an API-only deployment — there was no `/` handler at all, so opening
+ * the backend's own Vercel URL in a browser hit Express's default 404 and
+ * showed the bare string "Cannot GET /". That looks exactly like a dead
+ * deployment, even though every real route under /api was working fine. This
+ * makes the root say so out loud, and doubles as a cheap uptime check.
+ */
+app.get('/', (_req, res) => {
+  res.json({
+    name: `${env.APP_NAME} API`,
+    status: 'ok',
+    message: 'This is the API server. The web app is served separately.',
+    endpoints: {
+      health: '/health',
+      api: '/api',
+    },
+  });
+});
+
 app.use('/api', routes);
+
+/**
+ * JSON 404 for anything unmatched, instead of Express's HTML default. A
+ * frontend fetch that hits a typo'd path previously got back an HTML error
+ * page, which apiFetch couldn't parse and reported as the far less helpful
+ * "Request failed with status 404".
+ */
+app.use((req, res) => {
+  res.status(404).json({ message: `No route for ${req.method} ${req.path}` });
+});
 
 app.use(errorHandler);
 

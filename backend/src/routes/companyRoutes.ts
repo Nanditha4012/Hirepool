@@ -3,6 +3,7 @@ import * as companyController from '../controllers/companyController';
 import * as unlockController from '../controllers/unlockController';
 import * as companyMessageController from '../controllers/companyMessageController';
 import * as paymentController from '../controllers/paymentController';
+import * as contestController from '../controllers/contestController';
 import { requireAuth } from '../middleware/requireAuth';
 import { requireRole } from '../middleware/requireRole';
 
@@ -16,6 +17,16 @@ router.put('/me/profile', requireAuth, requireRole('company'), companyController
 
 // Search / browse candidates
 router.get('/search', requireAuth, requireRole('company'), companyController.searchCandidates);
+
+// Contest performance for one candidate. Deliberately NOT behind an unlock —
+// it's Hirepool's own scored data, treated like the Achievements section
+// rather than like contact details.
+router.get(
+  '/candidates/:candidateId/contest-performance',
+  requireAuth,
+  requireRole('company'),
+  contestController.getCandidateContestPerformance,
+);
 
 // Unlock-contact flow
 router.post('/unlock', requireAuth, requireRole('company'), unlockController.unlockCandidate);

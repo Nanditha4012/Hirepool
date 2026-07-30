@@ -10,7 +10,7 @@ export default function PaymentHistoryPage() {
           <h1 className="text-2xl font-bold text-ink">Payment history</h1>
           <p className="mt-1 text-ink/60">Plan subscriptions and unlock top-ups on your account.</p>
         </div>
-        <Link to="/company" className="text-sm font-semibold text-primary">
+        <Link to="/company/dashboard" className="text-sm font-semibold text-primary">
           Back to dashboard
         </Link>
       </div>

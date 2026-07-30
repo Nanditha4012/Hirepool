@@ -3,7 +3,11 @@ import { useNavigate } from 'react-router-dom'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import Badge from '@/components/ui/Badge'
+import Avatar from '@/components/ui/Avatar'
 import PageLoader from '@/components/ui/PageLoader'
+import PageHero from '@/components/ui/PageHero'
+import SupportNote from '@/components/ui/SupportNote'
+import { Detail, DetailGrid, DetailSection, EditIconButton } from '@/components/ui/DetailGrid'
 import {
   getMyProfile,
   listAchievements,
@@ -48,15 +52,6 @@ const statusCopy: Record<
     body: 'A verifier needs you to correct or clarify the points below, then resubmit.',
     tone: 'boost',
   },
-}
-
-function Row({ label, value }: { label: string; value: React.ReactNode }) {
-  return (
-    <div className="flex flex-wrap justify-between gap-2 border-b border-line py-2 last:border-0">
-      <span className="text-sm text-ink/50">{label}</span>
-      <span className="text-right text-sm font-medium text-ink">{value || '—'}</span>
-    </div>
-  )
 }
 
 function Link({ href, children }: { href: string; children: React.ReactNode }) {
@@ -144,21 +139,24 @@ export default function SubmissionReportPage() {
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-ink">Your submission</h1>
-          <p className="mt-1 text-ink/60">
-            Submitted{' '}
-            {profile.submittedAt ? new Date(profile.submittedAt).toLocaleDateString() : 'recently'} as a{' '}
-            <span className="font-semibold capitalize text-ink">{profile.category}</span> candidate.
-          </p>
-        </div>
-        <Button variant="secondary" onClick={() => navigate('/candidate/edit')}>
-          Edit profile
-        </Button>
-      </div>
+      <PageHero
+        eyebrow="Your profile"
+        title={profile.fullName || 'Your submission'}
+        subtitle={
+          <>
+            Submitted {profile.submittedAt ? new Date(profile.submittedAt).toLocaleDateString() : 'recently'} as
+            a <span className="font-semibold capitalize">{profile.category}</span> candidate.
+          </>
+        }
+        meta={<Badge tone={copy.tone}>{copy.title}</Badge>}
+        actions={
+          <Button variant="inverse" size="sm" onClick={() => navigate('/candidate/edit')}>
+            Edit profile
+          </Button>
+        }
+      />
 
-      {/* Status banner */}
+      {/* Status detail */}
       <div
         className={[
           'mt-6 animate-fade-up rounded-card px-5 py-4',
@@ -171,12 +169,11 @@ export default function SubmissionReportPage() {
                 : 'bg-surface',
         ].join(' ')}
       >
-        <div className="flex items-center gap-2">
-          <Badge tone={copy.tone}>{copy.title}</Badge>
-        </div>
-        <p className="mt-2 text-sm text-ink/70">{copy.body}</p>
+        <p className="text-sm text-ink/70">{copy.body}</p>
         {profile.latestVerificationNote && (
-          <p className="mt-3 rounded-card bg-white/70 px-3 py-2 text-sm text-ink">
+          // bg-card, not bg-white/70: a translucent white panel over a tinted
+          // status band went almost invisible in dark mode.
+          <p className="mt-3 rounded-card bg-card px-3 py-2 text-sm text-ink shadow-soft">
             <span className="font-semibold">Verifier note:</span> {profile.latestVerificationNote}
           </p>
         )}
@@ -239,39 +236,68 @@ export default function SubmissionReportPage() {
         </Card>
       )}
 
-      {/* What was actually submitted */}
-      <Card className="mt-6">
-        <h2 className="text-lg font-semibold text-ink">What you submitted</h2>
-        <div className="mt-3">
-          <Row label="Full name" value={profile.fullName} />
-          <Row label="Email" value={profile.email} />
-          <Row label="Phone" value={profile.phone} />
-          <Row label="Primary role" value={profile.primaryRole?.roleName} />
-          <Row label="Domain" value={profile.domain?.domainName} />
-          <Row
-            label="Secondary roles"
-            value={profile.secondaryRoles.map((r) => r.roleName).join(', ')}
-          />
-          <Row label="Skills" value={profile.skills.map((s) => s.skillName).join(', ')} />
-          <Row label="Location" value={profile.location} />
-          <Row label="Notice period" value={profile.noticePeriod?.replace(/_/g, ' ')} />
-          <Row
-            label="Resume"
-            value={profile.resumeLink ? <Link href={profile.resumeLink}>Open</Link> : null}
-          />
-          <Row
-            label="Portfolio"
-            value={profile.portfolioLink ? <Link href={profile.portfolioLink}>Open</Link> : null}
-          />
+      {/* What was actually submitted, read back as a record rather than a
+          form. The pencil is the only way back into the editable builder. */}
+      <Card className="mt-6 flex flex-col gap-6">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex min-w-0 items-center gap-4">
+            <Avatar name={profile.fullName || profile.email || 'Candidate'} size="lg" />
+            <div className="min-w-0">
+              <p className="truncate text-lg font-semibold text-ink">{profile.fullName || '—'}</p>
+              <p className="truncate text-sm text-ink/50">
+                {profile.primaryRole?.roleName || 'Role not set'}
+                {profile.location ? ` · ${profile.location}` : ''}
+              </p>
+            </div>
+          </div>
+          <EditIconButton onClick={() => navigate('/candidate/edit')} label="Edit" />
+        </div>
 
-          {!isFresher && (
-            <>
-              <Row label="Years of experience" value={profile.yearsOfExperience} />
-              <Row label="Current company" value={profile.currentCompany?.companyName} />
-              <Row label="Designation" value={profile.designationRole?.roleName} />
-              <Row label="Company type" value={profile.companyType?.toUpperCase()} />
-              <Row
+        <DetailSection title="Contact">
+          <DetailGrid>
+            <Detail label="Email" value={profile.email} />
+            <Detail label="Phone" value={profile.phone} />
+          </DetailGrid>
+        </DetailSection>
+
+        <DetailSection title="Role & skills">
+          <DetailGrid>
+            <Detail label="Primary role" value={profile.primaryRole?.roleName} />
+            <Detail label="Domain" value={profile.domain?.domainName} />
+            <Detail
+              label="Secondary roles"
+              wide
+              value={profile.secondaryRoles.map((r) => r.roleName).join(', ')}
+            />
+            <Detail label="Skills" wide value={profile.skills.map((s) => s.skillName).join(', ')} />
+          </DetailGrid>
+        </DetailSection>
+
+        <DetailSection title="Availability & links">
+          <DetailGrid>
+            <Detail label="Location" value={profile.location} />
+            <Detail label="Notice period" value={profile.noticePeriod?.replace(/_/g, ' ')} />
+            <Detail
+              label="Resume"
+              value={profile.resumeLink ? <Link href={profile.resumeLink}>Open</Link> : null}
+            />
+            <Detail
+              label="Portfolio"
+              value={profile.portfolioLink ? <Link href={profile.portfolioLink}>Open</Link> : null}
+            />
+          </DetailGrid>
+        </DetailSection>
+
+        {!isFresher && (
+          <DetailSection title="Experience">
+            <DetailGrid>
+              <Detail label="Years of experience" value={profile.yearsOfExperience} />
+              <Detail label="Current company" value={profile.currentCompany?.companyName} />
+              <Detail label="Designation" value={profile.designationRole?.roleName} />
+              <Detail label="Company type" value={profile.companyType?.toUpperCase()} />
+              <Detail
                 label="Offer letter / LinkedIn"
+                wide
                 value={
                   profile.offerLetterOrLinkedinLink ? (
                     <Link href={profile.offerLetterOrLinkedinLink}>Open</Link>
@@ -280,14 +306,14 @@ export default function SubmissionReportPage() {
               />
               {profile.category === 'executive' && (
                 <>
-                  <Row label="Team size managed" value={profile.teamSizeManaged} />
-                  <Row label="Budget owned" value={profile.budgetOwned} />
-                  <Row label="Title / level" value={profile.titleLevel} />
+                  <Detail label="Team size managed" value={profile.teamSizeManaged} />
+                  <Detail label="Budget owned" value={profile.budgetOwned} />
+                  <Detail label="Title / level" value={profile.titleLevel} />
                 </>
               )}
-            </>
-          )}
-        </div>
+            </DetailGrid>
+          </DetailSection>
+        )}
       </Card>
 
       {/* Items */}
@@ -388,6 +414,10 @@ export default function SubmissionReportPage() {
           </ol>
         )}
       </Card>
+
+      <SupportNote className="mt-10">
+        Waiting longer than expected, or something urgent about your submission?
+      </SupportNote>
     </div>
   )
 }

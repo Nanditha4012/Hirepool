@@ -6,11 +6,14 @@ import Button from '@/components/ui/Button'
 import Logo from '@/components/ui/Logo'
 import ThemeToggle from '@/components/ui/ThemeToggle'
 import NotificationBell from '@/components/layout/NotificationBell'
+import ProfileMenu from '@/components/layout/ProfileMenu'
+import Avatar from '@/components/ui/Avatar'
+import { displayNameFor } from '@/lib/displayName'
 
 /** Where each signed-in role's "home" link points, and what to call it. */
 const roleHome: Record<Role, { to: string; label: string }> = {
   candidate: { to: '/candidate', label: 'My profile' },
-  company: { to: '/company', label: 'Dashboard' },
+  company: { to: '/company', label: 'Candidates' },
   verifier: { to: '/verify/queue', label: 'Review queue' },
   admin: { to: '/admin', label: 'Admin' },
 }
@@ -50,9 +53,13 @@ export default function Header() {
     <header
       className={[
         'sticky top-0 z-50 transition-all duration-300',
+        // bg-card, not bg-white: these were literal white, so in dark mode the
+        // header stayed a bright bar glued to the top of every dark page —
+        // and the dark `text-ink` on it was near-invisible. bg-card resolves
+        // through the theme variables like the rest of the app.
         scrolled
-          ? 'border-b border-line bg-white/85 shadow-soft backdrop-blur-md'
-          : 'border-b border-transparent bg-white/60 backdrop-blur-sm',
+          ? 'border-b border-line bg-card/85 shadow-soft backdrop-blur-md'
+          : 'border-b border-transparent bg-card/60 backdrop-blur-sm',
       ].join(' ')}
     >
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6">
@@ -75,13 +82,36 @@ export default function Header() {
               >
                 {home.label}
               </NavLink>
-              <span className="ml-2 hidden text-sm text-ink/50 lg:inline">
-                {user.fullName || user.username || user.email}
-              </span>
+              {/* Contests are candidate-only — companies, verifiers and admins
+                  have no attempt surface, so the link would 403 for them. On
+                  mobile this lives in CandidateBottomNav instead. */}
+              {user.role === 'candidate' && (
+                <NavLink
+                  to="/contests"
+                  className={({ isActive }) =>
+                    [
+                      'inline-flex items-center gap-1.5 rounded-card px-3 py-1.5 text-sm font-semibold transition-colors',
+                      isActive ? 'bg-primary/10 text-primary' : 'text-ink/70 hover:bg-surface hover:text-ink',
+                    ].join(' ')
+                  }
+                >
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M8 4h8v5a4 4 0 11-8 0V4zM8 6H5v1a3 3 0 003 3M16 6h3v1a3 3 0 01-3 3M12 13v4m-3 3h6"
+                    />
+                  </svg>
+                  Contests
+                </NavLink>
+              )}
               <NotificationBell />
-              <Button variant="secondary" size="sm" onClick={handleLogout}>
-                Log out
-              </Button>
+              {/* Identity is the avatar now — name, email, role and the
+                  role-specific basics all live in its hover card, rather than
+                  being repeated as loose text here and again in the
+                  verifier/admin portal bars. */}
+              <ProfileMenu />
             </>
           ) : (
             <>
@@ -146,9 +176,17 @@ export default function Header() {
         <div className="animate-fade-in border-t border-line bg-card px-4 pb-4 md:hidden">
           {user && home ? (
             <div className="flex flex-col gap-3 pt-3">
-              <span className="text-sm text-ink/70">
-                Signed in as <span className="font-semibold text-ink">{user.fullName || user.username || user.email}</span>
-              </span>
+              {/* Touch has no hover, so the details the desktop hover card
+                  shows are laid out inline here instead. */}
+              <div className="flex items-center gap-3">
+                <Avatar name={displayNameFor(user)} size="md" />
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-ink">{displayNameFor(user)}</p>
+                  <p className="truncate text-xs capitalize text-ink/50">
+                    {user.role} · {user.email}
+                  </p>
+                </div>
+              </div>
               <Link to={home.to} className="text-sm font-semibold text-primary">
                 {home.label}
               </Link>

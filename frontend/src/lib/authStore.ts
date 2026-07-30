@@ -1,5 +1,9 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
-import { apiFetch, setAccessToken as setApiAccessToken } from './apiClient'
+import {
+  apiFetch,
+  setAccessToken as setApiAccessToken,
+  setRefreshHandler as setApiRefreshHandler,
+} from './apiClient'
 
 export type Role = 'candidate' | 'company' | 'verifier' | 'admin'
 
@@ -61,6 +65,14 @@ interface AuthContextValue extends AuthState {
   logout: () => Promise<void>
   refreshAccessToken: () => Promise<boolean>
   setCategory: (category: CandidateCategory) => Promise<Profile>
+  /**
+   * True when the last sign-out was the idle timer firing rather than the
+   * user clicking "Log out" — the login page reads it to explain why they
+   * are suddenly back at the door. Cleared on the next successful sign-in.
+   */
+  sessionExpired: boolean
+  /** Ends the session because it timed out. See SessionTimeout.tsx. */
+  expireSession: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
@@ -69,10 +81,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null)
   const [accessToken, setAccessTokenState] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [sessionExpired, setSessionExpired] = useState(false)
 
   const applyToken = useCallback((token: string | null) => {
     setApiAccessToken(token)
     setAccessTokenState(token)
+    // Any freshly-issued token means credentials were just exchanged
+    // successfully, so the "your session timed out" notice has served its
+    // purpose. Done here rather than in each of login/signup/google/totp so
+    // a future fifth entry point can't forget to clear it.
+    if (token) setSessionExpired(false)
   }, [])
 
   const login = useCallback(
@@ -144,6 +162,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [applyToken])
 
+  const expireSession = useCallback(async () => {
+    await logout()
+    setSessionExpired(true)
+  }, [logout])
+
   const refreshAccessToken = useCallback(async (): Promise<boolean> => {
     try {
       const result = await apiFetch<{ accessToken: string }>('/auth/refresh', {
@@ -182,6 +205,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // instead of just being noisy.
   const bootstrappedRef = useRef(false)
 
+  // Lets apiClient renew a 15-minute access token behind any request that
+  // 401s, instead of every long-lived tab breaking mid-session. Registered as
+  // an effect (not at module scope) so it is torn down with the provider.
+  useEffect(() => {
+    setApiRefreshHandler(refreshAccessToken)
+    return () => setApiRefreshHandler(null)
+  }, [refreshAccessToken])
+
   useEffect(() => {
     if (bootstrappedRef.current) return
     bootstrappedRef.current = true
@@ -214,8 +245,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       logout,
       refreshAccessToken,
       setCategory,
+      sessionExpired,
+      expireSession,
     }),
-    [user, accessToken, isLoading, login, signup, loginWithGoogle, verifyTotp, logout, refreshAccessToken, setCategory],
+    [
+      user,
+      accessToken,
+      isLoading,
+      login,
+      signup,
+      loginWithGoogle,
+      verifyTotp,
+      logout,
+      refreshAccessToken,
+      setCategory,
+      sessionExpired,
+      expireSession,
+    ],
   )
 
   return React.createElement(AuthContext.Provider, { value }, children)

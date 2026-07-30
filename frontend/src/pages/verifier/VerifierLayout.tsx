@@ -1,5 +1,4 @@
 import { NavLink, Outlet } from 'react-router-dom'
-import { useAuth } from '@/lib/authStore'
 
 const navLinks = [
   { to: '/verify/queue', label: 'Catalogs' },
@@ -16,8 +15,6 @@ const navLinks = [
  * single destination, while a reviewer moves between six.
  */
 export default function VerifierLayout() {
-  const { user } = useAuth()
-
   return (
     <div className="flex min-h-[60vh] flex-col bg-surface/40">
       <div className="border-b border-line bg-card">
@@ -25,11 +22,9 @@ export default function VerifierLayout() {
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-ink/40">
             Verification portal
           </p>
-          {user && (
-            <p className="text-xs text-ink/40">
-              {user.fullName || user.username || user.email}
-            </p>
-          )}
+          {/* The signed-in name used to be repeated here, directly under the
+              same name in the app header. Identity now lives in exactly one
+              place: the header avatar and its hover card. */}
         </div>
         <nav className="mx-auto flex max-w-6xl gap-1 overflow-x-auto px-4 py-3 sm:px-6">
           {navLinks.map((link) => (

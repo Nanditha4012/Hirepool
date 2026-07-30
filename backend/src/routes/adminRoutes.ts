@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import * as adminController from '../controllers/adminController';
+import * as adminContestController from '../controllers/adminContestController';
 import { requireAuth } from '../middleware/requireAuth';
 import { requireRole } from '../middleware/requireRole';
 
@@ -97,6 +98,20 @@ router.get('/analytics/overview', ...adminOnly, adminController.getAnalyticsOver
 
 // ----- Financial ledger (Phase 6) -----
 router.get('/payments', ...adminOnly, adminController.listPayments);
+
+// ----- Contests (test & question management) -----
+// Questions are addressed by their own id at the top level rather than nested
+// under their contest — `/contests/questions/:questionId` is declared before
+// `/contests/:contestId/...` so the literal "questions" segment can't be
+// captured as a contestId.
+router.get('/contests', ...adminOnly, adminContestController.listContestsAdmin);
+router.post('/contests', ...adminOnly, adminContestController.createContest);
+router.put('/contests/questions/:questionId', ...adminOnly, adminContestController.updateQuestion);
+router.delete('/contests/questions/:questionId', ...adminOnly, adminContestController.deleteQuestion);
+router.get('/contests/:contestId/questions', ...adminOnly, adminContestController.listQuestions);
+router.post('/contests/:contestId/questions', ...adminOnly, adminContestController.createQuestion);
+router.patch('/contests/:contestId', ...adminOnly, adminContestController.updateContest);
+router.delete('/contests/:contestId', ...adminOnly, adminContestController.deleteContest);
 
 // ----- Security -----
 router.get('/audit-log', ...adminOnly, adminController.listAuditLog);

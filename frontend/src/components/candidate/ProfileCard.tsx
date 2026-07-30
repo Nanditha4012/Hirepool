@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import Badge from '../ui/Badge'
+import ContestPerformance from '../contests/ContestPerformance'
 
 export interface ProfileCardData {
   id: string
@@ -196,6 +197,10 @@ export default function ProfileCard({ profile }: ProfileCardProps) {
             )}
           </div>
         )}
+
+        {/* System-generated contest scores. Shown without an unlock, like the
+            achievements above it — see components/contests/ContestPerformance. */}
+        <ContestPerformance candidateId={profile.id} className="mt-4 border-t border-line pt-4" />
 
         {hasContactInfo && (
           <div className="mt-4 flex flex-wrap gap-4 border-t border-line pt-3 text-sm">

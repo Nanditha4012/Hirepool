@@ -1,5 +1,4 @@
 import { NavLink, Outlet } from 'react-router-dom'
-import { useAuth } from '@/lib/authStore'
 
 const navLinks = [
   { to: '/admin', label: 'Dashboard' },
@@ -11,6 +10,7 @@ const navLinks = [
   { to: '/admin/settings', label: 'Site settings' },
   { to: '/admin/announcements', label: 'Announcements' },
   { to: '/admin/payments', label: 'Payments' },
+  { to: '/admin/contests', label: 'Contests' },
   { to: '/admin/audit-log', label: 'Audit log' },
 ]
 
@@ -21,14 +21,12 @@ const navLinks = [
  * page every other role gets from the app Header.
  */
 export default function AdminLayout() {
-  const { user } = useAuth()
-
   return (
     <div className="flex min-h-[60vh] flex-col bg-surface/40">
       <div className="border-b border-line bg-card">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-4 pt-3 sm:px-6">
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-ink/40">Admin portal</p>
-          {user && <p className="text-xs text-ink/40">{user.fullName || user.username || user.email}</p>}
+          {/* Name deliberately not repeated here — see VerifierLayout. */}
         </div>
         <nav className="mx-auto flex max-w-6xl gap-1 overflow-x-auto px-4 py-3 sm:px-6">
           {navLinks.map((link) => (

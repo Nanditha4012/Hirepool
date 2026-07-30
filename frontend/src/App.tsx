@@ -6,6 +6,8 @@ import { APP_NAME } from '@/lib/config'
 import Header from '@/components/layout/Header'
 import Footer from '@/components/layout/Footer'
 import ProtectedRoute from '@/components/ProtectedRoute'
+import SessionTimeout from '@/components/SessionTimeout'
+import CandidateBottomNav from '@/components/layout/CandidateBottomNav'
 
 import LandingPage from '@/pages/LandingPage'
 import SignupPage from '@/pages/SignupPage'
@@ -19,6 +21,7 @@ import CandidateEntryPoint from '@/pages/candidate/CandidateEntryPoint'
 import ProfileBuilderPage from '@/pages/candidate/ProfileBuilderPage'
 import CandidatePaymentHistoryPage from '@/pages/candidate/PaymentHistoryPage'
 import CompanyEntryPoint from '@/pages/company/CompanyEntryPoint'
+import CompanyDashboardPage from '@/pages/company/DashboardPage'
 import CompanySetupPage from '@/pages/company/CompanySetupPage'
 import SearchPage from '@/pages/company/SearchPage'
 import UnlockedCandidatesPage from '@/pages/company/UnlockedCandidatesPage'
@@ -45,6 +48,12 @@ import AdminSiteSettingsPage from '@/pages/admin/SiteSettingsPage'
 import AdminAnnouncementsPage from '@/pages/admin/AnnouncementsPage'
 import AdminAuditLogPage from '@/pages/admin/AuditLogPage'
 import AdminPaymentsPage from '@/pages/admin/AdminPaymentsPage'
+import ContestHubPage from '@/pages/contests/ContestHubPage'
+import ContestListPage from '@/pages/contests/ContestListPage'
+import TestRunnerPage from '@/pages/contests/TestRunnerPage'
+import TestResultPage from '@/pages/contests/TestResultPage'
+import ContestLeaderboardPage from '@/pages/contests/LeaderboardPage'
+import AdminContestsPage from '@/pages/admin/ContestsPage'
 import NotFoundPage from '@/pages/NotFoundPage'
 
 function AppShell() {
@@ -54,7 +63,13 @@ function AppShell() {
 
   return (
     <div className="flex min-h-screen flex-col">
+      {/* Inside BrowserRouter (it navigates to /login on expiry) and inside
+          AuthProvider; self-disables when nobody is signed in. */}
+      <SessionTimeout />
       <Header />
+      {/* Mobile bottom nav for candidates; self-disables for other roles and
+          inside the full-screen test runner. */}
+      <CandidateBottomNav />
       <main className="flex-1">
         <Routes>
           <Route path="/" element={<LandingPage />} />
@@ -106,6 +121,16 @@ function AppShell() {
               </ProtectedRoute>
             }
           />
+          {/* The dashboard has its own path now that `/company` redirects a
+              verified company straight to the candidate portal. */}
+          <Route
+            path="/company/dashboard"
+            element={
+              <ProtectedRoute allow={['company']}>
+                <CompanyDashboardPage />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/company/setup"
             element={
@@ -146,6 +171,49 @@ function AppShell() {
               </ProtectedRoute>
             }
           />
+          {/* Contests — candidate-only. Literal paths are declared before
+              '/contests/:type' so the param route can't swallow them. */}
+          <Route
+            path="/contests"
+            element={
+              <ProtectedRoute allow={['candidate']}>
+                <ContestHubPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/contests/leaderboard"
+            element={
+              <ProtectedRoute allow={['candidate']}>
+                <ContestLeaderboardPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/contests/attempt/:attemptId"
+            element={
+              <ProtectedRoute allow={['candidate']}>
+                <TestRunnerPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/contests/result/:attemptId"
+            element={
+              <ProtectedRoute allow={['candidate']}>
+                <TestResultPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/contests/:type"
+            element={
+              <ProtectedRoute allow={['candidate']}>
+                <ContestListPage />
+              </ProtectedRoute>
+            }
+          />
+
           <Route
             path="/verify"
             element={
@@ -187,6 +255,7 @@ function AppShell() {
             <Route path="settings" element={<AdminSiteSettingsPage />} />
             <Route path="announcements" element={<AdminAnnouncementsPage />} />
             <Route path="payments" element={<AdminPaymentsPage />} />
+            <Route path="contests" element={<AdminContestsPage />} />
             <Route path="audit-log" element={<AdminAuditLogPage />} />
           </Route>
 

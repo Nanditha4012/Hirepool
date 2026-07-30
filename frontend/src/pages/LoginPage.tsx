@@ -17,7 +17,7 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
-  const { login, loginWithGoogle } = useAuth()
+  const { login, loginWithGoogle, sessionExpired } = useAuth()
   const navigate = useNavigate()
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -101,6 +101,15 @@ export default function LoginPage() {
             onChange={(e) => setPassword(e.target.value)}
             autoComplete="current-password"
           />
+
+          {/* Explains an unexpected trip back to the login page. Suppressed
+              once a real error exists, so a failed retry doesn't stack two
+              messages that contradict each other. */}
+          {sessionExpired && !error && (
+            <p className="rounded-card bg-boost/10 px-3 py-2 text-sm text-ink/80">
+              You were signed out after a period of inactivity. Log in to pick up where you left off.
+            </p>
+          )}
 
           {error && <p className="text-sm text-danger">{error}</p>}
 

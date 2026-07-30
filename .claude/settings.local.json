@@ -23,7 +23,25 @@
       "Bash(git mv *)",
       "Bash(curl -s -o /dev/null -w \"health: %{http_code}\\\\n\" http://localhost:4000/health)",
       "Bash(curl -s -w '\\\\nHTTP %{http_code}\\\\n' -X POST http://localhost:4000/api/auth/login -H 'Content-Type: application/json' -d '{\"identifier\":\"verifier01\",\"password\":\"veri1234\"}')",
-      "Bash(curl -s -o /dev/null -w 'HTTP %{http_code}\\\\n' -X POST http://localhost:4000/api/auth/login -H 'Content-Type: application/json' -d '{\"identifier\":\"verifier01\",\"password\":\"wrong\"}')"
+      "Bash(curl -s -o /dev/null -w 'HTTP %{http_code}\\\\n' -X POST http://localhost:4000/api/auth/login -H 'Content-Type: application/json' -d '{\"identifier\":\"verifier01\",\"password\":\"wrong\"}')",
+      "Bash(grep -iE '^\\(resend|razorpay\\)$')",
+      "Bash(echo \"exit: $?\")",
+      "Bash(PORT=4999 npx ts-node --transpile-only src/server.ts)",
+      "Bash(npm install *)",
+      "Bash(PORT=4999 timeout 25 npx ts-node --transpile-only src/server.ts)",
+      "Bash(npx sequelize-cli *)",
+      "Read(//tmp/**)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:4999/api/health)",
+      "Bash(curl -s http://localhost:4999/api/ -w \"\\\\n%{http_code}\\\\n\")",
+      "Bash(grep -n \"const where: Record<string, unknown> = { status: 'approved' }\" -A4 src/controllers/companyController.ts)",
+      "PowerShell(Get-NetTCPConnection *)",
+      "Bash(curl -s 'http://localhost:4999/api/contests?type=dsa&complexity=easy' -H 'Authorization: Bearer __CMDSUB_OUTPUT__')",
+      "Bash(curl -s -X POST http://localhost:4999/api/contests/__TRACKED_VAR__/attempts -H 'Authorization: Bearer __CMDSUB_OUTPUT__')",
+      "Bash(curl -s \"https://emkc.org/api/v2/piston/runtimes\" -o /tmp/rt.json -w \"HTTP %{http_code}\\\\n\")",
+      "Bash(curl -s -X POST https://emkc.org/api/v2/piston/execute -H 'Content-Type: application/json' -d '{\"language\":\"python\",\"version\":\"3.10.0\",\"files\":[{\"name\":\"main.py\",\"content\":\"print\\(sum\\([1,2,3]\\)\\)\"}],\"stdin\":\"\"}' -w '\\\\nHTTP %{http_code}\\\\n')",
+      "Bash(PORT=4998 PISTON_API_URL=http://localhost:5055 npx ts-node --transpile-only src/server.ts)",
+      "Bash(sed -i 's|const B = '\\\\''http://localhost:4999/api'\\\\'';|const B = process.env.API || '\\\\''http://localhost:4999/api'\\\\'';|' C:/Users/asu/AppData/Local/Temp/claude/C--Users-asu-Downloads-Hirepool/0c13afcb-19a9-4b4b-ac3d-af971b349383/scratchpad/contest-e2e.js)",
+      "Bash(API=http://localhost:4998/api node C:/Users/asu/AppData/Local/Temp/claude/C--Users-asu-Downloads-Hirepool/0c13afcb-19a9-4b4b-ac3d-af971b349383/scratchpad/contest-e2e.js)"
     ]
   },
   "enabledMcpjsonServers": [
