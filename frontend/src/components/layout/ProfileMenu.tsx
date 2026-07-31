@@ -16,7 +16,7 @@ const roleLabel: Record<Role, string> = {
 
 const roleHome: Record<Role, { to: string; label: string }> = {
   candidate: { to: '/candidate', label: 'My profile' },
-  company: { to: '/company', label: 'Candidates' },
+  company: { to: '/company', label: 'Dashboard' },
   verifier: { to: '/verify/queue', label: 'Review queue' },
   admin: { to: '/admin', label: 'Admin portal' },
 }
