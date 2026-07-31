@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { Transaction } from 'sequelize';
+import { Op, Transaction, col, fn, where as sqlWhere } from 'sequelize';
 import { z } from 'zod';
 import {
   CandidateProfile,
@@ -33,7 +33,7 @@ import type { SkillMasterAttributes } from '../models/SkillMaster';
 import type { ProfileFieldCheckAttributes } from '../models/ProfileFieldCheck';
 import { asyncHandler } from '../utils/asyncHandler';
 import { ApiError } from '../utils/ApiError';
-import { runInRequestContext } from '../utils/withRequestContext';
+import { runInRequestContext, RequestContextUser } from '../utils/withRequestContext';
 
 const setCategorySchema = z.object({
   category: z.enum(['fresher', 'experienced', 'executive']),
@@ -535,12 +535,94 @@ async function findMissingCategoryFields(
   return missing;
 }
 
+/**
+ * Cross-account duplicate-resume-link check (Phase 7 security hardening —
+ * "duplicate-account detection... same email/resume link across accounts").
+ * Same-email duplicates are already fully blocked at signup (the case-
+ * insensitive unique index on users.email, see
+ * 20240109000001-email-role-uniqueness.js). resume_link isn't collected at
+ * signup at all — it's set later via upsertMyProfile and only actually
+ * *asserted* as a real claim here, at submission — so this is where the
+ * check belongs, not signup or every autosave in upsertMyProfile.
+ *
+ * This never blocks the submission: a genuine coincidental match (a shared
+ * portfolio site, a copy-pasted link) is a real possibility, and hard-
+ * blocking a legitimate candidate over it would be a worse failure mode than
+ * just surfacing it for a human — same stance the app already takes with
+ * every other signal in adminController.getAnalyticsOverview's fraudSignals
+ * block. It only ever writes a `VerificationLog` row with
+ * `decision: 'flagged'`, reusing the verifier portal's existing "Flag as
+ * Suspicious" convention exactly (see verifierController.decideProfile) so
+ * this shows up in the same places any other flagged profile already does —
+ * the profile's own decision timeline and adminController's
+ * `flaggedVerifications` count — with no new surface required.
+ *
+ * Deliberately NOT one query under the submitting candidate's own session:
+ * candidate_profiles has never had (and must not gain) a policy letting one
+ * candidate's session read another candidate's row — see
+ * verify-phase1.ts's "candidate CANNOT read another candidate's
+ * candidate_profiles row" check. So the lookup runs under
+ * runInRequestContext(null, ...), the same "no session" context
+ * authController already uses for pre-auth lookups (whereEmailEquals):
+ * see the candidate_profiles_system_duplicate_check_select policy added
+ * alongside this in 20240112000001-verification-logs-system-flag, scoped to
+ * `status != 'draft'` (a draft resume link isn't a real claim yet) and to a
+ * NULL session role, so no currently-authenticated session gains anything.
+ * The flagged-row INSERT afterwards runs back under the candidate's own
+ * session (reviewerId: null — see the VerificationLog model doc comment and
+ * that same migration for why the column accepts null and why RLS allows
+ * this one narrow candidate-authored insert).
+ */
+async function flagDuplicateResumeLinkIfAny(
+  authUser: RequestContextUser,
+  profileId: string,
+  resumeLink: string | null,
+): Promise<void> {
+  const trimmed = resumeLink?.trim();
+  if (!trimmed) return;
+
+  const duplicate = await runInRequestContext(null, (t) =>
+    CandidateProfile.findOne({
+      where: {
+        [Op.and]: [
+          { id: { [Op.ne]: profileId } },
+          { status: { [Op.ne]: 'draft' } },
+          sqlWhere(fn('trim', col('resume_link')), trimmed),
+        ],
+      },
+      transaction: t,
+    }),
+  );
+
+  if (!duplicate) return;
+
+  await runInRequestContext(authUser, (t) =>
+    VerificationLog.create(
+      {
+        reviewerId: null,
+        targetType: 'candidate_profile',
+        targetId: profileId,
+        decision: 'flagged',
+        notes: `Resume link matches candidate profile ${duplicate.id} (status: ${duplicate.status})`,
+      },
+      { transaction: t },
+    ),
+  );
+}
+
 // ---------------------------------------------------------------------
 // POST /me/profile/submit
 // ---------------------------------------------------------------------
 
 export const submitMyProfile = asyncHandler(async (req: Request, res: Response) => {
   const authUser = req.user!;
+
+  // Captured inside the transaction below, used afterwards by the duplicate
+  // resume-link check — see flagDuplicateResumeLinkIfAny's doc comment for
+  // why that check deliberately runs in its own separate request context(s)
+  // rather than inside this one.
+  let submittedProfileId: string | null = null;
+  let submittedResumeLink: string | null = null;
 
   const response = await runInRequestContext(authUser, async (t) => {
     // Sequential — see the comment in buildProfileResponse above: queries
@@ -577,6 +659,9 @@ export const submitMyProfile = asyncHandler(async (req: Request, res: Response) 
       throw ApiError.badRequest(`Missing required fields: ${missing.join(', ')}`);
     }
 
+    submittedProfileId = profile.id;
+    submittedResumeLink = profile.resumeLink;
+
     profile.status = 'submitted';
     profile.submittedAt = new Date();
     // A full resubmission supersedes any outstanding re-verification ask —
@@ -587,6 +672,19 @@ export const submitMyProfile = asyncHandler(async (req: Request, res: Response) 
 
     return buildProfileResponse(authUser.id, t);
   });
+
+  // Flag-only, never blocking, and deliberately outside (and after) the
+  // submission transaction above — see flagDuplicateResumeLinkIfAny's doc
+  // comment. A failure here (e.g. a transient DB error) must never turn an
+  // otherwise-successful submission into an error response, so it's caught
+  // and logged rather than left to propagate through asyncHandler.
+  if (submittedResumeLink) {
+    try {
+      await flagDuplicateResumeLinkIfAny(authUser, submittedProfileId!, submittedResumeLink);
+    } catch (err) {
+      console.error('flagDuplicateResumeLinkIfAny failed for profile', submittedProfileId, err);
+    }
+  }
 
   res.json(response);
 });

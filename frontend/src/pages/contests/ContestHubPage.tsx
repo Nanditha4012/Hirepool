@@ -127,7 +127,7 @@ export default function ContestHubPage() {
           </Link>
         }
       >
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <HeroStat label="Tests available" value={totalTests} />
           <HeroStat label="Attempted" value={totalAttempted} hint="by you" />
           <HeroStat label="Best score" value={bestOverall === null ? '—' : `${bestOverall}%`} />

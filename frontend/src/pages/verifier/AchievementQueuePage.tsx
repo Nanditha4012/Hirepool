@@ -104,7 +104,7 @@ export default function AchievementQueuePage() {
       <h1 className="text-2xl font-bold text-ink">Achievement queue</h1>
       <p className="mt-1 text-ink/60">Verify projects, research, and achievements claimed by candidates.</p>
 
-      <div className="mt-6 flex gap-2">
+      <div className="mt-6 flex flex-wrap gap-2">
         {typeTabs.map((tab) => (
           <button
             key={tab.value}

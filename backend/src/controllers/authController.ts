@@ -19,6 +19,7 @@ import {
 import { generateTotpSecret, verifyTotpToken, generateQrCodeDataUrl, buildOtpauthUrl } from '../utils/totp';
 import { sendEmail } from '../utils/email';
 import { signupConfirmationEmail } from '../utils/emailTemplates';
+import { isRecaptchaConfigured, verifyRecaptcha } from '../utils/recaptcha';
 
 const SELF_SIGNUP_ROLES = ['candidate', 'company'] as const;
 
@@ -34,6 +35,11 @@ const signupSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8),
   role: z.enum([...SELF_SIGNUP_ROLES, VERIFIER_INVITE_ROLE]),
+  // Optional at the schema level — enforced conditionally in signup() below,
+  // only when isRecaptchaConfigured() is true. Left optional here so a
+  // request body without it (every dev/test environment where the site key
+  // isn't set) still parses fine.
+  recaptchaToken: z.string().optional(),
 });
 
 /**
@@ -271,6 +277,23 @@ export const signup = asyncHandler(async (req: Request, res: Response) => {
   const parsed = signupSchema.parse(req.body);
   const email = normalizeEmail(parsed.email);
   const { password, role } = parsed;
+
+  // Shared across every self-signup role (candidate/company/verifier) — kept
+  // uniform rather than exempting verifier signups, since verifier invite
+  // gating already provides its own protection layer for that path and an
+  // extra CAPTCHA check there is harmless. No-op whenever RECAPTCHA_SECRET_KEY
+  // isn't set, so this is a no-op in dev/test environments that never
+  // configure it.
+  if (isRecaptchaConfigured()) {
+    if (!parsed.recaptchaToken) {
+      throw ApiError.badRequest('CAPTCHA verification required');
+    }
+    const recaptchaValid = await verifyRecaptcha(parsed.recaptchaToken);
+    if (!recaptchaValid) {
+      throw ApiError.badRequest('CAPTCHA verification failed, please try again');
+    }
+  }
+
   const passwordHash = await hashPassword(password);
 
   // Pre-flight check purely so the caller gets a message that names the role

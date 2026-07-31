@@ -54,6 +54,8 @@ import TestRunnerPage from '@/pages/contests/TestRunnerPage'
 import TestResultPage from '@/pages/contests/TestResultPage'
 import ContestLeaderboardPage from '@/pages/contests/LeaderboardPage'
 import AdminContestsPage from '@/pages/admin/ContestsPage'
+import PrivacyPolicyPage from '@/pages/PrivacyPolicyPage'
+import TermsOfServicePage from '@/pages/TermsOfServicePage'
 import NotFoundPage from '@/pages/NotFoundPage'
 
 function AppShell() {
@@ -67,9 +69,6 @@ function AppShell() {
           AuthProvider; self-disables when nobody is signed in. */}
       <SessionTimeout />
       <Header />
-      {/* Mobile bottom nav for candidates; self-disables for other roles and
-          inside the full-screen test runner. */}
-      <CandidateBottomNav />
       <main className="flex-1">
         <Routes>
           <Route path="/" element={<LandingPage />} />
@@ -78,6 +77,8 @@ function AppShell() {
           <Route path="/verifier/login" element={<VerifierLoginPage />} />
           <Route path="/verifier/signup" element={<VerifierSignupPage />} />
           <Route path="/admin/login" element={<AdminLoginPage />} />
+          <Route path="/privacy" element={<PrivacyPolicyPage />} />
+          <Route path="/terms" element={<TermsOfServicePage />} />
 
           <Route
             path="/onboarding/category"
@@ -263,6 +264,12 @@ function AppShell() {
         </Routes>
       </main>
       <Footer />
+      {/* Mobile bottom nav for candidates; self-disables for other roles and
+          inside the full-screen test runner. Rendered after Footer (not just
+          after Header) so its spacer reserves clearance at the true end of a
+          page's content — placed earlier, the spacer only pushed the top of
+          <main> down and left the fixed bar free to sit over the Footer. */}
+      <CandidateBottomNav />
     </div>
   )
 }

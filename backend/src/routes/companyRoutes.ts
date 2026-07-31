@@ -6,6 +6,7 @@ import * as paymentController from '../controllers/paymentController';
 import * as contestController from '../controllers/contestController';
 import { requireAuth } from '../middleware/requireAuth';
 import { requireRole } from '../middleware/requireRole';
+import { searchLimiter } from '../middleware/rateLimiter';
 
 const router = Router();
 
@@ -16,7 +17,13 @@ router.get('/me/profile', requireAuth, requireRole('company'), companyController
 router.put('/me/profile', requireAuth, requireRole('company'), companyController.upsertMyCompanyProfile);
 
 // Search / browse candidates
-router.get('/search', requireAuth, requireRole('company'), companyController.searchCandidates);
+router.get(
+  '/search',
+  requireAuth,
+  requireRole('company'),
+  searchLimiter,
+  companyController.searchCandidates,
+);
 
 // Contest performance for one candidate. Deliberately NOT behind an unlock —
 // it's Hirepool's own scored data, treated like the Achievements section

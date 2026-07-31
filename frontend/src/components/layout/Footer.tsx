@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { APP_NAME, SUPPORT_EMAIL } from '@/lib/config'
 
 export default function Footer() {
@@ -11,13 +12,12 @@ export default function Footer() {
             &copy; {year} {APP_NAME}. All rights reserved.
           </p>
           <div className="flex gap-4">
-            {/* Real legal pages are Phase 7 — placeholders for now */}
-            <a href="#" className="hover:text-primary">
+            <Link to="/privacy" className="hover:text-primary">
               Privacy
-            </a>
-            <a href="#" className="hover:text-primary">
+            </Link>
+            <Link to="/terms" className="hover:text-primary">
               Terms
-            </a>
+            </Link>
           </div>
         </div>
         <p className="border-t border-line pt-3 text-center text-xs text-ink/50 sm:text-left">

@@ -685,7 +685,10 @@ async function buildTimeline(
       title: `Decision: ${log.decision.replace('_', ' ')}`,
       detail: log.notes,
       actorId: log.reviewerId,
-      actorName: await resolveName(log.reviewerId),
+      // reviewerId is only ever null for the system-generated duplicate
+      // resume-link flag (see candidateController.flagDuplicateResumeLinkIfAny)
+      // — there's no user row to resolve a display name from.
+      actorName: log.reviewerId ? await resolveName(log.reviewerId) : 'System',
       tone: log.decision === 'approved' ? 'pass' : log.decision === 'flagged' ? 'neutral' : 'fail',
     });
   }

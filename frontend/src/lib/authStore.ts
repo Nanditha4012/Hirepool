@@ -58,8 +58,19 @@ interface AuthContextValue extends AuthState {
    * provisioned verifier/admin accounts — the backend accepts either.
    */
   login: (identifier: string, password: string) => Promise<LoginResult>
-  /** 'verifier' is only accepted by the backend when `email` has a live admin-issued invite — see VerifierSignupPage. */
-  signup: (email: string, password: string, role: 'candidate' | 'company' | 'verifier') => Promise<AuthSuccess>
+  /**
+   * 'verifier' is only accepted by the backend when `email` has a live
+   * admin-issued invite — see VerifierSignupPage. `recaptchaToken` is only
+   * required by the backend when it has RECAPTCHA_SECRET_KEY configured
+   * (see authController.signup) — omit it and signup behaves exactly as
+   * before in any environment that hasn't set that up.
+   */
+  signup: (
+    email: string,
+    password: string,
+    role: 'candidate' | 'company' | 'verifier',
+    recaptchaToken?: string,
+  ) => Promise<AuthSuccess>
   loginWithGoogle: (idToken: string, role: 'candidate' | 'company') => Promise<LoginResult>
   verifyTotp: (challengeToken: string, code: string) => Promise<AuthSuccess>
   logout: () => Promise<void>
@@ -110,10 +121,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   )
 
   const signup = useCallback(
-    async (email: string, password: string, role: 'candidate' | 'company' | 'verifier'): Promise<AuthSuccess> => {
+    async (
+      email: string,
+      password: string,
+      role: 'candidate' | 'company' | 'verifier',
+      recaptchaToken?: string,
+    ): Promise<AuthSuccess> => {
       const result = await apiFetch<AuthSuccess>('/auth/signup', {
         method: 'POST',
-        body: JSON.stringify({ email, password, role }),
+        body: JSON.stringify({ email, password, role, recaptchaToken }),
         auth: false,
       })
       applyToken(result.accessToken)

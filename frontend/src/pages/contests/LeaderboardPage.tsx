@@ -162,7 +162,11 @@ export default function LeaderboardPage() {
           )}
 
           {me && !meInTop && (
-            <div className="sticky bottom-4 mt-4">
+            // bottom-24 on mobile so this clears CandidateBottomNav's fixed
+            // bar (this page is candidate-only) instead of sticking behind
+            // it; md+ has no bottom nav, so bottom-4 there sits close to the
+            // viewport edge as originally intended.
+            <div className="sticky bottom-24 mt-4 md:bottom-4">
               <p className="mb-1.5 text-center text-xs font-semibold uppercase tracking-wide text-ink/40">
                 Your position
               </p>

@@ -7,6 +7,8 @@ export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api'
 
 export const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || ''
 
+export const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY || ''
+
 /**
  * Where users are told to write when something is urgent or doesn't fit any
  * of the in-app flows. Surfaced in the footer and under every profile/status

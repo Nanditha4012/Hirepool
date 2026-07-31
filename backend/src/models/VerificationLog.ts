@@ -12,7 +12,14 @@ export type VerificationDecision =
 
 export interface VerificationLogAttributes {
   id: string;
-  reviewerId: string;
+  /**
+   * Null only for system-generated rows (e.g. the cross-account duplicate
+   * resume-link flag written by candidateController.submitMyProfile) — there
+   * is no human reviewer to attribute those to, and no reviewer/verifier
+   * account exists that would make one up truthfully. Every row created by
+   * an actual verifier action still always sets this.
+   */
+  reviewerId: string | null;
   targetType: VerificationTargetType;
   targetId: string;
   decision: VerificationDecision;
@@ -22,7 +29,7 @@ export interface VerificationLogAttributes {
 
 type VerificationLogCreationAttributes = Optional<
   VerificationLogAttributes,
-  'id' | 'notes' | 'createdAt'
+  'id' | 'reviewerId' | 'notes' | 'createdAt'
 >;
 
 export class VerificationLog
@@ -30,7 +37,7 @@ export class VerificationLog
   implements VerificationLogAttributes
 {
   declare id: string;
-  declare reviewerId: string;
+  declare reviewerId: string | null;
   declare targetType: VerificationTargetType;
   declare targetId: string;
   declare decision: VerificationDecision;
@@ -41,7 +48,7 @@ export class VerificationLog
 VerificationLog.init(
   {
     id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
-    reviewerId: { type: DataTypes.UUID, allowNull: false, field: 'reviewer_id' },
+    reviewerId: { type: DataTypes.UUID, allowNull: true, field: 'reviewer_id' },
     targetType: {
       type: DataTypes.ENUM('candidate_profile', 'platform_badge', 'achievement'),
       allowNull: false,

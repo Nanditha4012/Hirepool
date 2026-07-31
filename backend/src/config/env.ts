@@ -44,6 +44,15 @@ const envSchema = z.object({
   // which needs no domain verification) since it isn't itself a secret.
   RESEND_API_KEY: z.string().optional().default(''),
   EMAIL_FROM: z.string().optional().default('Hirepool <onboarding@resend.dev>'),
+  // reCAPTCHA (Phase 7 security hardening) — same "optional, empty-string
+  // default" pattern as the vars above: an optional external service
+  // credential that must NOT crash the app at boot if unset. Callers check
+  // isRecaptchaConfigured() (see utils/recaptcha.ts) before verifying and
+  // skip the check entirely when unset, so signup behaves exactly as before
+  // in any environment that hasn't configured reCAPTCHA. Only the secret key
+  // lives here — the site key is public and only used by the frontend widget
+  // (VITE_RECAPTCHA_SITE_KEY).
+  RECAPTCHA_SECRET_KEY: z.string().optional().default(''),
 });
 
 const parsed = envSchema.safeParse(process.env);

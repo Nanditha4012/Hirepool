@@ -4,8 +4,10 @@ import Card from '@/components/ui/Card'
 import Input from '@/components/ui/Input'
 import Button from '@/components/ui/Button'
 import GoogleSignInButton from '@/components/GoogleSignInButton'
+import RecaptchaWidget from '@/components/RecaptchaWidget'
 import { useAuth } from '@/lib/authStore'
 import { isGoogleConfigured } from '@/lib/googleIdentity'
+import { isRecaptchaConfigured } from '@/lib/recaptcha'
 import { navigateAfterAuth } from '@/lib/postAuthRoute'
 import { IMAGES } from '@/lib/images'
 import Logo from '@/components/ui/Logo'
@@ -20,7 +22,11 @@ export default function SignupPage() {
   const [role, setRole] = useState<SignupRole>(initialRole)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [consentChecked, setConsentChecked] = useState(false)
+  const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [consentError, setConsentError] = useState<string | null>(null)
+  const [recaptchaError, setRecaptchaError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
   const { signup, loginWithGoogle } = useAuth()
@@ -29,9 +35,19 @@ export default function SignupPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
+    if (!consentChecked) {
+      setConsentError('Please agree to the Terms of Service and Privacy Policy to continue.')
+      return
+    }
+    setConsentError(null)
+    if (isRecaptchaConfigured() && !recaptchaToken) {
+      setRecaptchaError('Please complete the CAPTCHA to continue.')
+      return
+    }
+    setRecaptchaError(null)
     setLoading(true)
     try {
-      await signup(email, password, role)
+      await signup(email, password, role, recaptchaToken ?? undefined)
       navigate(role === 'candidate' ? '/onboarding/category' : '/company')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Signup failed')
@@ -46,6 +62,11 @@ export default function SignupPage() {
   // role that account was created with.
   const handleGoogleCredential = async (idToken: string) => {
     setError(null)
+    if (!consentChecked) {
+      setConsentError('Please agree to the Terms of Service and Privacy Policy to continue.')
+      return
+    }
+    setConsentError(null)
     setLoading(true)
     try {
       const result = await loginWithGoogle(idToken, role)
@@ -108,6 +129,42 @@ export default function SignupPage() {
             onChange={(e) => setPassword(e.target.value)}
             autoComplete="new-password"
           />
+
+          <label className="flex items-start gap-2 text-sm text-ink/70">
+            <input
+              type="checkbox"
+              checked={consentChecked}
+              onChange={(e) => {
+                setConsentChecked(e.target.checked)
+                if (e.target.checked) setConsentError(null)
+              }}
+              className="mt-0.5 h-4 w-4 flex-shrink-0 rounded border-line text-primary focus:ring-primary"
+            />
+            <span>
+              I agree to the{' '}
+              <Link to="/terms" className="font-semibold text-primary hover:underline">
+                Terms of Service
+              </Link>{' '}
+              and{' '}
+              <Link to="/privacy" className="font-semibold text-primary hover:underline">
+                Privacy Policy
+              </Link>
+              {role === 'candidate'
+                ? ', and understand that my contact details will be shared with companies that unlock my profile.'
+                : ", and understand that I'll only see contact details for candidates I unlock, as described in the Privacy Policy."}
+            </span>
+          </label>
+          {consentError && <p className="text-sm text-danger">{consentError}</p>}
+
+          <RecaptchaWidget
+            onVerify={(token) => {
+              setRecaptchaToken(token)
+              setRecaptchaError(null)
+            }}
+            onExpire={() => setRecaptchaToken(null)}
+            onError={setError}
+          />
+          {recaptchaError && <p className="text-sm text-danger">{recaptchaError}</p>}
 
           {error && <p className="text-sm text-danger">{error}</p>}
 
