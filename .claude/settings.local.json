@@ -41,7 +41,17 @@
       "Bash(curl -s -X POST https://emkc.org/api/v2/piston/execute -H 'Content-Type: application/json' -d '{\"language\":\"python\",\"version\":\"3.10.0\",\"files\":[{\"name\":\"main.py\",\"content\":\"print\\(sum\\([1,2,3]\\)\\)\"}],\"stdin\":\"\"}' -w '\\\\nHTTP %{http_code}\\\\n')",
       "Bash(PORT=4998 PISTON_API_URL=http://localhost:5055 npx ts-node --transpile-only src/server.ts)",
       "Bash(sed -i 's|const B = '\\\\''http://localhost:4999/api'\\\\'';|const B = process.env.API || '\\\\''http://localhost:4999/api'\\\\'';|' C:/Users/asu/AppData/Local/Temp/claude/C--Users-asu-Downloads-Hirepool/0c13afcb-19a9-4b4b-ac3d-af971b349383/scratchpad/contest-e2e.js)",
-      "Bash(API=http://localhost:4998/api node C:/Users/asu/AppData/Local/Temp/claude/C--Users-asu-Downloads-Hirepool/0c13afcb-19a9-4b4b-ac3d-af971b349383/scratchpad/contest-e2e.js)"
+      "Bash(API=http://localhost:4998/api node C:/Users/asu/AppData/Local/Temp/claude/C--Users-asu-Downloads-Hirepool/0c13afcb-19a9-4b4b-ac3d-af971b349383/scratchpad/contest-e2e.js)",
+      "Bash(awk -F' -> ' '{print $2}')",
+      "Bash(perl -i -pe 's/\\\\bmax-w-app\\\\b/max-w-app-narrow/g if /mx-auto/' pages/company/MessagesPage.tsx pages/contests/TestResultPage.tsx pages/candidate/SubmissionReportPage.tsx pages/verifier/VerifierAccountPage.tsx)",
+      "Bash(perl -i -pe 's/sm:grid-cols-2 lg:grid-cols-3/sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4/g' pages/company/SearchPage.tsx pages/company/UnlockedCandidatesPage.tsx)",
+      "Bash(perl -i -pe 's/<PageLoader label=\"Loading drives…\" className=\"mt-10\" \\\\/>/<PageLoader compact label=\"Loading drives…\" className=\"mt-10\" \\\\/>/; s/<PageLoader label=\"Loading openings…\" className=\"mt-10\" \\\\/>/<PageLoader compact label=\"Loading openings…\" className=\"mt-10\" \\\\/>/' pages/feed/FeedPage.tsx)",
+      "Bash(perl -i -pe \"s/import \\\\{ NavIcon, bottomNavItemsFor, icons, type NavItem \\\\} from '\\\\.\\\\/navConfig'/import NavIcon from '.\\\\/NavIcon'\\\\nimport { bottomNavItemsFor, icons, type NavItem } from '.\\\\/navConfig'/; s/import \\\\{ NavIcon, icons, navItemsFor \\\\} from '\\\\.\\\\/navConfig'/import NavIcon from '.\\\\/NavIcon'\\\\nimport { icons, navItemsFor } from '.\\\\/navConfig'/; s/import \\\\{ NavIcon, icons, navItemsFor \\\\} from '\\\\.\\\\/navConfig'/x/\" BottomNav.tsx Header.tsx)",
+      "Bash(perl -i -pe \"s/import \\\\{ NavIcon, icons, navItemsFor \\\\} from '\\\\.\\\\/navConfig'/import NavIcon from '.\\\\/NavIcon'\\\\nimport { icons, navItemsFor } from '.\\\\/navConfig'/\" SideNav.tsx)",
+      "Bash(python3 -)",
+      "Bash(cp \"C:/Users/asu/AppData/Local/Temp/claude/C--Users-asu-Downloads-Hirepool/5cfb65ff-ba99-43b5-9c3a-8bc8217dc0c7/scratchpad/check.js\" ./.check-social.cjs)",
+      "Bash(rm -f ./.check-social.cjs)",
+      "Bash(perl -0777 -i -pe ' *)"
     ]
   },
   "enabledMcpjsonServers": [

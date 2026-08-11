@@ -183,7 +183,7 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-4xl px-4 py-16 text-center sm:px-6">
+      <div className="mx-auto max-w-app px-4 py-16 text-center sm:px-6 lg:px-10">
         <PageLoader label="Loading your dashboard…" />
       </div>
     )
@@ -191,7 +191,7 @@ export default function DashboardPage() {
 
   if (error || !profile || !cardData) {
     return (
-      <div className="mx-auto max-w-4xl px-4 py-16 sm:px-6">
+      <div className="mx-auto max-w-app px-4 py-16 sm:px-6 lg:px-10">
         <Card>
           <p className="text-danger">{error || 'Something went wrong loading your dashboard.'}</p>
         </Card>
@@ -200,7 +200,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
+    <div className="mx-auto max-w-app px-4 py-10 sm:px-6 lg:px-10">
       <PageHero
         eyebrow="Candidate"
         title={profile.fullName || 'Your dashboard'}

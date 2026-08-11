@@ -57,7 +57,7 @@ export default function AdminPaymentsPage() {
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+    <div className="mx-auto max-w-app px-4 py-10 sm:px-6 lg:px-10">
       <h1 className="text-2xl font-bold text-ink">Transaction ledger</h1>
       <p className="mt-1 text-ink/60">
         Every Razorpay-backed payment across subscriptions, unlock top-ups and profile boosts, newest first.

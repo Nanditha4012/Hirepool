@@ -497,7 +497,7 @@ export default function SearchPage() {
 
   if (initialLoading) {
     return (
-      <div className="mx-auto max-w-6xl px-4 py-16 text-center sm:px-6">
+      <div className="mx-auto max-w-app px-4 py-16 text-center sm:px-6 lg:px-10">
         <PageLoader label="Opening the candidate portal…" />
       </div>
     )
@@ -505,7 +505,7 @@ export default function SearchPage() {
 
   if (initialError) {
     return (
-      <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
+      <div className="mx-auto max-w-app px-4 py-16 sm:px-6 lg:px-10">
         <Card>
           <p className="text-danger">{initialError}</p>
         </Card>
@@ -522,7 +522,7 @@ export default function SearchPage() {
   const activeTier = tierTabs.find((t) => t.value === filters.category)
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+    <div className="mx-auto max-w-app px-4 py-10 sm:px-6 lg:px-10">
       <PageHero
         eyebrow="Candidate portal"
         title="Every candidate here is verified"
@@ -807,7 +807,7 @@ export default function SearchPage() {
           )}
 
           {searching && results.length === 0 && (
-            <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {Array.from({ length: 6 }).map((_, index) => (
                 <Skeleton key={index} className="h-64" />
               ))}
@@ -836,7 +836,7 @@ export default function SearchPage() {
             </Card>
           )}
 
-          <div className="mt-4 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-4 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {results.map((result, index) => (
               <div
                 key={result.id}

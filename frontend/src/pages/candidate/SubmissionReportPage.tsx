@@ -138,7 +138,7 @@ export default function SubmissionReportPage() {
   const passedFields = profile.fieldReview.filter((f) => f.passed)
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
+    <div className="mx-auto max-w-app-narrow px-4 py-10 sm:px-6 lg:px-10">
       <PageHero
         eyebrow="Your profile"
         title={profile.fullName || 'Your submission'}

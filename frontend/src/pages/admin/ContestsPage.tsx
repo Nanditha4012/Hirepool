@@ -436,7 +436,7 @@ export default function AdminContestsPage() {
   if (loading) return <PageLoader label="Loading contests…" />
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
+    <div className="mx-auto max-w-app px-4 py-8 sm:px-6 lg:px-10">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-ink">Contests</h1>

@@ -259,7 +259,7 @@ export default function ProfileReviewPage() {
 
   if (loadError || !profile) {
     return (
-      <div className="mx-auto max-w-4xl px-4 py-16 sm:px-6">
+      <div className="mx-auto max-w-app px-4 py-16 sm:px-6 lg:px-10">
         <Card>
           <p className="text-danger">{loadError || 'Profile not found.'}</p>
           <Link to="/verify/queue" className="mt-3 inline-block text-sm font-medium text-primary hover:underline">
@@ -276,7 +276,7 @@ export default function ProfileReviewPage() {
   })).filter((entry) => entry.items.length > 0)
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
+    <div className="mx-auto max-w-app px-4 py-8 sm:px-6 lg:px-10">
       <Link to="/verify/queue" className="text-sm font-medium text-primary hover:underline">
         ← Back to catalogs
       </Link>

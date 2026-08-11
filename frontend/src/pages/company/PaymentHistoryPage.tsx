@@ -4,7 +4,7 @@ import { listCompanyPaymentHistory } from '@/lib/paymentsApi'
 
 export default function PaymentHistoryPage() {
   return (
-    <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
+    <div className="mx-auto max-w-app px-4 py-10 sm:px-6 lg:px-10">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-ink">Payment history</h1>

@@ -157,7 +157,7 @@ export default function CandidateDetailPage() {
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-5xl px-4 py-16 text-center sm:px-6">
+      <div className="mx-auto max-w-app px-4 py-16 text-center sm:px-6 lg:px-10">
         <PageLoader label="Loading candidate…" />
       </div>
     )
@@ -165,7 +165,7 @@ export default function CandidateDetailPage() {
 
   if (error || !detail) {
     return (
-      <div className="mx-auto max-w-5xl px-4 py-16 sm:px-6">
+      <div className="mx-auto max-w-app px-4 py-16 sm:px-6 lg:px-10">
         <Card>
           <p className="text-danger">{error || 'Candidate not found.'}</p>
           <Button type="button" variant="secondary" size="sm" className="mt-4" onClick={() => navigate('/admin/candidates')}>
@@ -182,7 +182,7 @@ export default function CandidateDetailPage() {
   ]
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
+    <div className="mx-auto max-w-app px-4 py-10 sm:px-6 lg:px-10">
       <Button type="button" variant="secondary" size="sm" onClick={() => navigate('/admin/candidates')}>
         Back to candidates
       </Button>

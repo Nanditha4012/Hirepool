@@ -30,6 +30,12 @@ import { Contest } from './Contest';
 import { ContestQuestion } from './ContestQuestion';
 import { ContestAttempt } from './ContestAttempt';
 import { ContestQuestionResponse } from './ContestQuestionResponse';
+import { Community } from './Community';
+import { CommunityMember } from './CommunityMember';
+import { FeedPost } from './FeedPost';
+import { PostReaction } from './PostReaction';
+import { PostComment } from './PostComment';
+import { PostReport } from './PostReport';
 
 // User <-> CandidateProfile (1:1)
 User.hasOne(CandidateProfile, { foreignKey: 'userId', as: 'candidateProfile' });
@@ -156,6 +162,35 @@ ContestQuestionResponse.belongsTo(ContestAttempt, { foreignKey: 'attemptId', as:
 ContestQuestion.hasMany(ContestQuestionResponse, { foreignKey: 'questionId', as: 'responses' });
 ContestQuestionResponse.belongsTo(ContestQuestion, { foreignKey: 'questionId', as: 'question' });
 
+// Social module: Walk-in Pedia, Job Book and Communities. One post table
+// (FeedPost.kind) backs all three surfaces, so the reactions/comments/reports
+// associations below are declared once rather than per surface.
+Community.hasMany(CommunityMember, { foreignKey: 'communityId', as: 'members' });
+CommunityMember.belongsTo(Community, { foreignKey: 'communityId', as: 'community' });
+User.hasMany(CommunityMember, { foreignKey: 'userId', as: 'communityMemberships' });
+CommunityMember.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+
+Community.hasMany(FeedPost, { foreignKey: 'communityId', as: 'posts' });
+FeedPost.belongsTo(Community, { foreignKey: 'communityId', as: 'community' });
+
+User.hasMany(FeedPost, { foreignKey: 'authorId', as: 'feedPosts' });
+FeedPost.belongsTo(User, { foreignKey: 'authorId', as: 'author' });
+
+FeedPost.hasMany(PostReaction, { foreignKey: 'postId', as: 'reactions' });
+PostReaction.belongsTo(FeedPost, { foreignKey: 'postId', as: 'post' });
+User.hasMany(PostReaction, { foreignKey: 'userId', as: 'postReactions' });
+PostReaction.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+
+FeedPost.hasMany(PostComment, { foreignKey: 'postId', as: 'comments' });
+PostComment.belongsTo(FeedPost, { foreignKey: 'postId', as: 'post' });
+User.hasMany(PostComment, { foreignKey: 'userId', as: 'postComments' });
+PostComment.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+
+FeedPost.hasMany(PostReport, { foreignKey: 'postId', as: 'reports' });
+PostReport.belongsTo(FeedPost, { foreignKey: 'postId', as: 'post' });
+User.hasMany(PostReport, { foreignKey: 'userId', as: 'postReports' });
+PostReport.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+
 export {
   sequelize,
   User,
@@ -189,4 +224,10 @@ export {
   ContestQuestion,
   ContestAttempt,
   ContestQuestionResponse,
+  Community,
+  CommunityMember,
+  FeedPost,
+  PostReaction,
+  PostComment,
+  PostReport,
 };

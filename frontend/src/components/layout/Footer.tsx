@@ -6,7 +6,7 @@ export default function Footer() {
 
   return (
     <footer className="border-t border-line bg-surface">
-      <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-6 text-sm text-ink/60 sm:px-6">
+      <div className="mx-auto flex max-w-app flex-col gap-3 px-4 py-6 text-sm text-ink/60 sm:px-6 lg:px-10">
         <div className="flex flex-col items-center justify-between gap-3 sm:flex-row">
           <p>
             &copy; {year} {APP_NAME}. All rights reserved.

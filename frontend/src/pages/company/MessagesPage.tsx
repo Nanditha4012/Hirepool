@@ -99,14 +99,14 @@ export default function MessagesPage() {
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-4xl px-4 py-16 text-center sm:px-6">
+      <div className="mx-auto max-w-app-narrow px-4 py-16 text-center sm:px-6 lg:px-10">
         <PageLoader label="Loading your messages…" />
       </div>
     )
   }
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
+    <div className="mx-auto max-w-app-narrow px-4 py-10 sm:px-6 lg:px-10">
       <h1 className="text-2xl font-bold text-ink">Messages</h1>
       <p className="mt-1 text-ink/60">Conversations with candidates.</p>
 

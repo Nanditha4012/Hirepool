@@ -24,11 +24,11 @@ export default function AdminLayout() {
   return (
     <div className="flex min-h-[60vh] flex-col bg-surface/40">
       <div className="border-b border-line bg-card">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-4 pt-3 sm:px-6">
+        <div className="mx-auto flex max-w-app flex-wrap items-center justify-between gap-2 px-4 pt-3 sm:px-6 lg:px-10">
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-ink/40">Admin portal</p>
           {/* Name deliberately not repeated here — see VerifierLayout. */}
         </div>
-        <nav className="mx-auto flex max-w-6xl gap-1 overflow-x-auto px-4 py-3 sm:px-6">
+        <nav className="mx-auto flex max-w-app gap-1 overflow-x-auto px-4 py-3 sm:px-6 lg:px-10">
           {navLinks.map((link) => (
             <NavLink
               key={link.to}

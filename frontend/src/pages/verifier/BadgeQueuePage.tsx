@@ -85,7 +85,7 @@ export default function BadgeQueuePage() {
   const reasonOptions = reasons.map((r) => ({ value: r.id, label: r.reasonText }))
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
+    <div className="mx-auto max-w-app px-4 py-10 sm:px-6 lg:px-10">
       <h1 className="text-2xl font-bold text-ink">Badge queue</h1>
       <p className="mt-1 text-ink/60">Verify coding-platform badges claimed by candidates.</p>
 

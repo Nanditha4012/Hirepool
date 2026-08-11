@@ -89,7 +89,7 @@ export default function ContestHubPage() {
 
   if (error) {
     return (
-      <div className="mx-auto max-w-5xl px-4 py-16 sm:px-6">
+      <div className="mx-auto max-w-app px-4 py-16 sm:px-6 lg:px-10">
         <Card>
           <p className="text-danger">{error}</p>
         </Card>
@@ -107,7 +107,7 @@ export default function ContestHubPage() {
   }, null)
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
+    <div className="mx-auto max-w-app px-4 py-10 sm:px-6 lg:px-10">
       <PageHero
         eyebrow="Contests"
         title="Prove it with a score, not a claim"

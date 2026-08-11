@@ -7,7 +7,7 @@ import Header from '@/components/layout/Header'
 import Footer from '@/components/layout/Footer'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import SessionTimeout from '@/components/SessionTimeout'
-import CandidateBottomNav from '@/components/layout/CandidateBottomNav'
+import BottomNav from '@/components/layout/BottomNav'
 
 import LandingPage from '@/pages/LandingPage'
 import SignupPage from '@/pages/SignupPage'
@@ -48,6 +48,10 @@ import AdminSiteSettingsPage from '@/pages/admin/SiteSettingsPage'
 import AdminAnnouncementsPage from '@/pages/admin/AnnouncementsPage'
 import AdminAuditLogPage from '@/pages/admin/AuditLogPage'
 import AdminPaymentsPage from '@/pages/admin/AdminPaymentsPage'
+import FeedPage from '@/pages/feed/FeedPage'
+import CreatePostPage from '@/pages/feed/CreatePostPage'
+import CommunityPage from '@/pages/community/CommunityPage'
+import CommunityDetailPage from '@/pages/community/CommunityDetailPage'
 import ContestHubPage from '@/pages/contests/ContestHubPage'
 import ContestListPage from '@/pages/contests/ContestListPage'
 import TestRunnerPage from '@/pages/contests/TestRunnerPage'
@@ -172,6 +176,47 @@ function AppShell() {
               </ProtectedRoute>
             }
           />
+          {/* Walk-in Pedia, Job Book and Communities.
+              Open to every signed-in role rather than gated per role: it is a
+              shared noticeboard, and a company needs to post its own drives
+              and see what is being said about it just as much as a candidate
+              needs to read them. Verifiers and admins get read access for
+              moderation. The literal '/feed/new' precedes nothing that could
+              swallow it, but is declared first regardless — the ordering
+              discipline used throughout this file. */}
+          <Route
+            path="/feed/new"
+            element={
+              <ProtectedRoute allow={['candidate', 'company', 'verifier', 'admin']}>
+                <CreatePostPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/feed"
+            element={
+              <ProtectedRoute allow={['candidate', 'company', 'verifier', 'admin']}>
+                <FeedPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/community"
+            element={
+              <ProtectedRoute allow={['candidate', 'company', 'verifier', 'admin']}>
+                <CommunityPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/community/:slug"
+            element={
+              <ProtectedRoute allow={['candidate', 'company', 'verifier', 'admin']}>
+                <CommunityDetailPage />
+              </ProtectedRoute>
+            }
+          />
+
           {/* Contests — candidate-only. Literal paths are declared before
               '/contests/:type' so the param route can't swallow them. */}
           <Route
@@ -264,12 +309,12 @@ function AppShell() {
         </Routes>
       </main>
       <Footer />
-      {/* Mobile bottom nav for candidates; self-disables for other roles and
-          inside the full-screen test runner. Rendered after Footer (not just
-          after Header) so its spacer reserves clearance at the true end of a
-          page's content — placed earlier, the spacer only pushed the top of
-          <main> down and left the fixed bar free to sit over the Footer. */}
-      <CandidateBottomNav />
+      {/* Mobile bottom nav; self-disables for verifiers/admins and inside the
+          full-screen test runner. Rendered after Footer (not just after
+          Header) so its spacer reserves clearance at the true end of a page's
+          content — placed earlier, the spacer only pushed the top of <main>
+          down and left the fixed bar free to sit over the Footer. */}
+      <BottomNav />
     </div>
   )
 }

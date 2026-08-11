@@ -36,7 +36,7 @@ export default function AnalyticsPage() {
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-5xl px-4 py-16 text-center sm:px-6">
+      <div className="mx-auto max-w-app px-4 py-16 text-center sm:px-6 lg:px-10">
         <PageLoader label="Loading analytics…" />
       </div>
     )
@@ -44,7 +44,7 @@ export default function AnalyticsPage() {
 
   if (error || !analytics) {
     return (
-      <div className="mx-auto max-w-5xl px-4 py-16 sm:px-6">
+      <div className="mx-auto max-w-app px-4 py-16 sm:px-6 lg:px-10">
         <Card>
           <p className="text-danger">{error || 'Failed to load analytics.'}</p>
         </Card>
@@ -58,7 +58,7 @@ export default function AnalyticsPage() {
       : `${analytics.avgTimeToApproveHours.toFixed(1)} hours`
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
+    <div className="mx-auto max-w-app px-4 py-10 sm:px-6 lg:px-10">
       <h1 className="text-2xl font-bold text-ink">Analytics</h1>
       <p className="mt-1 text-ink/60">Your verification throughput and outstanding backlog.</p>
 

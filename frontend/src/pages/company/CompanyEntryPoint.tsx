@@ -8,20 +8,25 @@ import PageLoader from '@/components/ui/PageLoader'
 /**
  * Routing gate for `/company`.
  *
- *   profile still a placeholder → the setup form
- *   filled in, not yet verified → the dashboard (which explains the wait)
- *   filled in AND verified      → the candidate portal
+ * Verification is the only thing this asks about:
  *
- * That last hop is the point. This used to land every complete profile on the
- * dashboard, so a company that had just been verified by an admin still had to
- * find their own way to the candidate search — the thing they signed up for.
- * The whole product for a verified company is the candidate portal, so that is
- * now what `/company` means for them; the dashboard stays reachable at
- * `/company/dashboard` for billing and quota.
+ *   verified     → straight to the dashboard
+ *   not verified → the profile summary, which explains what is being reviewed
+ *                  (and opens as the setup form when there is nothing on file
+ *                  to summarise yet)
+ *
+ * Approval used to make no difference to where a company landed on their next
+ * sign-in — they were still shown the same read-only "here's what we have on
+ * file" screen and had to find their own way onwards, so nothing about the
+ * account visibly changed when an admin approved it. Now approval *is* the
+ * hop: the summary is the waiting room, and passing verification is what
+ * replaces it with the dashboard.
+ *
+ * Deliberately not gated on profile completeness any more. An admin can
+ * approve a company whose optional fields (industry, size) are still blank,
+ * and the old check sent exactly that company back to the setup screen —
+ * approved, but still stuck in the waiting room.
  */
-function isProfileCompleteEnough(profile: CompanyProfileResponse): boolean {
-  return !profile.companyName.includes('@') && Boolean(profile.industry)
-}
 
 export default function CompanyEntryPoint() {
   const [profile, setProfile] = useState<CompanyProfileResponse | null>(null)
@@ -59,11 +64,11 @@ export default function CompanyEntryPoint() {
     )
   }
 
-  if (!isProfileCompleteEnough(profile)) {
-    return <CompanySetupPage />
+  // `replace`: /company is a gate, not a destination, so it must not sit in
+  // the history stack for Back to land on and immediately re-redirect.
+  if (profile.verified) {
+    return <Navigate to="/company/dashboard" replace />
   }
 
-  // `replace` on both: /company is a gate, not a destination, so it must not
-  // sit in the history stack for Back to land on and immediately re-redirect.
-  return <Navigate to={profile.verified ? '/company/search' : '/company/dashboard'} replace />
+  return <CompanySetupPage />
 }

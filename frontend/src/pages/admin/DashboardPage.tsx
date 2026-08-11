@@ -50,7 +50,7 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-6xl px-4 py-16 text-center sm:px-6">
+      <div className="mx-auto max-w-app px-4 py-16 text-center sm:px-6 lg:px-10">
         <PageLoader label="Loading dashboard…" />
       </div>
     )
@@ -58,7 +58,7 @@ export default function DashboardPage() {
 
   if (error || !analytics) {
     return (
-      <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
+      <div className="mx-auto max-w-app px-4 py-16 sm:px-6 lg:px-10">
         <Card>
           <p className="text-danger">{error || 'Failed to load analytics.'}</p>
         </Card>
@@ -67,7 +67,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+    <div className="mx-auto max-w-app px-4 py-10 sm:px-6 lg:px-10">
       <h1 className="text-2xl font-bold text-ink">Dashboard</h1>
       <p className="mt-1 text-ink/60">Platform-wide funnel and fraud signals.</p>
 

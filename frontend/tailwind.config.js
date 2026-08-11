@@ -45,6 +45,31 @@ export default {
       borderRadius: {
         card: '12px',
       },
+      maxWidth: {
+        /**
+         * The width of a page's content column.
+         *
+         * Every signed-in page used to pick its own `max-w-4xl`/`5xl`/`6xl`,
+         * and the most common of those (5xl = 1024px) left roughly 15% of a
+         * 1440px laptop screen empty down each side — the app rendered as a
+         * narrow strip with the dashboard tables and candidate grids
+         * squeezed into the middle of an otherwise blank display. One shared
+         * token means the header, the footer and the page under them all
+         * line up, and widening the app later is one number rather than
+         * sixty class strings.
+         *
+         * Wide enough to use a laptop properly, still capped so a 4K monitor
+         * doesn't stretch a table into an unreadable 3000px line.
+         */
+        app: '1600px',
+        /**
+         * For the handful of pages that are one column of prose or messages
+         * rather than a grid — a conversation thread, a graded test report.
+         * Still far wider than the 896px they used to be, but short of the
+         * point where a paragraph becomes an unreadable single line.
+         */
+        'app-narrow': '1120px',
+      },
       boxShadow: {
         soft: '0 2px 8px rgba(0,0,0,0.06)',
         lift: '0 12px 32px -8px rgba(10, 102, 194, 0.28)',

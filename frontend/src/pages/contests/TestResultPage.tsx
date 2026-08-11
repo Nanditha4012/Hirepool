@@ -180,7 +180,7 @@ export default function TestResultPage() {
   const sectionEntries = Object.entries(attempt.sectionScores)
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
+    <div className="mx-auto max-w-app-narrow px-4 py-10 sm:px-6 lg:px-10">
       <PageHero
         eyebrow={CONTEST_TYPE_META[contest.type].label}
         title={`${attempt.score} / ${attempt.maxScore}`}

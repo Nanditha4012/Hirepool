@@ -5,6 +5,7 @@ import Badge from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
 import { SUPPORT_EMAIL } from '@/lib/config'
 import { useAuth, type AuthUser, type Role } from '@/lib/authStore'
+import { roleHome } from '@/lib/roleHome'
 import { displayNameFor } from '@/lib/displayName'
 
 const roleLabel: Record<Role, string> = {
@@ -12,13 +13,6 @@ const roleLabel: Record<Role, string> = {
   company: 'Company',
   verifier: 'Verifier',
   admin: 'Admin',
-}
-
-const roleHome: Record<Role, { to: string; label: string }> = {
-  candidate: { to: '/candidate', label: 'My profile' },
-  company: { to: '/company', label: 'Dashboard' },
-  verifier: { to: '/verify/queue', label: 'Review queue' },
-  admin: { to: '/admin', label: 'Admin portal' },
 }
 
 /**

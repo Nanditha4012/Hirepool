@@ -8,6 +8,8 @@ import masterRoutes from './masterRoutes';
 import meRoutes from './meRoutes';
 import paymentRoutes from './paymentRoutes';
 import contestRoutes from './contestRoutes';
+import feedRoutes from './feedRoutes';
+import communityRoutes from './communityRoutes';
 
 const router = Router();
 
@@ -18,6 +20,11 @@ router.use('/verify', verifierRoutes);
 router.use('/admin', adminRoutes);
 router.use('/masters', masterRoutes);
 router.use('/contests', contestRoutes);
+// Walk-in Pedia / Job Book / Communities. Mounted at the top level rather
+// than under a role prefix because every signed-in role shares them — see
+// the note in feedRoutes.ts.
+router.use('/feed', feedRoutes);
+router.use('/communities', communityRoutes);
 router.use('/me', meRoutes);
 // Phase 6: only the public Razorpay webhook lives here — the authenticated
 // checkout/history endpoints are mounted under /companies and /candidates

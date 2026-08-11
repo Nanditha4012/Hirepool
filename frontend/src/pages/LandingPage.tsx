@@ -92,7 +92,7 @@ export default function LandingPage() {
           style={{ animationDelay: '2s' }}
         />
 
-        <div className="relative mx-auto max-w-6xl px-4 py-24 text-center sm:px-6 sm:py-32">
+        <div className="relative mx-auto max-w-app px-4 py-24 text-center sm:px-6 lg:px-10 sm:py-32">
           <span className="inline-flex animate-fade-in items-center gap-2 rounded-full bg-white/15 px-4 py-1.5 text-sm font-semibold text-white backdrop-blur">
             <span className="h-2 w-2 rounded-full bg-verified" />
             Verified profiles only
@@ -156,7 +156,7 @@ export default function LandingPage() {
 
       {/* Stats band */}
       <section className="border-b border-line bg-card">
-        <div ref={statsRef} className="reveal mx-auto grid max-w-6xl grid-cols-2 gap-6 px-4 py-12 sm:px-6 lg:grid-cols-4">
+        <div ref={statsRef} className="reveal mx-auto grid max-w-app grid-cols-2 gap-6 px-4 py-12 sm:px-6 lg:px-10 lg:grid-cols-4">
           {stats.map((stat) => (
             <div key={stat.label} className="text-center">
               <p className="text-xl font-extrabold text-primary sm:text-2xl">{stat.value}</p>
@@ -167,7 +167,7 @@ export default function LandingPage() {
       </section>
 
       {/* How it works */}
-      <section className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-24">
+      <section className="mx-auto max-w-app px-4 py-16 sm:px-6 lg:px-10 sm:py-24">
         <h2 className="text-center text-2xl font-bold text-ink sm:text-3xl">How it works</h2>
         <p className="mx-auto mt-3 max-w-xl text-center text-ink/60">
           Three steps, and only the first one needs anything from you.
@@ -183,7 +183,7 @@ export default function LandingPage() {
       <section className="bg-surface">
         <div
           ref={trustRef}
-          className="reveal mx-auto grid max-w-6xl items-center gap-10 px-4 py-16 sm:px-6 sm:py-24 lg:grid-cols-2"
+          className="reveal mx-auto grid max-w-app items-center gap-10 px-4 py-16 sm:px-6 lg:px-10 sm:py-24 lg:grid-cols-2"
         >
           <div>
             <span className="text-sm font-bold uppercase tracking-wide text-primary">
