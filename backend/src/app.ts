@@ -8,6 +8,13 @@ import { errorHandler } from './middleware/errorHandler';
 
 const app: Application = express();
 
+// Vercel's edge always sits in front of the deployed function and sets
+// X-Forwarded-For to the real client IP itself — it isn't a header an
+// external caller can spoof through to us. Trusting exactly one hop lets
+// express-rate-limit (see middleware/rateLimiter.ts) read the real client
+// IP instead of throwing ERR_ERL_UNEXPECTED_X_FORWARDED_FOR.
+app.set('trust proxy', 1);
+
 app.use(helmet());
 app.use(cors({ origin: env.FRONTEND_URL, credentials: true }));
 // Phase 6: the Razorpay webhook handler (routes/paymentRoutes.ts) needs the
