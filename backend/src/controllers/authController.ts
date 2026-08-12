@@ -1,24 +1,36 @@
 import { Request, Response } from 'express';
+import { randomInt } from 'crypto';
 import { z } from 'zod';
 import { Op, UniqueConstraintError, col, fn, where as sqlWhere } from 'sequelize';
 import { OAuth2Client } from 'google-auth-library';
-import { User, CandidateProfile, CompanyProfile, TotpSecret, PlanMaster, VerifierInvite } from '../models';
+import { sequelize } from '../config/database';
+import {
+  User,
+  CandidateProfile,
+  CompanyProfile,
+  TotpSecret,
+  PlanMaster,
+  VerifierInvite,
+  PasswordResetOtp,
+} from '../models';
 import { env } from '../config/env';
 import { asyncHandler } from '../utils/asyncHandler';
 import { ApiError } from '../utils/ApiError';
 import { runInRequestContext } from '../utils/withRequestContext';
-import { hashPassword, comparePassword } from '../utils/password';
+import { hashPassword, comparePassword, strongPasswordSchema } from '../utils/password';
 import {
   signAccessToken,
   signRefreshToken,
   verifyRefreshToken,
   signTotpChallengeToken,
   verifyTotpChallengeToken,
+  signPasswordResetToken,
+  verifyPasswordResetToken,
   getRefreshCookieMaxAgeMs,
 } from '../utils/jwt';
 import { generateTotpSecret, verifyTotpToken, generateQrCodeDataUrl, buildOtpauthUrl } from '../utils/totp';
 import { sendEmail } from '../utils/email';
-import { signupConfirmationEmail } from '../utils/emailTemplates';
+import { signupConfirmationEmail, passwordResetOtpEmail } from '../utils/emailTemplates';
 import { isRecaptchaConfigured, verifyRecaptcha } from '../utils/recaptcha';
 
 const SELF_SIGNUP_ROLES = ['candidate', 'company'] as const;
@@ -33,7 +45,7 @@ const VERIFIER_INVITE_ROLE = 'verifier' as const;
 
 const signupSchema = z.object({
   email: z.string().email(),
-  password: z.string().min(8),
+  password: strongPasswordSchema,
   role: z.enum([...SELF_SIGNUP_ROLES, VERIFIER_INVITE_ROLE]),
   // Optional at the schema level — enforced conditionally in signup() below,
   // only when isRecaptchaConfigured() is true. Left optional here so a
@@ -412,16 +424,14 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
   // TOTP second factor is kept for admins only. (Previously both were
   // funnelled through the /onboarding/2fa challenge.)
   //
-  // Dev convenience: outside production, admin logins skip the TOTP
-  // challenge entirely so a freshly-seeded admin account can be used
-  // immediately without an authenticator app. Gated on NODE_ENV rather than
-  // a manual toggle so it can never accidentally ship enabled — a real
-  // deployment always sets NODE_ENV=production, which restores the full
-  // 2FA requirement unconditionally.
-  if (user.role === 'admin' && env.NODE_ENV === 'production') {
-    res.json(await buildTotpChallengeResponse(user));
-    return;
-  }
+  // TODO(re-enable before real launch): admin TOTP is temporarily disabled
+  // in production too, at the requester's explicit instruction, while the
+  // platform is still in active development and 2FA enrollment is friction
+  // nobody wants mid-build. Restore this condition before a real deployment:
+  //   if (user.role === 'admin' && env.NODE_ENV === 'production') {
+  //     res.json(await buildTotpChallengeResponse(user));
+  //     return;
+  //   }
 
   const accessToken = issueSession(res, { id: user.id, role: user.role, tokenVersion: user.tokenVersion });
   res.json({ accessToken, user: await buildAuthUserPayload(user) });
@@ -676,6 +686,149 @@ export const refresh = asyncHandler(async (req: Request, res: Response) => {
 
 export const logout = asyncHandler(async (req: Request, res: Response) => {
   res.clearCookie(REFRESH_COOKIE_NAME, refreshCookieOptions());
+  res.status(204).send();
+});
+
+// ---------------------------------------------------------------------
+// Forgot password: emailed OTP -> reset token -> new password.
+// ---------------------------------------------------------------------
+
+const OTP_TTL_MS = 10 * 60 * 1000;
+const OTP_MAX_ATTEMPTS = 5;
+
+const forgotPasswordSchema = z.object({ email: z.string().email() });
+
+/** Generates a 6-digit OTP; padStart keeps a leading-zero code (e.g. "004821") valid. */
+function generateOtp(): string {
+  return String(randomInt(0, 1_000_000)).padStart(6, '0');
+}
+
+export const forgotPassword = asyncHandler(async (req: Request, res: Response) => {
+  const { email } = forgotPasswordSchema.parse(req.body);
+
+  // Always the same response whether or not the email is registered — the
+  // whole point is not telling a caller which emails exist in the system.
+  const genericResponse = {
+    message: 'If an account exists for that email, a password reset code has been sent.',
+  };
+
+  const user = await runInRequestContext(null, (t) =>
+    User.findOne({ where: whereEmailEquals(email), transaction: t }),
+  );
+
+  if (!user) {
+    res.json(genericResponse);
+    return;
+  }
+
+  const otp = generateOtp();
+  const otpHash = await hashPassword(otp);
+
+  await runInRequestContext(null, (t) =>
+    PasswordResetOtp.create(
+      { userId: user.id, otpHash, expiresAt: new Date(Date.now() + OTP_TTL_MS) },
+      { transaction: t },
+    ),
+  );
+
+  const { subject, html } = passwordResetOtpEmail(otp);
+  await sendEmail({ to: user.email, subject, html });
+
+  res.json(genericResponse);
+});
+
+const verifyResetOtpSchema = z.object({
+  email: z.string().email(),
+  otp: z.string().length(6),
+});
+
+export const verifyResetOtp = asyncHandler(async (req: Request, res: Response) => {
+  const { email, otp } = verifyResetOtpSchema.parse(req.body);
+  const invalid = () => ApiError.unauthorized('Invalid or expired code');
+
+  const user = await runInRequestContext(null, (t) =>
+    User.findOne({ where: whereEmailEquals(email), transaction: t }),
+  );
+  if (!user) throw invalid();
+
+  const otpRow = await runInRequestContext(null, (t) =>
+    PasswordResetOtp.findOne({
+      where: { userId: user.id, consumedAt: null },
+      order: [['createdAt', 'DESC']],
+      transaction: t,
+    }),
+  );
+
+  if (!otpRow || otpRow.expiresAt.getTime() < Date.now() || otpRow.attempts >= OTP_MAX_ATTEMPTS) {
+    throw invalid();
+  }
+
+  const matches = await comparePassword(otp, otpRow.otpHash);
+  if (!matches) {
+    await runInRequestContext(null, async (t) => {
+      otpRow.attempts += 1;
+      await otpRow.save({ transaction: t });
+    });
+    throw invalid();
+  }
+
+  await runInRequestContext(null, async (t) => {
+    otpRow.consumedAt = new Date();
+    await otpRow.save({ transaction: t });
+  });
+
+  res.json({ resetToken: signPasswordResetToken({ sub: user.id }) });
+});
+
+const resetPasswordSchema = z.object({
+  resetToken: z.string().min(1),
+  newPassword: strongPasswordSchema,
+});
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export const resetPassword = asyncHandler(async (req: Request, res: Response) => {
+  const { resetToken, newPassword } = resetPasswordSchema.parse(req.body);
+
+  let payload;
+  try {
+    payload = verifyPasswordResetToken(resetToken);
+  } catch {
+    throw ApiError.unauthorized('Invalid or expired reset link. Please request a new code.');
+  }
+
+  // Defence in depth: the JWT signature already guarantees this, but
+  // interpolating it into raw SQL below (SET LOCAL takes no bind params —
+  // see withRequestContext.ts) means a malformed value must never reach it.
+  if (!UUID_REGEX.test(payload.sub)) {
+    throw ApiError.unauthorized('Invalid or expired reset link. Please request a new code.');
+  }
+
+  const newPasswordHash = await hashPassword(newPassword);
+
+  await sequelize.transaction(async (t) => {
+    // Not runInRequestContext: that helper only supports "no context" or
+    // "id+role together". This flow deliberately sets ONLY
+    // app.current_user_id (leaving app.current_user_role unset), matching
+    // users_update_self_by_password_reset in
+    // migrations/20240114000001-password-reset-otp.js — the one policy
+    // that accepts that specific combination, scoped to this exact row.
+    await sequelize.query(`SET LOCAL app.current_user_id = '${payload.sub}'`, { transaction: t });
+
+    const user = await User.findByPk(payload.sub, { transaction: t });
+    if (!user) {
+      throw ApiError.notFound('User not found');
+    }
+
+    user.passwordHash = newPasswordHash;
+    // Recovering via "forgot password" invalidates any existing sessions —
+    // unlike changeMyVerifierPassword (an authenticated, deliberate change),
+    // this path runs with no proof the requester is at a device that was
+    // already trusted, so anything logged in elsewhere is signed out.
+    user.tokenVersion += 1;
+    await user.save({ transaction: t });
+  });
+
   res.status(204).send();
 });
 

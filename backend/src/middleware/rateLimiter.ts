@@ -18,6 +18,28 @@ export const loginLimiter = rateLimit({
   message: { message: 'Too many login attempts. Please try again later.' },
 });
 
+// Forgot-password request — low ceiling since each hit sends a real email;
+// also the outer guard against an attacker enumerating accounts by email.
+export const forgotPasswordLimiter = rateLimit({
+  windowMs: FIFTEEN_MINUTES_MS,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Too many password reset requests. Please try again later.' },
+});
+
+// OTP verification — the per-row `attempts` counter in
+// authController.verifyResetOtp is the primary brute-force guard (it locks
+// out a specific OTP after a few wrong tries); this is the secondary,
+// per-IP backstop against spraying guesses across many requested OTPs.
+export const otpVerifyLimiter = rateLimit({
+  windowMs: FIFTEEN_MINUTES_MS,
+  max: 15,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Too many attempts. Please try again later.' },
+});
+
 // Search is authenticated (a company must already be logged in), so this is
 // a much higher ceiling than signup/login — it's here to stop a scripted
 // scrape of the whole candidate pool, not to throttle normal browsing. Keyed

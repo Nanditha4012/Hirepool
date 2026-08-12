@@ -96,6 +96,36 @@ export function verifyTotpChallengeToken(token: string): TotpChallengePayload {
 }
 
 /**
+ * Forgot-password flow: authController.verifyResetOtp issues one of these
+ * only after the emailed OTP has been checked against the DB, so possessing
+ * a valid token already proves the OTP step passed. authController.resetPassword
+ * then only needs to verify the signature/purpose/expiry — no second OTP
+ * check — before allowing exactly one password change.
+ */
+export interface PasswordResetTokenPayload {
+  sub: string;
+  purpose: 'password_reset';
+}
+
+const PASSWORD_RESET_TOKEN_EXPIRES_IN = '15m' as jwt.SignOptions['expiresIn'];
+
+export function signPasswordResetToken(payload: { sub: string }): string {
+  return jwt.sign(
+    { sub: payload.sub, purpose: 'password_reset' as const },
+    env.JWT_ACCESS_SECRET,
+    { expiresIn: PASSWORD_RESET_TOKEN_EXPIRES_IN },
+  );
+}
+
+export function verifyPasswordResetToken(token: string): PasswordResetTokenPayload {
+  const decoded = jwt.verify(token, env.JWT_ACCESS_SECRET) as PasswordResetTokenPayload;
+  if (decoded.purpose !== 'password_reset') {
+    throw new Error('Invalid token purpose');
+  }
+  return decoded;
+}
+
+/**
  * Parses simple duration strings like "15m", "30d", "1h" (the same format
  * used by JWT_ACCESS_EXPIRES_IN / JWT_REFRESH_EXPIRES_IN) into
  * milliseconds, for use as a cookie maxAge. Falls back to 30 days if the

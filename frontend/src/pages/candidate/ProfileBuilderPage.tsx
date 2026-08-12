@@ -13,7 +13,6 @@ import PageHero from '@/components/ui/PageHero'
 import SupportNote from '@/components/ui/SupportNote'
 import {
   getMyProfile,
-  listAchievements,
   listCompanies,
   listDomains,
   listRoles,
@@ -142,7 +141,7 @@ export default function ProfileBuilderPage() {
   const [skills, setSkills] = useState<SkillMaster[]>([])
   const [domains, setDomains] = useState<DomainMaster[]>([])
   const [companies, setCompanies] = useState<CompanyMaster[]>([])
-  const [projectCount, setProjectCount] = useState(0)
+  const [badgeCount, setBadgeCount] = useState(0)
 
   const [form, setForm] = useState<FormState | null>(null)
   const [loading, setLoading] = useState(true)
@@ -176,10 +175,10 @@ export default function ProfileBuilderPage() {
         setDomains(domainsResult)
         setCompanies(companiesResult)
 
-        if (profileResult.category === 'fresher') {
-          const projects = await listAchievements('project')
-          if (!cancelled) setProjectCount(projects.length)
-        }
+        // projectCount/badgeCount/achievementCount are kept live by
+        // AchievementsSection/PlatformBadgesSection's onCountsChange /
+        // onCountChange callbacks below, not fetched here — no need to
+        // duplicate those requests on load.
       } catch (err) {
         if (!cancelled) setLoadError(err instanceof Error ? err.message : 'Failed to load your profile')
       } finally {
@@ -466,10 +465,10 @@ export default function ProfileBuilderPage() {
             <h2 className="text-lg font-semibold text-ink">Platform badges</h2>
             <p className="mt-1 text-sm text-ink/60">Show off your coding platform standing.</p>
             <div className="mt-4">
-              <PlatformBadgesSection />
+              <PlatformBadgesSection onCountChange={setBadgeCount} />
             </div>
             <p className="mt-4 text-sm font-medium text-ink/70">
-              {projectCount}/3 projects added — at least 3 project achievements are required for approval.
+              {badgeCount}/1 platform badges added — at least 1 platform badge is required for approval.
             </p>
           </Card>
         )}
@@ -558,14 +557,18 @@ export default function ProfileBuilderPage() {
           <h2 className="text-lg font-semibold text-ink">Achievements &amp; work</h2>
           {isFresher ? (
             <div className="mt-4">
-              <AchievementsSection typesToShow={isApproved ? ['project', 'research', 'achievement'] : ['project']} />
-            </div>
-          ) : isApproved ? (
-            <div className="mt-4">
-              <AchievementsSection typesToShow={['project', 'research', 'achievement']} />
+              <AchievementsSection
+                typesToShow={isApproved ? ['project', 'research', 'achievement'] : ['project']}
+                requiredCounts={{ project: 3 }}
+              />
             </div>
           ) : (
-            <p className="mt-2 text-sm text-ink/40">Available once your profile is approved.</p>
+            <div className="mt-4">
+              <AchievementsSection
+                typesToShow={['project', 'research', 'achievement']}
+                requiredCounts={{ project: 3, achievement: 1 }}
+              />
+            </div>
           )}
         </Card>
 

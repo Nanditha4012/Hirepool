@@ -12,6 +12,7 @@ import BottomNav from '@/components/layout/BottomNav'
 import LandingPage from '@/pages/LandingPage'
 import SignupPage from '@/pages/SignupPage'
 import LoginPage from '@/pages/LoginPage'
+import ForgotPasswordPage from '@/pages/ForgotPasswordPage'
 import VerifierLoginPage from '@/pages/VerifierLoginPage'
 import VerifierSignupPage from '@/pages/VerifierSignupPage'
 import AdminLoginPage from '@/pages/AdminLoginPage'
@@ -78,6 +79,7 @@ function AppShell() {
           <Route path="/" element={<LandingPage />} />
           <Route path="/signup" element={<SignupPage />} />
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/verifier/login" element={<VerifierLoginPage />} />
           <Route path="/verifier/signup" element={<VerifierSignupPage />} />
           <Route path="/admin/login" element={<AdminLoginPage />} />

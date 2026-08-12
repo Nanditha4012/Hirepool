@@ -35,15 +35,16 @@ const envSchema = z.object({
   RAZORPAY_KEY_ID: z.string().optional().default(''),
   RAZORPAY_KEY_SECRET: z.string().optional().default(''),
   RAZORPAY_WEBHOOK_SECRET: z.string().optional().default(''),
-  // Resend (Phase 6 email notifications) — same "optional, empty-string
+  // SMTP (Phase 6 email notifications) — same "optional, empty-string
   // default" pattern as the Razorpay vars above: an optional external
   // service credential that must NOT crash the app at boot if unset.
   // Callers check isEmailConfigured() (see utils/email.ts) before sending
   // and no-op instead of throwing — email must never be a hard dependency.
-  // EMAIL_FROM gets a real usable default (Resend's shared sandbox sender,
-  // which needs no domain verification) since it isn't itself a secret.
-  RESEND_API_KEY: z.string().optional().default(''),
-  EMAIL_FROM: z.string().optional().default('Hirepool <onboarding@resend.dev>'),
+  SMTP_HOST: z.string().optional().default(''),
+  SMTP_PORT: z.coerce.number().default(587),
+  SMTP_USER: z.string().optional().default(''),
+  SMTP_PASS: z.string().optional().default(''),
+  EMAIL_FROM: z.string().optional().default('Hirepool <no-reply@hirepool.com>'),
   // reCAPTCHA (Phase 7 security hardening) — same "optional, empty-string
   // default" pattern as the vars above: an optional external service
   // credential that must NOT crash the app at boot if unset. Callers check

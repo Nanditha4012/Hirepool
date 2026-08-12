@@ -35,11 +35,23 @@ const emptyForm: FormState = {
   totalQuestionsSolved: '',
 }
 
-export default function PlatformBadgesSection() {
+interface PlatformBadgesSectionProps {
+  onCountChange?: (count: number) => void
+}
+
+export default function PlatformBadgesSection({ onCountChange }: PlatformBadgesSectionProps = {}) {
   const [rows, setRows] = useState<PlatformBadgeRow[]>([])
   const [masters, setMasters] = useState<PlatformBadgeMaster[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    onCountChange?.(rows.length)
+    // onCountChange intentionally excluded: parents pass an inline setState
+    // callback, a new function identity every render — depending on it would
+    // refire this on every parent re-render instead of only on row changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows])
 
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState<FormState>(emptyForm)

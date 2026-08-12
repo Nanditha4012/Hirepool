@@ -1,38 +1,46 @@
-import { Resend } from 'resend';
+import nodemailer, { Transporter } from 'nodemailer';
 import { env } from '../config/env';
 
 /**
- * True iff RESEND_API_KEY is configured. Email is never a hard dependency —
- * callers don't need to check this themselves before calling sendEmail();
+ * True iff SMTP is configured. Email is never a hard dependency — callers
+ * don't need to check this themselves before calling sendEmail();
  * sendEmail() checks it internally and no-ops when unconfigured. This is
  * exported mainly for parity with isRazorpayConfigured() and for any call
  * site that wants to short-circuit its own extra work (e.g. building an
  * email body) when sending would be a no-op anyway.
  */
 export function isEmailConfigured(): boolean {
-  return env.RESEND_API_KEY.length > 0;
+  return env.SMTP_HOST.length > 0 && env.SMTP_USER.length > 0 && env.SMTP_PASS.length > 0;
 }
 
-let client: Resend | null = null;
+let client: Transporter | null = null;
 
-/** Lazily constructs and returns a singleton Resend SDK client. */
-function getResendClient(): Resend {
+/** Lazily constructs and returns a singleton SMTP transporter. */
+function getSmtpClient(): Transporter {
   if (!client) {
-    client = new Resend(env.RESEND_API_KEY);
+    client = nodemailer.createTransport({
+      host: env.SMTP_HOST,
+      port: env.SMTP_PORT,
+      // Port 465 is implicit TLS; every other port (587, 25, ...) starts
+      // plaintext and upgrades via STARTTLS, which nodemailer only does
+      // when `secure` is false.
+      secure: env.SMTP_PORT === 465,
+      auth: { user: env.SMTP_USER, pass: env.SMTP_PASS },
+    });
   }
   return client;
 }
 
 /**
- * Sends a transactional email via Resend. This is deliberately "fire and
+ * Sends a transactional email via SMTP. This is deliberately "fire and
  * forget safe": unlike getRazorpayClient()'s callers (which must check
  * isRazorpayConfigured() first and surface a 503 to the client), email is
  * never on the critical path of any request — a failed or skipped email
  * must never break the request it's attached to (e.g. a signup, or a
  * payment webhook that already succeeded). So this function swallows every
  * failure itself: it no-ops with a console.log when unconfigured, and
- * catches+logs (never throws) when the Resend API call itself fails.
- * Callers never need their own try/catch.
+ * catches+logs (never throws) when the SMTP send itself fails. Callers
+ * never need their own try/catch.
  */
 export async function sendEmail({
   to,
@@ -49,7 +57,7 @@ export async function sendEmail({
   }
 
   try {
-    await getResendClient().emails.send({
+    await getSmtpClient().sendMail({
       from: env.EMAIL_FROM,
       to,
       subject,

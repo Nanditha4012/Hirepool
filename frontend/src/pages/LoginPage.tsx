@@ -102,6 +102,10 @@ export default function LoginPage() {
             autoComplete="current-password"
           />
 
+          <Link to="/forgot-password" className="-mt-2 self-end text-sm font-medium text-primary hover:underline">
+            Forgot password?
+          </Link>
+
           {/* Explains an unexpected trip back to the login page. Suppressed
               once a real error exists, so a failed retry doesn't stack two
               messages that contradict each other. */}

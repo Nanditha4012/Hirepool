@@ -37,7 +37,7 @@ import type { ProfileFieldCheckAttributes } from '../models/ProfileFieldCheck';
 import { asyncHandler } from '../utils/asyncHandler';
 import { ApiError } from '../utils/ApiError';
 import { runInRequestContext } from '../utils/withRequestContext';
-import { hashPassword, comparePassword } from '../utils/password';
+import { hashPassword, comparePassword, strongPasswordSchema } from '../utils/password';
 import { sendEmail } from '../utils/email';
 import { profileStatusChangedEmail } from '../utils/emailTemplates';
 
@@ -1670,7 +1670,7 @@ export const updateMyVerifierAccount = asyncHandler(async (req: Request, res: Re
 
 const changePasswordSchema = z.object({
   currentPassword: z.string().min(1),
-  newPassword: z.string().min(8),
+  newPassword: strongPasswordSchema,
 });
 
 export const changeMyVerifierPassword = asyncHandler(async (req: Request, res: Response) => {

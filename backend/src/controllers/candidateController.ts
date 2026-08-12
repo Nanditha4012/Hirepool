@@ -513,6 +513,12 @@ async function findMissingCategoryFields(
       transaction: t,
     });
     require(projectCount >= 3, 'projects (at least 3 required)');
+
+    const badgeCount = await CandidatePlatformBadge.count({
+      where: { candidateId: candidateUserId },
+      transaction: t,
+    });
+    require(badgeCount >= 1, 'platform badges (at least 1 required)');
   } else if (profile.category === 'experienced' || profile.category === 'executive') {
     require(!!profile.domainId, 'domainId');
     require(!!profile.resumeLink, 'resumeLink');
@@ -530,6 +536,20 @@ async function findMissingCategoryFields(
         'teamSizeManaged',
       );
     }
+
+    const projectCount = await CandidateAchievement.count({
+      where: { candidateId: candidateUserId, type: 'project' },
+      transaction: t,
+    });
+    require(projectCount >= 3, 'projects (at least 3 required)');
+
+    const achievementCount = await CandidateAchievement.count({
+      where: { candidateId: candidateUserId, type: 'achievement' },
+      transaction: t,
+    });
+    require(achievementCount >= 1, 'achievements (at least 1 required)');
+    // Research papers stay visible in this category's checklist (see
+    // ProfileBuilderPage.tsx) but are intentionally not required here.
   }
 
   return missing;

@@ -11,6 +11,8 @@ import { isRecaptchaConfigured } from '@/lib/recaptcha'
 import { navigateAfterAuth } from '@/lib/postAuthRoute'
 import { IMAGES } from '@/lib/images'
 import Logo from '@/components/ui/Logo'
+import PasswordRequirements from '@/components/ui/PasswordRequirements'
+import { isStrongPassword } from '@/lib/passwordStrength'
 
 type SignupRole = 'candidate' | 'company'
 
@@ -35,6 +37,10 @@ export default function SignupPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
+    if (!isStrongPassword(password)) {
+      setError('Please meet all password requirements below.')
+      return
+    }
     if (!consentChecked) {
       setConsentError('Please agree to the Terms of Service and Privacy Policy to continue.')
       return
@@ -120,15 +126,18 @@ export default function SignupPage() {
             onChange={(e) => setEmail(e.target.value)}
             autoComplete="email"
           />
-          <Input
-            label="Password"
-            type="password"
-            required
-            minLength={8}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            autoComplete="new-password"
-          />
+          <div className="flex flex-col gap-2">
+            <Input
+              label="Password"
+              type="password"
+              required
+              minLength={8}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="new-password"
+            />
+            <PasswordRequirements password={password} />
+          </div>
 
           <label className="flex items-start gap-2 text-sm text-ink/70">
             <input

@@ -3,6 +3,8 @@ import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import PageLoader from '@/components/ui/PageLoader'
+import PasswordRequirements from '@/components/ui/PasswordRequirements'
+import { isStrongPassword } from '@/lib/passwordStrength'
 import {
   changeMyVerifierPassword,
   getMyVerifierAccount,
@@ -88,8 +90,8 @@ export default function VerifierAccountPage() {
       setPasswordError('The two new passwords do not match.')
       return
     }
-    if (newPassword.length < 8) {
-      setPasswordError('New password must be at least 8 characters.')
+    if (!isStrongPassword(newPassword)) {
+      setPasswordError('Please meet all password requirements below.')
       return
     }
 
@@ -196,6 +198,7 @@ export default function VerifierAccountPage() {
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
             />
+            <PasswordRequirements password={newPassword} />
             <Input
               label="Confirm new password"
               type="password"

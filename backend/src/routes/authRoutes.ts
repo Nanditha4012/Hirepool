@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import * as authController from '../controllers/authController';
 import { requireAuth } from '../middleware/requireAuth';
-import { signupLimiter, loginLimiter } from '../middleware/rateLimiter';
+import { signupLimiter, loginLimiter, forgotPasswordLimiter, otpVerifyLimiter } from '../middleware/rateLimiter';
 
 const router = Router();
 
@@ -13,5 +13,8 @@ router.post('/google', loginLimiter, authController.googleAuth);
 router.post('/refresh', authController.refresh);
 router.post('/logout', authController.logout);
 router.get('/me', requireAuth, authController.me);
+router.post('/forgot-password', forgotPasswordLimiter, authController.forgotPassword);
+router.post('/reset-password/verify-otp', otpVerifyLimiter, authController.verifyResetOtp);
+router.post('/reset-password', authController.resetPassword);
 
 export default router;

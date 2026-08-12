@@ -26,6 +26,7 @@ import { Announcement } from './Announcement';
 import { SiteSetting } from './SiteSetting';
 import { Payment } from './Payment';
 import { VerifierInvite } from './VerifierInvite';
+import { PasswordResetOtp } from './PasswordResetOtp';
 import { Contest } from './Contest';
 import { ContestQuestion } from './ContestQuestion';
 import { ContestAttempt } from './ContestAttempt';
@@ -220,6 +221,7 @@ export {
   SiteSetting,
   Payment,
   VerifierInvite,
+  PasswordResetOtp,
   Contest,
   ContestQuestion,
   ContestAttempt,

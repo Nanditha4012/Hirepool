@@ -130,6 +130,20 @@ export function paymentFailedEmail(
   };
 }
 
+export function passwordResetOtpEmail(otp: string): { subject: string; html: string } {
+  return {
+    subject: `${otp} is your Hirepool password reset code`,
+    html: renderEmail({
+      heading: 'Reset your password',
+      bodyHtml: `
+        <p style="margin: 0 0 16px; line-height: 1.5;">Use this code to reset your Hirepool password. It expires in 10 minutes.</p>
+        <p style="margin: 0 0 16px; font-size: 32px; font-weight: 700; letter-spacing: 8px; color: #1f2937;">${otp}</p>
+        <p style="margin: 0; line-height: 1.5; color: #6b7280;">If you didn't request this, you can safely ignore this email — your password won't change.</p>
+      `,
+    }),
+  };
+}
+
 export function renewalReminderEmail(
   companyName: string,
   daysRemaining: number,
