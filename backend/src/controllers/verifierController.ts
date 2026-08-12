@@ -40,6 +40,7 @@ import { runInRequestContext } from '../utils/withRequestContext';
 import { hashPassword, comparePassword, strongPasswordSchema } from '../utils/password';
 import { sendEmail } from '../utils/email';
 import { profileStatusChangedEmail } from '../utils/emailTemplates';
+import { isMandatoryFieldKey } from '../utils/mandatoryFields';
 
 export const ping = asyncHandler(async (req: Request, res: Response) => {
   res.json({ message: 'Signed in as verifier', userId: req.user!.id });
@@ -387,7 +388,12 @@ function buildChecklist(
   profile: VerifierProfileReviewResponse,
 ): ChecklistItem[] {
   const items: ChecklistItem[] = [];
-  const add = (item: ChecklistItem) => items.push(item);
+  // `required` is derived from the field key rather than written out per item,
+  // so this checklist and the candidate's own report (which labels the same
+  // keys "mandatory") cannot disagree about which No is a blocker. See
+  // utils/mandatoryFields.ts.
+  const add = (item: Omit<ChecklistItem, 'required'>) =>
+    items.push({ ...item, required: isMandatoryFieldKey(item.fieldKey, profile.category) });
 
   add({
     fieldKey: 'fullName',
@@ -395,7 +401,6 @@ function buildChecklist(
     value: profile.fullName,
     link: null,
     group: 'identity',
-    required: true,
     hint: 'Matches the name on the resume and proof documents',
   });
   add({
@@ -404,7 +409,6 @@ function buildChecklist(
     value: profile.phone,
     link: null,
     group: 'identity',
-    required: true,
     hint: 'Plausible, correctly formatted number',
   });
   add({
@@ -413,7 +417,6 @@ function buildChecklist(
     value: profile.email,
     link: null,
     group: 'identity',
-    required: true,
     hint: null,
   });
   add({
@@ -422,7 +425,6 @@ function buildChecklist(
     value: profile.primaryRole?.roleName ?? null,
     link: null,
     group: 'profile',
-    required: true,
     hint: 'Consistent with the resume and stated experience',
   });
   add({
@@ -431,7 +433,6 @@ function buildChecklist(
     value: profile.domain?.domainName ?? null,
     link: null,
     group: 'profile',
-    required: true,
     hint: null,
   });
   add({
@@ -440,7 +441,6 @@ function buildChecklist(
     value: profile.skills.length > 0 ? profile.skills.map((s) => s.skillName).join(', ') : null,
     link: null,
     group: 'profile',
-    required: false,
     hint: 'Backed up by the projects or work history below',
   });
   add({
@@ -449,7 +449,6 @@ function buildChecklist(
     value: profile.resumeLink,
     link: profile.resumeLink,
     group: 'proof',
-    required: true,
     hint: 'Opens, and is a real resume for this candidate',
   });
   add({
@@ -458,7 +457,6 @@ function buildChecklist(
     value: profile.portfolioLink,
     link: profile.portfolioLink,
     group: 'proof',
-    required: false,
     hint: 'Optional — only check if provided',
   });
   add({
@@ -467,7 +465,6 @@ function buildChecklist(
     value: profile.location,
     link: null,
     group: 'profile',
-    required: false,
     hint: null,
   });
 
@@ -483,7 +480,6 @@ function buildChecklist(
         value: project.certificateOrProofLink,
         link: project.certificateOrProofLink,
         group: 'proof',
-        required: true,
         hint: 'Link is live and shows real, attributable work',
       });
     }
@@ -494,7 +490,6 @@ function buildChecklist(
         value: `${projects.length} of 3`,
         link: null,
         group: 'proof',
-        required: true,
         hint: 'Freshers must submit at least three projects',
       });
     }
@@ -505,7 +500,6 @@ function buildChecklist(
         value: `${badge.totalQuestionsSolved} solved`,
         link: badge.platformProfileLink,
         group: 'proof',
-        required: false,
         hint: 'Profile link actually shows this badge/rank',
       });
     }
@@ -516,7 +510,6 @@ function buildChecklist(
       value: profile.yearsOfExperience != null ? String(profile.yearsOfExperience) : null,
       link: null,
       group: 'experience',
-      required: true,
       hint: 'Matches the work history on LinkedIn / the resume',
     });
     add({
@@ -525,7 +518,6 @@ function buildChecklist(
       value: profile.currentCompany?.companyName ?? null,
       link: null,
       group: 'experience',
-      required: true,
       hint: null,
     });
     add({
@@ -534,7 +526,6 @@ function buildChecklist(
       value: profile.designationRole?.roleName ?? null,
       link: null,
       group: 'experience',
-      required: true,
       hint: 'Title matches what the employer actually lists',
     });
     add({
@@ -543,7 +534,6 @@ function buildChecklist(
       value: profile.companyType,
       link: null,
       group: 'experience',
-      required: true,
       hint: 'MNC / startup / agency tag matches the real employer',
     });
     add({
@@ -552,7 +542,6 @@ function buildChecklist(
       value: profile.offerLetterOrLinkedinLink,
       link: profile.offerLetterOrLinkedinLink,
       group: 'proof',
-      required: true,
       hint: 'Document looks authentic and matches the claims above',
     });
 
@@ -563,7 +552,6 @@ function buildChecklist(
         value: profile.teamSizeManaged != null ? String(profile.teamSizeManaged) : null,
         link: null,
         group: 'experience',
-        required: true,
         hint: null,
       });
       add({
@@ -572,7 +560,6 @@ function buildChecklist(
         value: profile.budgetOwned,
         link: null,
         group: 'experience',
-        required: false,
         hint: 'Optional',
       });
       add({
@@ -581,7 +568,6 @@ function buildChecklist(
         value: profile.titleLevel,
         link: null,
         group: 'experience',
-        required: false,
         hint: null,
       });
     }
@@ -595,7 +581,6 @@ function buildChecklist(
         value: achievement.certificateOrProofLink,
         link: achievement.certificateOrProofLink,
         group: 'proof',
-        required: false,
         hint: 'Optional — proof link is live and attributable',
       });
     }

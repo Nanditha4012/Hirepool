@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
-import Input from '@/components/ui/Input'
+import Avatar from '@/components/ui/Avatar'
 import ProfileCard, { type ProfileCardData } from '@/components/candidate/ProfileCard'
 import PageLoader from '@/components/ui/PageLoader'
 import PageHero, { HeroStat } from '@/components/ui/PageHero'
@@ -11,14 +11,12 @@ import SupportNote from '@/components/ui/SupportNote'
 import BoostPurchaseCard from '@/components/candidate/BoostPurchaseCard'
 import { useSiteSettings } from '@/lib/siteSettings'
 import {
-  blockCompany,
   getMyProfile,
   listAchievements,
   listCompanies,
   listMyThreads,
   listPlatformBadges,
   listWhoUnlockedMe,
-  replyToThread,
   requestReverification,
   setLookingStatus,
   type CandidateProfileResponse,
@@ -28,28 +26,48 @@ import {
   type UnlockedByCompany,
 } from '@/lib/candidateApi'
 
-export default function DashboardPage() {
+interface DashboardPageProps {
+  /**
+   * The profile CandidateEntryPoint has already fetched to decide that this
+   * page is the right one to show.
+   *
+   * Passing it down removes the second full-page spinner: the gate fetched
+   * the profile, then this page threw that work away and fetched the same
+   * record again behind its own `<PageLoader/>`, so opening Home meant two
+   * sequential blank screens for one destination. With it in hand the hero
+   * and the profile card render on the first frame and only the secondary
+   * panels (threads, unlocks, badge counts) are still arriving.
+   */
+  initialProfile?: CandidateProfileResponse
+}
+
+export default function DashboardPage({ initialProfile }: DashboardPageProps = {}) {
   const navigate = useNavigate()
   const { settings: siteSettings } = useSiteSettings()
 
-  const [profile, setProfile] = useState<CandidateProfileResponse | null>(null)
+  const [profile, setProfile] = useState<CandidateProfileResponse | null>(initialProfile ?? null)
   const [companies, setCompanies] = useState<CompanyMaster[]>([])
   const [platformBadges, setPlatformBadges] = useState<PlatformBadgeRow[]>([])
   const [verifiedCounts, setVerifiedCounts] = useState({ projects: 0, research: 0, achievements: 0 })
   const [threads, setThreads] = useState<MessageThread[]>([])
   const [unlockedBy, setUnlockedBy] = useState<UnlockedByCompany[]>([])
 
+  /**
+   * Covers the secondary panels only. When the profile arrived as a prop the
+   * page is already renderable, so this drives skeletons inside the layout
+   * rather than a spinner instead of it.
+   */
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   const [togglingLooking, setTogglingLooking] = useState(false)
-  const [expandedThread, setExpandedThread] = useState<string | null>(null)
-  const [replyBody, setReplyBody] = useState('')
-  const [sendingReply, setSendingReply] = useState(false)
-  const [blockedCompanyIds, setBlockedCompanyIds] = useState<Set<string>>(new Set())
-  const [blockingCompanyId, setBlockingCompanyId] = useState<string | null>(null)
   const [requestingReverify, setRequestingReverify] = useState(false)
   const [reverifyError, setReverifyError] = useState<string | null>(null)
+
+  // Replying and blocking moved to /candidate/messages with the rest of the
+  // conversation UI — the dashboard only previews threads now, so it no
+  // longer carries draft, send or block state.
+  const unreadTotal = threads.reduce((sum, thread) => sum + thread.unreadCount, 0)
 
   useEffect(() => {
     let cancelled = false
@@ -113,6 +131,7 @@ export default function DashboardPage() {
       domain: profile.domain,
       resumeLink: profile.resumeLink,
       portfolioLink: profile.portfolioLink,
+      location: profile.location,
       isMncAlumni: Boolean(company?.isMnc),
       isFaangMaangAlumni: Boolean(company?.isFaangMaang),
       isStartupAlumni: profile.companyType === 'startup',
@@ -152,36 +171,10 @@ export default function DashboardPage() {
     }
   }
 
-  const handleReply = async (companyId: string) => {
-    if (!replyBody.trim()) return
-    setSendingReply(true)
-    try {
-      const message = await replyToThread(companyId, replyBody.trim())
-      setThreads((prev) =>
-        prev.map((t) => (t.companyId === companyId ? { ...t, messages: [...t.messages, message] } : t)),
-      )
-      setReplyBody('')
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to send reply')
-    } finally {
-      setSendingReply(false)
-    }
-  }
-
-  const handleBlock = async (companyId: string) => {
-    if (!window.confirm('Block messages from this company?')) return
-    setBlockingCompanyId(companyId)
-    try {
-      await blockCompany(companyId)
-      setBlockedCompanyIds((prev) => new Set(prev).add(companyId))
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to block company')
-    } finally {
-      setBlockingCompanyId(null)
-    }
-  }
-
-  if (loading) {
+  // Only a cold load — no profile in hand at all — is allowed to take the
+  // whole screen. Arriving from the entry point, `profile` is already set, so
+  // this is skipped and the page renders straight away.
+  if (loading && !profile) {
     return (
       <div className="mx-auto max-w-app px-4 py-16 text-center sm:px-6 lg:px-10">
         <PageLoader label="Loading your dashboard…" />
@@ -305,8 +298,22 @@ export default function DashboardPage() {
                   className={[
                     // Literal white, not bg-card: this thumb sits on a
                     // coloured track, so it must stay light in dark mode too.
-                    'absolute top-1 h-5 w-5 rounded-full bg-white shadow-soft transition-transform',
-                    profile.isActivelyLooking ? 'translate-x-6' : 'translate-x-1',
+                    //
+                    // `left-1` is load-bearing, not tidying. Without an
+                    // explicit inset an absolutely-positioned box falls back
+                    // to its *static* position — and a <button> is
+                    // text-align: center in the UA stylesheet, so that static
+                    // position was the middle of the 48px track, not its left
+                    // edge. Every offset was then measured from the centre:
+                    // "off" (+4px) sat mid-track and read as on, and "on"
+                    // (+24px) pushed the knob clean off the right-hand end.
+                    // The switch was showing the opposite of its own state.
+                    //
+                    // Anchored at left-1, the travel is the track minus the
+                    // thumb minus both insets: 48 - 20 - 4 - 4 = 20px, which
+                    // is translate-x-5.
+                    'absolute left-1 top-1 h-5 w-5 rounded-full bg-white shadow-soft transition-transform duration-200',
+                    profile.isActivelyLooking ? 'translate-x-5' : 'translate-x-0',
                   ].join(' ')}
                 />
               </button>
@@ -318,86 +325,70 @@ export default function DashboardPage() {
             <ProfileCard profile={cardData} />
           </div>
 
+          {/* A preview, not the inbox. Conversations live at
+              /candidate/messages now — the dashboard shows the three most
+              recent so you know there is something waiting, and hands off. */}
           <Card>
-            <h2 className="text-lg font-semibold text-ink">Inbox</h2>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 className="flex items-center gap-2 text-lg font-semibold text-ink">
+                Inbox
+                {unreadTotal > 0 && (
+                  <span className="flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-primary px-1.5 text-[11px] font-bold text-white">
+                    {unreadTotal}
+                  </span>
+                )}
+              </h2>
+              <Link
+                to="/candidate/messages"
+                className="text-sm font-semibold text-primary hover:underline"
+              >
+                Open messages →
+              </Link>
+            </div>
+
             {threads.length === 0 ? (
               <p className="mt-2 text-sm text-ink/40">
-                No messages yet — companies will be able to reach out once Phase 3 ships.
+                No messages yet — companies can reach you here once they unlock your contact.
               </p>
             ) : (
-              <div className="mt-4 flex flex-col gap-3">
-                {threads.map((thread) => {
+              <div className="mt-4 flex flex-col gap-1">
+                {threads.slice(0, 3).map((thread) => {
                   const lastMessage = thread.messages[thread.messages.length - 1]
-                  const isExpanded = expandedThread === thread.companyId
                   return (
-                    <div key={thread.companyId} className="rounded-card border border-line p-3">
-                      <button
-                        type="button"
-                        className="flex w-full items-start justify-between gap-2 text-left"
-                        onClick={() => setExpandedThread(isExpanded ? null : thread.companyId)}
-                      >
-                        <div>
-                          <p className="font-medium text-ink">{thread.companyName || 'Unknown company'}</p>
-                          {lastMessage && (
-                            <p className="mt-0.5 truncate text-sm text-ink/60">{lastMessage.body}</p>
+                    <Link
+                      key={thread.companyId}
+                      to="/candidate/messages"
+                      className="flex items-center gap-3 rounded-card px-2 py-2 transition-colors hover:bg-surface"
+                    >
+                      <Avatar name={thread.companyName} size="md" />
+                      <span className="min-w-0 flex-1">
+                        <span className="flex items-center justify-between gap-2">
+                          <span className="truncate font-medium text-ink">{thread.companyName}</span>
+                          {thread.unreadCount > 0 && (
+                            <span className="flex h-5 min-w-[1.25rem] flex-shrink-0 items-center justify-center rounded-full bg-primary px-1.5 text-[11px] font-bold text-white">
+                              {thread.unreadCount}
+                            </span>
                           )}
-                        </div>
-                        <span className="text-ink/40" aria-hidden="true">
-                          {isExpanded ? '▲' : '▼'}
                         </span>
-                      </button>
-                      {isExpanded && (
-                        <div className="mt-3 flex flex-col gap-3 border-t border-line pt-3">
-                          <div className="flex flex-col gap-2">
-                            {thread.messages.map((message) => (
-                              <div
-                                key={message.id}
-                                className={[
-                                  'max-w-[80%] rounded-card px-3 py-2 text-sm',
-                                  message.senderRole === 'candidate'
-                                    ? 'self-end bg-primary/10 text-ink'
-                                    : 'self-start bg-surface text-ink',
-                                ].join(' ')}
-                              >
-                                {message.body}
-                              </div>
-                            ))}
-                          </div>
-                          {blockedCompanyIds.has(thread.companyId) ? (
-                            <p className="text-sm text-ink/60">Blocked — they can no longer message you</p>
-                          ) : (
-                            <>
-                              <div className="flex gap-2">
-                                <Input
-                                  className="flex-1"
-                                  placeholder="Write a reply…"
-                                  value={expandedThread === thread.companyId ? replyBody : ''}
-                                  onChange={(e) => setReplyBody(e.target.value)}
-                                />
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  loading={sendingReply}
-                                  onClick={() => handleReply(thread.companyId)}
-                                >
-                                  Send
-                                </Button>
-                              </div>
-                              <button
-                                type="button"
-                                className="self-start text-xs text-danger underline disabled:opacity-50"
-                                disabled={blockingCompanyId === thread.companyId}
-                                onClick={() => handleBlock(thread.companyId)}
-                              >
-                                Block this company
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      )}
-                    </div>
+                        {lastMessage && (
+                          <span className="mt-0.5 block truncate text-sm text-ink/55">
+                            {lastMessage.senderRole === 'candidate' ? 'You: ' : ''}
+                            {lastMessage.body}
+                          </span>
+                        )}
+                      </span>
+                    </Link>
                   )
                 })}
+                {threads.length > 3 && (
+                  <Link
+                    to="/candidate/messages"
+                    className="mt-1 px-2 text-sm text-ink/50 hover:text-primary"
+                  >
+                    +{threads.length - 3} more conversation
+                    {threads.length - 3 === 1 ? '' : 's'}
+                  </Link>
+                )}
               </div>
             )}
           </Card>

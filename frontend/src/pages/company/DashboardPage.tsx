@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import Card from '@/components/ui/Card'
 import Badge from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
-import PageLoader from '@/components/ui/PageLoader'
+import PageSkeleton from '@/components/ui/PageSkeleton'
 import PageHero, { HeroStat } from '@/components/ui/PageHero'
 import SupportNote from '@/components/ui/SupportNote'
 import UnlockTopUpCard from '@/components/company/UnlockTopUpCard'
@@ -68,12 +68,10 @@ export default function DashboardPage() {
     }
   }, [])
 
+  // A company's Home. Skeleton rather than a spinner so clicking Home is a
+  // fill-in, not a page blanking and rebuilding itself.
   if (loading) {
-    return (
-      <div className="mx-auto max-w-app px-4 py-16 text-center sm:px-6 lg:px-10">
-        <PageLoader label="Loading your dashboard…" />
-      </div>
-    )
+    return <PageSkeleton columns={2} blocks={2} />
   }
 
   if (error || !profile) {

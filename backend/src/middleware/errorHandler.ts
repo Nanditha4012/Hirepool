@@ -6,7 +6,11 @@ import { env } from '../config/env';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function errorHandler(err: unknown, req: Request, res: Response, _next: NextFunction): void {
   if (err instanceof ApiError) {
-    res.status(err.statusCode).json({ message: err.message });
+    // `code` is omitted rather than sent as null when unset, so the response
+    // shape for every existing error is byte-for-byte what it was.
+    res.status(err.statusCode).json(
+      err.code ? { message: err.message, code: err.code } : { message: err.message },
+    );
     return;
   }
 

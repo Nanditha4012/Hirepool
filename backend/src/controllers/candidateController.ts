@@ -34,6 +34,7 @@ import type { ProfileFieldCheckAttributes } from '../models/ProfileFieldCheck';
 import { asyncHandler } from '../utils/asyncHandler';
 import { ApiError } from '../utils/ApiError';
 import { runInRequestContext, RequestContextUser } from '../utils/withRequestContext';
+import { isMandatoryFieldKey } from '../utils/mandatoryFields';
 
 const setCategorySchema = z.object({
   category: z.enum(['fresher', 'experienced', 'executive']),
@@ -121,6 +122,14 @@ interface CandidateFieldReviewItem {
   passed: boolean;
   reason: string | null;
   checkedAt: Date;
+  /**
+   * True when a No here is what blocks approval, rather than a note to act on
+   * later. Same rule the verifier's own checklist renders as `required` — see
+   * utils/mandatoryFields.ts. The report groups failures by this, so a
+   * rejected candidate opens the page and sees the blockers first instead of
+   * one undifferentiated list.
+   */
+  mandatory: boolean;
 }
 
 interface CandidateHistoryEntry {
@@ -207,9 +216,12 @@ async function buildProfileResponse(
       passed: check.passed,
       reason: check.passed ? null : check.reasonText,
       checkedAt: check.createdAt,
+      mandatory: isMandatoryFieldKey(check.fieldKey, plainProfile.category),
     }))
-    // Failures first — they are the actionable part of the report.
-    .sort((a, b) => Number(a.passed) - Number(b.passed));
+    // Failures first — they are the actionable part of the report — and
+    // within the failures, the mandatory ones first, because those are the
+    // only ones standing between this candidate and approval.
+    .sort((a, b) => Number(a.passed) - Number(b.passed) || Number(b.mandatory) - Number(a.mandatory));
 
   const decisionLogs = await VerificationLog.findAll({
     where: { targetType: 'candidate_profile', targetId: plainProfile.id },

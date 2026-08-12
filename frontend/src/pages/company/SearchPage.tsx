@@ -7,7 +7,7 @@ import Select from '@/components/ui/Select'
 import Combobox from '@/components/ui/Combobox'
 import ChipMultiSelect from '@/components/ui/ChipMultiSelect'
 import ProfileCard, { type ProfileCardData } from '@/components/candidate/ProfileCard'
-import PageLoader from '@/components/ui/PageLoader'
+import PageSkeleton from '@/components/ui/PageSkeleton'
 import PageHero, { HeroStat } from '@/components/ui/PageHero'
 import SegmentedTabs, { type SegmentedTabOption } from '@/components/ui/SegmentedTabs'
 import SupportNote from '@/components/ui/SupportNote'
@@ -118,6 +118,7 @@ function mapToProfileCardData(result: CandidateSearchResult): ProfileCardData {
     domain: result.domain,
     resumeLink: result.resumeLink,
     portfolioLink: result.portfolioLink,
+    location: result.location,
     isMncAlumni: result.isMncAlumni,
     isFaangMaangAlumni: result.isFaangMaangAlumni,
     isStartupAlumni: result.isStartupAlumni,
@@ -198,7 +199,10 @@ function AwaitingVerification({ profile }: { profile: CompanyProfileResponse | n
   const missingBasics = !profile?.industry || Boolean(profile?.companyName.includes('@'))
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
+    // max-w-app, not max-w-3xl: this is the company's main working screen and
+    // it was capped at 768px, so candidate cards rendered as a narrow strip
+    // down the middle of a laptop with empty gutters either side.
+    <div className="mx-auto w-full max-w-app px-4 py-8 sm:px-6 lg:px-8 xl:px-10">
       <PageHero
         eyebrow="Company portal"
         title="Your candidate portal is almost open"
@@ -496,11 +500,7 @@ export default function SearchPage() {
   }
 
   if (initialLoading) {
-    return (
-      <div className="mx-auto max-w-app px-4 py-16 text-center sm:px-6 lg:px-10">
-        <PageLoader label="Opening the candidate portal…" />
-      </div>
-    )
+    return <PageSkeleton blocks={3} />
   }
 
   if (initialError) {
@@ -855,7 +855,14 @@ export default function SearchPage() {
                       type="button"
                       size="sm"
                       variant="secondary"
-                      onClick={() => navigate('/company/messages', { state: { candidateId: result.id } })}
+                      // The name travels with the id so the inbox can open a
+                      // brand-new conversation headed by who it is with,
+                      // rather than by a UUID it would have to resolve.
+                      onClick={() =>
+                        navigate('/company/messages', {
+                          state: { candidateId: result.id, candidateName: result.fullName },
+                        })
+                      }
                     >
                       Message
                     </Button>

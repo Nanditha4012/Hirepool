@@ -5,6 +5,7 @@ import Badge from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
 import Logo from '@/components/ui/Logo'
 import { useAuth } from '@/lib/authStore'
+import { isAccountVerified, lockNoticeFor } from '@/lib/verification'
 import { useTheme } from '@/lib/themeStore'
 import { displayNameFor } from '@/lib/displayName'
 import { SUPPORT_EMAIL } from '@/lib/config'
@@ -57,7 +58,9 @@ export default function SideNav({ open, onClose }: SideNavProps) {
   if (!user) return null
 
   const name = displayNameFor(user)
-  const items = navItemsFor(user.role)
+  const verified = isAccountVerified(user)
+  const items = navItemsFor(user.role, verified)
+  const notice = lockNoticeFor(user)
 
   const handleLogout = async () => {
     onClose()
@@ -115,6 +118,31 @@ export default function SideNav({ open, onClose }: SideNavProps) {
             </div>
           </div>
         </Link>
+
+        {/* Why the list below is short. Without this, an account waiting on
+            verification opens the drawer, finds two entries where they expect
+            six, and has nothing telling them it is temporary rather than
+            broken. */}
+        {notice && (
+          <div
+            className={[
+              'mx-3 mt-3 rounded-card px-3 py-2.5 text-xs',
+              notice.tone === 'danger' ? 'bg-danger/10' : 'bg-boost/10',
+            ].join(' ')}
+          >
+            <p
+              className={[
+                'font-semibold',
+                notice.tone === 'danger' ? 'text-danger' : 'text-boost',
+              ].join(' ')}
+            >
+              {notice.title}
+            </p>
+            <Link to={notice.homePath} className="mt-1 inline-block font-medium text-primary hover:underline">
+              {notice.homeLabel} →
+            </Link>
+          </div>
+        )}
 
         {/* Destinations. Scrolls independently so the settings block below
             stays reachable on a short screen. */}

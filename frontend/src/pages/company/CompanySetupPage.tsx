@@ -6,9 +6,10 @@ import Input from '@/components/ui/Input'
 import Select from '@/components/ui/Select'
 import Badge from '@/components/ui/Badge'
 import Avatar from '@/components/ui/Avatar'
-import PageLoader from '@/components/ui/PageLoader'
+import PageSkeleton from '@/components/ui/PageSkeleton'
 import PageHero from '@/components/ui/PageHero'
 import SupportNote from '@/components/ui/SupportNote'
+import FormProgress, { type FormRequirement } from '@/components/ui/FormProgress'
 import { Detail, DetailGrid, DetailSection, EditIconButton } from '@/components/ui/DetailGrid'
 import {
   getMyCompanyProfile,
@@ -133,6 +134,36 @@ export default function CompanySetupPage() {
     setForm((prev) => (prev ? { ...prev, [key]: value } : prev))
   }
 
+  /**
+   * What an admin is actually looking at when they decide, recomputed as you
+   * type. Not backend validation — PUT /companies/me/profile accepts a
+   * partial profile on purpose, so a company can save progress — but the
+   * difference between "saved" and "reviewable" was previously invisible: a
+   * company could fill in a name, save, and sit in the queue indefinitely
+   * with no idea that the blank industry and missing website were why.
+   *
+   * The signup-seeded company name is the account email, so a name still
+   * containing '@' counts as unfilled — same test isProfileFilledIn() uses.
+   */
+  const requirements: FormRequirement[] = form
+    ? [
+        {
+          key: 'companyName',
+          label: 'Company name',
+          done: form.companyName.trim().length > 0 && !form.companyName.includes('@'),
+          hint: 'Your real registered or trading name',
+        },
+        { key: 'industry', label: 'Industry', done: form.industry.trim().length > 0 },
+        {
+          key: 'website',
+          label: 'Website',
+          done: form.website.trim().length > 0,
+          hint: 'How an admin confirms you exist',
+        },
+        { key: 'size', label: 'Company size', done: form.size.trim().length > 0 },
+      ]
+    : []
+
   const handleCancel = () => {
     // Discard the draft by re-deriving the form from the last saved profile,
     // so reopening the editor doesn't show abandoned edits.
@@ -153,7 +184,11 @@ export default function CompanySetupPage() {
 
       setProfile(updated)
       setForm(profileToForm(updated))
-      setSaveNotice('Saved.')
+      setSaveNotice(
+        wasFirstCompletion
+          ? 'Saved — your company is now in the verification queue.'
+          : 'Saved. Your changes are live on this profile.',
+      )
       setEditing(false)
 
       // First time this profile becomes usable, hand them on to the dashboard.
@@ -171,15 +206,15 @@ export default function CompanySetupPage() {
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-3xl px-4 py-16 text-center sm:px-6">
-        <PageLoader label="Loading your company profile…" />
-      </div>
+      // `/company` resolves here for an unverified company, so this is on
+      // the path taken every time a company clicks Home.
+      <PageSkeleton width="narrow" blocks={3} />
     )
   }
 
   if (loadError || !profile || !form) {
     return (
-      <div className="mx-auto max-w-3xl px-4 py-16 sm:px-6">
+      <div className="mx-auto w-full max-w-app-narrow px-4 py-16 sm:px-6 lg:px-8">
         <Card>
           <p className="text-danger">{loadError || 'Something went wrong loading your company profile.'}</p>
         </Card>
@@ -191,7 +226,7 @@ export default function CompanySetupPage() {
   const displayName = profile.companyName.includes('@') ? 'Your company' : profile.companyName
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
+    <div className="mx-auto w-full max-w-app-narrow px-4 py-8 sm:px-6 lg:px-8">
       <PageHero
         eyebrow="Company portal"
         title={displayName}
@@ -220,9 +255,21 @@ export default function CompanySetupPage() {
       />
 
       {saveNotice && !editing && (
-        <p className="mt-4 rounded-card bg-verified/10 px-4 py-2 text-sm font-medium text-verified">
+        <p className="mt-4 animate-fade-in rounded-card bg-verified/10 px-4 py-2 text-sm font-medium text-verified">
           {saveNotice}
         </p>
+      )}
+
+      {/* Live while editing: an admin reviewing this account is looking for
+          exactly these four things, and a company that fills in two of them
+          and stops has no way to know that is why it is still pending. */}
+      {editing && (
+        <FormProgress
+          className="mt-6"
+          requirements={requirements}
+          title="What an admin needs to verify you"
+          completeMessage="Everything an admin looks for is filled in. Save, and you're in the queue."
+        />
       )}
 
       <div className="mt-8 flex flex-col gap-8">
@@ -284,7 +331,7 @@ export default function CompanySetupPage() {
               </div>
             </Card>
 
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="sticky bottom-4 z-20 flex flex-col gap-3 rounded-card border border-line bg-card/95 p-4 shadow-lift backdrop-blur-md sm:flex-row sm:items-center">
               <Button type="button" onClick={handleSave} loading={saving}>
                 Save changes
               </Button>
@@ -331,6 +378,42 @@ export default function CompanySetupPage() {
                 <Detail label="GST / registration" value={profile.gstNumber} />
               </DetailGrid>
             </DetailSection>
+
+            {/* What is still closed, named rather than left to be discovered
+                by clicking. Until `verified` flips, this page is the whole of
+                the account: the nav hides everything else, and both the route
+                guard and the API refuse it (see lib/verification.ts and the
+                backend's requireVerified). */}
+            {!profile.verified && (
+              <div className="rounded-card border border-boost/30 bg-boost/5 p-4">
+                <p className="font-semibold text-boost">Waiting on admin verification</p>
+                <p className="mt-1 text-sm text-ink/70">
+                  Your account is limited to this page for now. Approval turns all of it on at once —
+                  there is nothing else to do in the meantime except keep these details accurate.
+                </p>
+                <ul className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  {[
+                    { icon: '🔍', label: 'Candidate search', hint: 'browse verified candidates' },
+                    { icon: '🔓', label: 'Contact unlocks', hint: 'phone, email, WhatsApp' },
+                    { icon: '✉️', label: 'Messaging', hint: 'reach candidates directly' },
+                    { icon: '📋', label: 'Walk-ins, Jobs & Communities', hint: 'post your own drives' },
+                  ].map((item) => (
+                    <li
+                      key={item.label}
+                      className="flex items-center gap-3 rounded-card bg-card px-3 py-2.5"
+                    >
+                      <span className="text-lg opacity-60" aria-hidden="true">
+                        {item.icon}
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block text-sm font-semibold text-ink/70">{item.label}</span>
+                        <span className="block text-xs text-ink/40">{item.hint}</span>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
             <DetailSection
               title="Status"

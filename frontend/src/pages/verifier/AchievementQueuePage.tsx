@@ -3,7 +3,7 @@ import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Select from '@/components/ui/Select'
-import PageLoader from '@/components/ui/PageLoader'
+import ListSkeleton from '@/components/ui/ListSkeleton'
 import {
   decideAchievement,
   listAchievementQueue,
@@ -124,7 +124,7 @@ export default function AchievementQueuePage() {
       </div>
 
       <Card className="mt-6">
-        {loading && <PageLoader compact label="Loading achievement queue…" />}
+        {loading && <ListSkeleton rows={3} />}
         {!loading && error && <p className="text-danger">{error}</p>}
         {!loading && !error && rows.length === 0 && (
           <p className="text-ink/60">No achievements pending verification.</p>

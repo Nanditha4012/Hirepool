@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/lib/authStore'
+import { isAccountVerified } from '@/lib/verification'
 import NavIcon from './NavIcon'
 import { bottomNavItemsFor, icons, type NavItem } from './navConfig'
 
@@ -82,7 +83,13 @@ export default function BottomNav() {
   // between renders.
   if (!role || isTestRunner) return null
 
-  const [left, right] = bottomNavItemsFor(role)
+  // Null for an account still awaiting (or refused) verification: every
+  // destination in this bar except Home is locked for them, and so is
+  // everything the compose button offers.
+  const slots = bottomNavItemsFor(role, isAccountVerified(user))
+  if (!slots) return null
+
+  const [left, right] = slots
 
   return (
     <>

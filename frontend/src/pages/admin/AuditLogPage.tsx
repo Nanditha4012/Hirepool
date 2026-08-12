@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
-import PageLoader from '@/components/ui/PageLoader'
+import ListSkeleton from '@/components/ui/ListSkeleton'
 import { listAuditLog, type AdminAuditLogRow } from '@/lib/adminApi'
 
 const PAGE_SIZE = 20
@@ -42,7 +42,7 @@ export default function AuditLogPage() {
       <p className="mt-1 text-ink/60">Every admin-initiated action, newest first.</p>
 
       <Card className="mt-6">
-        {loading && <PageLoader compact label="Loading audit log…" />}
+        {loading && <ListSkeleton rows={3} />}
         {!loading && error && <p className="text-danger">{error}</p>}
         {!loading && !error && rows.length === 0 && (
           <p className="py-8 text-center text-ink/50">No admin actions recorded yet.</p>

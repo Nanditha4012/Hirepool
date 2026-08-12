@@ -196,7 +196,7 @@ export default function TestResultPage() {
         }
         actions={
           <>
-            <Link to={`/contests/${contest.type}`}>
+            <Link to={`/contests?tab=${contest.type}`}>
               <Button variant="outlineInverse" size="sm">
                 More tests
               </Button>
@@ -310,7 +310,7 @@ export default function TestResultPage() {
       </Card>
 
       <div className="mt-8 flex flex-wrap justify-center gap-3">
-        <Link to={`/contests/${contest.type}`}>
+        <Link to={`/contests?tab=${contest.type}`}>
           <Button variant="secondary">Take another test</Button>
         </Link>
         <Link to={`/contests/leaderboard?type=${contest.type}`}>

@@ -3,10 +3,13 @@ import { Link, useSearchParams } from 'react-router-dom'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import Avatar from '@/components/ui/Avatar'
-import PageLoader from '@/components/ui/PageLoader'
-import PageHero from '@/components/ui/PageHero'
-import SegmentedTabs, { type SegmentedTabOption } from '@/components/ui/SegmentedTabs'
+import { HeroStat } from '@/components/ui/PageHero'
+import { type SegmentedTabOption } from '@/components/ui/SegmentedTabs'
+import ListSkeleton from '@/components/ui/ListSkeleton'
 import SupportNote from '@/components/ui/SupportNote'
+import TabWorkspace from '@/components/layout/TabWorkspace'
+import SectionRoadmap, { type RoadmapStep } from '@/components/layout/SectionRoadmap'
+import SectionArtwork from '@/components/layout/SectionArtwork'
 import {
   CONTEST_TYPE_META,
   getLeaderboard,
@@ -103,39 +106,43 @@ export default function LeaderboardPage() {
   const meInTop = me !== null && rows.some((row) => row.candidateId === me.candidateId)
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
-      <PageHero
-        eyebrow="Contests"
-        title="Leaderboards"
-        subtitle="Ranked on the sum of your best score per test within a contest type — so finishing more tests beats replaying one easy test."
-        actions={
-          <Link to="/contests">
-            <Button variant="inverse" size="sm">
-              All contests
-            </Button>
-          </Link>
-        }
-      >
-        <SegmentedTabs
-          aria-label="Contest type"
-          inverted
-          options={tabs}
-          value={type}
-          onChange={(next) => setSearchParams({ type: next })}
-        />
-      </PageHero>
-
+    <TabWorkspace
+      eyebrow="Contests"
+      title="Leaderboards"
+      subtitle="Ranked on the sum of your best score per test within a contest type — so finishing more tests beats replaying one easy test."
+      stats={
+        <div className="grid grid-cols-2 gap-2">
+          <HeroStat label="Participants" value={loading ? '—' : totalParticipants} />
+          <HeroStat
+            label="Your rank"
+            value={loading ? '—' : me ? `#${me.rank}` : '—'}
+            hint={me ? `${me.testsCompleted} tests` : 'not ranked yet'}
+          />
+        </div>
+      }
+      actions={
+        <Link to={`/contests?tab=${type}`}>
+          <Button variant="inverse" size="sm">
+            Browse tests
+          </Button>
+        </Link>
+      }
+      artwork={<SectionArtwork scene="leaderboard" />}
+      rail={<SectionRoadmap steps={ROADMAP} />}
+      tabsAriaLabel="Contest type"
+      value={type}
+      onChange={(next) => setSearchParams({ type: next })}
+      tabs={tabs}
+    >
       {loading ? (
-        // compact, not the full-screen loader: the hero above is already
-        // painted and switching tabs shouldn't black the whole page out.
-        <PageLoader compact label="Loading leaderboard…" />
+        <ListSkeleton rows={5} />
       ) : error ? (
-        <Card className="mt-8">
+        <Card>
           <p className="text-danger">{error}</p>
         </Card>
       ) : (
-        <>
-          <div className="mt-8 flex items-baseline justify-between gap-3">
+        <div key={type} className="animate-fade-up">
+          <div className="flex items-baseline justify-between gap-3">
             <h2 className="font-semibold text-ink">{CONTEST_TYPE_META[type].label}</h2>
             <p className="text-sm text-ink/50">
               {totalParticipants} participant{totalParticipants === 1 ? '' : 's'}
@@ -149,7 +156,7 @@ export default function LeaderboardPage() {
               </p>
               <p className="mt-3 font-semibold text-ink">Nobody has completed a test here yet</p>
               <p className="mt-1 text-sm text-ink/60">Be the first — you&apos;ll take rank #1.</p>
-              <Link to={`/contests/${type}`} className="mt-4 inline-block">
+              <Link to={`/contests?tab=${type}`} className="mt-4 inline-block">
                 <Button size="sm">Browse tests</Button>
               </Link>
             </Card>
@@ -180,17 +187,41 @@ export default function LeaderboardPage() {
                 You haven&apos;t completed a {CONTEST_TYPE_META[type].label} test yet — finish one and
                 you&apos;ll appear here.
               </p>
-              <Link to={`/contests/${type}`} className="mt-3 inline-block">
+              <Link to={`/contests?tab=${type}`} className="mt-3 inline-block">
                 <Button size="sm" variant="secondary">
                   Browse tests
                 </Button>
               </Link>
             </Card>
           )}
-        </>
-      )}
 
-      <SupportNote className="mt-10" />
-    </div>
+          <SupportNote className="mt-10" />
+        </div>
+      )}
+    </TabWorkspace>
   )
 }
+
+/** How a rank is earned. See SectionRoadmap. */
+const ROADMAP: RoadmapStep[] = [
+  {
+    icon: '📝',
+    title: 'Finish a test',
+    detail: 'Only submitted attempts count. An abandoned one scores nothing.',
+  },
+  {
+    icon: '➕',
+    title: 'Best score per test, summed',
+    detail: 'Your best attempt at each test is counted once — retaking cannot inflate a total.',
+  },
+  {
+    icon: '📈',
+    title: 'Breadth beats repetition',
+    detail: 'Finishing more tests outranks replaying one easy test until it is perfect.',
+  },
+  {
+    icon: '🏆',
+    title: 'Ranked within a contest',
+    detail: 'DSA, Domain and Quant are separate boards — strength in one does not carry over.',
+  },
+]

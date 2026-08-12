@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import Card from '@/components/ui/Card'
 import { getAnalytics, type VerifierAnalytics } from '@/lib/verifierApi'
-import PageLoader from '@/components/ui/PageLoader'
+import PageSkeleton from '@/components/ui/PageSkeleton'
 
 function StatTile({ label, value }: { label: string; value: string }) {
   return (
@@ -35,11 +35,7 @@ export default function AnalyticsPage() {
   }, [])
 
   if (loading) {
-    return (
-      <div className="mx-auto max-w-app px-4 py-16 text-center sm:px-6 lg:px-10">
-        <PageLoader label="Loading analytics…" />
-      </div>
-    )
+    return <PageSkeleton blocks={3} />
   }
 
   if (error || !analytics) {

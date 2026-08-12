@@ -3,6 +3,8 @@ import Button from '@/components/ui/Button'
 import { APP_NAME } from '@/lib/config'
 import { IMAGES, AVATARS } from '@/lib/images'
 import { useReveal } from '@/lib/useReveal'
+import HeroScene from '@/components/landing/HeroScene'
+import StepScene from '@/components/landing/StepScene'
 
 const steps = [
   {
@@ -10,21 +12,21 @@ const steps = [
     title: 'Register & get verified',
     description:
       'Build your profile once. A human reviewer checks every claim field by field — your resume, your projects, your work history — and tells you exactly what passed.',
-    image: IMAGES.stepVerify,
+    scene: 'verify' as const,
   },
   {
     number: '02',
     title: 'Show up on the platform',
     description:
       'Your verified profile becomes discoverable to companies actively hiring in your category. No applications, no cover letters, no black holes.',
-    image: IMAGES.stepDiscover,
+    scene: 'discover' as const,
   },
   {
     number: '03',
     title: 'Companies unlock your contact',
     description:
       'Interested employers pay to reach you — so you only hear from people who mean business. You can pause visibility any time.',
-    image: IMAGES.stepConnect,
+    scene: 'connect' as const,
   },
 ]
 
@@ -40,14 +42,12 @@ function StepCard({ step, index }: { step: (typeof steps)[number]; index: number
 
   return (
     <div ref={ref} className="reveal group overflow-hidden rounded-card bg-card shadow-soft transition-shadow hover:shadow-lift">
-      <div className="relative h-44 overflow-hidden bg-gradient-to-br from-primary to-accent">
-        <img
-          src={step.image}
-          alt=""
-          aria-hidden="true"
-          loading="lazy"
-          className="h-full w-full object-cover opacity-80 transition-transform duration-700 group-hover:scale-105"
-        />
+      <div className="relative h-44 overflow-hidden">
+        {/* A drawn scene of the step itself, rather than a stock photo of
+            someone at a desk — see components/landing/StepScene. */}
+        <div className="h-full w-full transition-transform duration-700 group-hover:scale-105">
+          <StepScene scene={step.scene} />
+        </div>
         <span className="absolute left-4 top-4 rounded-card bg-white/90 px-2.5 py-1 text-sm font-black text-primary backdrop-blur">
           {step.number}
         </span>
@@ -67,30 +67,13 @@ export default function LandingPage() {
 
   return (
     <div>
-      {/* Hero */}
-      <section className="relative overflow-hidden">
-        {/* Gradient sits under the photo so the section still reads correctly
-            if the CDN image never loads. */}
-        <div className="absolute inset-0 bg-gradient-to-br from-primary-dark via-primary to-accent" />
-        <img
-          src={IMAGES.hero}
-          alt=""
-          aria-hidden="true"
-          className="absolute inset-0 h-full w-full object-cover opacity-20"
-        />
-        {/* Two stacked scrims. The photo is bright in places, and a single
-            flat tint that darkened it enough for white text everywhere would
-            wash the image out; a centre-weighted scrim plus a base tint keeps
-            contrast under the copy while the edges stay photographic. */}
-        <div className="photo-scrim-center absolute inset-0" />
-        <div className="absolute inset-0 bg-slate-950/25" />
-
-        {/* Decorative floating orbs */}
-        <div className="pointer-events-none absolute -left-24 top-1/4 h-72 w-72 animate-float rounded-full bg-white/10 blur-3xl" />
-        <div
-          className="pointer-events-none absolute -right-16 bottom-0 h-64 w-64 animate-float rounded-full bg-accent/20 blur-3xl"
-          style={{ animationDelay: '2s' }}
-        />
+      {/* Hero.
+          The backdrop is now a drawn, animated scene rather than a stock
+          photograph behind a pair of scrims — see components/landing/
+          HeroScene. It carries its own gradient, depth layers and legibility
+          scrim, so nothing else is layered here. */}
+      <section className="relative min-h-[38rem] overflow-hidden">
+        <HeroScene />
 
         <div className="relative mx-auto max-w-app px-4 py-24 text-center sm:px-6 lg:px-10 sm:py-32">
           <span className="inline-flex animate-fade-in items-center gap-2 rounded-full bg-white/15 px-4 py-1.5 text-sm font-semibold text-white backdrop-blur">

@@ -91,6 +91,12 @@ router.post(
   requireRole('candidate'),
   messageController.replyToThread,
 );
+router.patch(
+  '/me/messages/:companyId/read',
+  requireAuth,
+  requireRole('candidate'),
+  messageController.markThreadRead,
+);
 
 // Blocks (company-side messaging respects these — see
 // companyMessageController.startOrReplyThread)

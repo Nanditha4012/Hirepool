@@ -4,7 +4,7 @@ import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import Select from '@/components/ui/Select'
 import Badge from '@/components/ui/Badge'
-import PageLoader from '@/components/ui/PageLoader'
+import PageSkeleton from '@/components/ui/PageSkeleton'
 import ChecklistRow, { type RowVerdict } from '@/components/verifier/ChecklistRow'
 import Timeline from '@/components/verifier/Timeline'
 import { useAuth } from '@/lib/authStore'
@@ -254,7 +254,7 @@ export default function ProfileReviewPage() {
   }
 
   if (loading) {
-    return <PageLoader label="Loading profile…" />
+    return <PageSkeleton columns={2} blocks={2} />
   }
 
   if (loadError || !profile) {

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
-import PageLoader from '@/components/ui/PageLoader'
+import PageSkeleton from '@/components/ui/PageSkeleton'
 import { getAdminSiteSettings, updateAdminSiteSettings, type SiteSettingsMap } from '@/lib/adminApi'
 
 // The seeded keys per the Phase 5 spec. Any other key the backend happens to
@@ -73,11 +73,7 @@ export default function SiteSettingsPage() {
   }
 
   if (loading) {
-    return (
-      <div className="mx-auto max-w-3xl px-4 py-16 text-center sm:px-6">
-        <PageLoader label="Loading site settings…" />
-      </div>
-    )
+    return <PageSkeleton width="narrow" blocks={3} />
   }
 
   return (

@@ -3,7 +3,8 @@ import { Navigate } from 'react-router-dom'
 import Card from '@/components/ui/Card'
 import CompanySetupPage from './CompanySetupPage'
 import { getMyCompanyProfile, type CompanyProfileResponse } from '@/lib/companyApi'
-import PageLoader from '@/components/ui/PageLoader'
+import { useAuth, type Profile } from '@/lib/authStore'
+import Skeleton from '@/components/ui/Skeleton'
 
 /**
  * Routing gate for `/company`.
@@ -29,6 +30,7 @@ import PageLoader from '@/components/ui/PageLoader'
  */
 
 export default function CompanyEntryPoint() {
+  const { syncProfile } = useAuth()
   const [profile, setProfile] = useState<CompanyProfileResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -38,7 +40,13 @@ export default function CompanyEntryPoint() {
     ;(async () => {
       try {
         const result = await getMyCompanyProfile()
-        if (!cancelled) setProfile(result)
+        if (cancelled) return
+        setProfile(result)
+        // Same reason as CandidateEntryPoint: the verification gate reads
+        // `verified` off the session's cached profile, which is otherwise
+        // only written at sign-in, so an admin approving this company
+        // mid-session would have no effect until the next login.
+        syncProfile(result as unknown as Profile)
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load your company profile')
       } finally {
@@ -48,10 +56,19 @@ export default function CompanyEntryPoint() {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [syncProfile])
 
+  // Same reasoning as CandidateEntryPoint: a gate that blanks the viewport
+  // while it decides where to send you turns every visit to Home into a
+  // visible page load.
   if (loading) {
-    return <PageLoader label="Loading…" />
+    return (
+      <div className="mx-auto w-full max-w-app-narrow px-4 py-8 sm:px-6 lg:px-8">
+        <Skeleton className="h-40 w-full rounded-card" />
+        <Skeleton className="mt-6 h-24 w-full rounded-card" />
+        <Skeleton className="mt-6 h-80 w-full rounded-card" />
+      </div>
+    )
   }
 
   if (error || !profile) {

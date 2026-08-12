@@ -62,6 +62,7 @@ interface ApiFetchOptions extends RequestInit {
 
 interface ApiErrorBody {
   message?: string
+  code?: string
 }
 
 /**
@@ -69,15 +70,31 @@ interface ApiErrorBody {
  * distinguish "you aren't allowed" (403 — e.g. a company still awaiting
  * verification) from a genuine failure, which previously required
  * string-matching the message.
+ *
+ * `code` narrows that further where the server sets one. The verification
+ * gate is the reason it exists: PROFILE_NOT_VERIFIED / COMPANY_NOT_VERIFIED
+ * mean "your account isn't live yet", which the UI has to answer by sending
+ * the user to their status screen — a different outcome from an ordinary
+ * permission failure, and not something worth inferring from prose.
  */
 export class ApiRequestError extends Error {
   readonly status: number
+  readonly code?: string
 
-  constructor(message: string, status: number) {
+  constructor(message: string, status: number, code?: string) {
     super(message)
     this.name = 'ApiRequestError'
     this.status = status
+    this.code = code
   }
+}
+
+/** True for the two 403s that mean "not verified yet", from any call site. */
+export function isNotVerifiedError(err: unknown): boolean {
+  return (
+    err instanceof ApiRequestError &&
+    (err.code === 'PROFILE_NOT_VERIFIED' || err.code === 'COMPANY_NOT_VERIFIED')
+  )
 }
 
 export async function apiFetch<T>(path: string, options: ApiFetchOptions = {}): Promise<T> {
@@ -117,6 +134,7 @@ export async function apiFetch<T>(path: string, options: ApiFetchOptions = {}): 
     throw new ApiRequestError(
       body?.message || `Request failed with status ${response.status}`,
       response.status,
+      body?.code,
     )
   }
 

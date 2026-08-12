@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
-import PageLoader from '@/components/ui/PageLoader'
+import PageSkeleton from '@/components/ui/PageSkeleton'
 import PasswordRequirements from '@/components/ui/PasswordRequirements'
 import { isStrongPassword } from '@/lib/passwordStrength'
 import {
@@ -109,7 +109,7 @@ export default function VerifierAccountPage() {
     }
   }
 
-  if (loading) return <PageLoader label="Loading your account…" />
+  if (loading) return <PageSkeleton width="narrow" blocks={3} />
 
   if (loadError || !account) {
     return (

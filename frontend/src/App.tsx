@@ -20,6 +20,7 @@ import CategoryPage from '@/pages/onboarding/CategoryPage'
 import TotpPage from '@/pages/onboarding/TotpPage'
 import CandidateEntryPoint from '@/pages/candidate/CandidateEntryPoint'
 import ProfileBuilderPage from '@/pages/candidate/ProfileBuilderPage'
+import CandidateMessagesPage from '@/pages/candidate/MessagesPage'
 import CandidatePaymentHistoryPage from '@/pages/candidate/PaymentHistoryPage'
 import CompanyEntryPoint from '@/pages/company/CompanyEntryPoint'
 import CompanyDashboardPage from '@/pages/company/DashboardPage'
@@ -54,7 +55,7 @@ import CreatePostPage from '@/pages/feed/CreatePostPage'
 import CommunityPage from '@/pages/community/CommunityPage'
 import CommunityDetailPage from '@/pages/community/CommunityDetailPage'
 import ContestHubPage from '@/pages/contests/ContestHubPage'
-import ContestListPage from '@/pages/contests/ContestListPage'
+import ContestTypeRedirect from '@/pages/contests/ContestTypeRedirect'
 import TestRunnerPage from '@/pages/contests/TestRunnerPage'
 import TestResultPage from '@/pages/contests/TestResultPage'
 import ContestLeaderboardPage from '@/pages/contests/LeaderboardPage'
@@ -112,6 +113,18 @@ function AppShell() {
               </ProtectedRoute>
             }
           />
+          {/* The target of every "new message" notification — see the
+              backend's companyMessageController. Verification-gated: a
+              company can only message a candidate it found in search, and
+              only approved candidates are searchable. */}
+          <Route
+            path="/candidate/messages"
+            element={
+              <ProtectedRoute allow={['candidate']} requireVerified>
+                <CandidateMessagesPage />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/candidate/payments"
             element={
@@ -133,7 +146,7 @@ function AppShell() {
           <Route
             path="/company/dashboard"
             element={
-              <ProtectedRoute allow={['company']}>
+              <ProtectedRoute allow={['company']} requireVerified>
                 <CompanyDashboardPage />
               </ProtectedRoute>
             }
@@ -149,7 +162,7 @@ function AppShell() {
           <Route
             path="/company/search"
             element={
-              <ProtectedRoute allow={['company']}>
+              <ProtectedRoute allow={['company']} requireVerified>
                 <SearchPage />
               </ProtectedRoute>
             }
@@ -157,7 +170,7 @@ function AppShell() {
           <Route
             path="/company/unlocked"
             element={
-              <ProtectedRoute allow={['company']}>
+              <ProtectedRoute allow={['company']} requireVerified>
                 <UnlockedCandidatesPage />
               </ProtectedRoute>
             }
@@ -165,7 +178,7 @@ function AppShell() {
           <Route
             path="/company/messages"
             element={
-              <ProtectedRoute allow={['company']}>
+              <ProtectedRoute allow={['company']} requireVerified>
                 <MessagesPage />
               </ProtectedRoute>
             }
@@ -183,13 +196,16 @@ function AppShell() {
               shared noticeboard, and a company needs to post its own drives
               and see what is being said about it just as much as a candidate
               needs to read them. Verifiers and admins get read access for
-              moderation. The literal '/feed/new' precedes nothing that could
+              moderation. `requireVerified` is the orthogonal gate — a
+              candidate or company still in review (or rejected) sees only its
+              own submission until that clears; verifiers and admins are never
+              locked by it. The literal '/feed/new' precedes nothing that could
               swallow it, but is declared first regardless — the ordering
               discipline used throughout this file. */}
           <Route
             path="/feed/new"
             element={
-              <ProtectedRoute allow={['candidate', 'company', 'verifier', 'admin']}>
+              <ProtectedRoute allow={['candidate', 'company', 'verifier', 'admin']} requireVerified>
                 <CreatePostPage />
               </ProtectedRoute>
             }
@@ -197,7 +213,7 @@ function AppShell() {
           <Route
             path="/feed"
             element={
-              <ProtectedRoute allow={['candidate', 'company', 'verifier', 'admin']}>
+              <ProtectedRoute allow={['candidate', 'company', 'verifier', 'admin']} requireVerified>
                 <FeedPage />
               </ProtectedRoute>
             }
@@ -205,7 +221,7 @@ function AppShell() {
           <Route
             path="/community"
             element={
-              <ProtectedRoute allow={['candidate', 'company', 'verifier', 'admin']}>
+              <ProtectedRoute allow={['candidate', 'company', 'verifier', 'admin']} requireVerified>
                 <CommunityPage />
               </ProtectedRoute>
             }
@@ -213,18 +229,26 @@ function AppShell() {
           <Route
             path="/community/:slug"
             element={
-              <ProtectedRoute allow={['candidate', 'company', 'verifier', 'admin']}>
+              <ProtectedRoute allow={['candidate', 'company', 'verifier', 'admin']} requireVerified>
                 <CommunityDetailPage />
               </ProtectedRoute>
             }
           />
 
-          {/* Contests — candidate-only. Literal paths are declared before
-              '/contests/:type' so the param route can't swallow them. */}
+          {/* Contests — candidate-only, and only once verified: a contest
+              score is published on the profile as proof, so it has to be
+              earned by a live account.
+
+              '/contests' is one tabbed screen (DSA / Domain / Quant), the
+              same shape as the Walk-in Pedia + Job Book pairing at '/feed' —
+              the tab lives in the query string, not the path. '/contests/:type'
+              is kept only to bounce old links and bookmarks onto the matching
+              tab, and is declared last so it cannot swallow the literal paths
+              above it. */}
           <Route
             path="/contests"
             element={
-              <ProtectedRoute allow={['candidate']}>
+              <ProtectedRoute allow={['candidate']} requireVerified>
                 <ContestHubPage />
               </ProtectedRoute>
             }
@@ -232,7 +256,7 @@ function AppShell() {
           <Route
             path="/contests/leaderboard"
             element={
-              <ProtectedRoute allow={['candidate']}>
+              <ProtectedRoute allow={['candidate']} requireVerified>
                 <ContestLeaderboardPage />
               </ProtectedRoute>
             }
@@ -240,7 +264,7 @@ function AppShell() {
           <Route
             path="/contests/attempt/:attemptId"
             element={
-              <ProtectedRoute allow={['candidate']}>
+              <ProtectedRoute allow={['candidate']} requireVerified>
                 <TestRunnerPage />
               </ProtectedRoute>
             }
@@ -248,7 +272,7 @@ function AppShell() {
           <Route
             path="/contests/result/:attemptId"
             element={
-              <ProtectedRoute allow={['candidate']}>
+              <ProtectedRoute allow={['candidate']} requireVerified>
                 <TestResultPage />
               </ProtectedRoute>
             }
@@ -256,8 +280,8 @@ function AppShell() {
           <Route
             path="/contests/:type"
             element={
-              <ProtectedRoute allow={['candidate']}>
-                <ContestListPage />
+              <ProtectedRoute allow={['candidate']} requireVerified>
+                <ContestTypeRedirect />
               </ProtectedRoute>
             }
           />

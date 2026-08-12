@@ -3,7 +3,7 @@ import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Badge from '@/components/ui/Badge'
-import PageLoader from '@/components/ui/PageLoader'
+import ListSkeleton from '@/components/ui/ListSkeleton'
 import UserModerationActions from '@/components/admin/UserModerationActions'
 import {
   createVerifier,
@@ -165,7 +165,7 @@ export default function VerifiersPage() {
         </div>
         {inviteError && <p className="mt-2 text-sm text-danger">{inviteError}</p>}
 
-        {invitesLoading && <PageLoader compact label="Loading invites…" />}
+        {invitesLoading && <ListSkeleton rows={3} />}
         {!invitesLoading && invitesError && <p className="mt-3 text-sm text-danger">{invitesError}</p>}
         {!invitesLoading && !invitesError && invites.length > 0 && (
           <div className="mt-4 overflow-x-auto">
@@ -212,7 +212,7 @@ export default function VerifiersPage() {
       </Card>
 
       <Card className="mt-6">
-        {loading && <PageLoader compact label="Loading verifiers…" />}
+        {loading && <ListSkeleton rows={3} />}
         {!loading && error && <p className="text-danger">{error}</p>}
         {!loading && !error && verifiers.length === 0 && (
           <p className="py-8 text-center text-ink/50">No verifiers provisioned yet.</p>

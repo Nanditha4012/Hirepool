@@ -148,6 +148,13 @@ export interface CandidateFieldReview {
   passed: boolean
   reason: string | null
   checkedAt: string
+  /**
+   * True when a No here is what blocks approval, rather than a note to act on
+   * later. Derived server-side from the candidate's category (a project link
+   * gates a fresher but not an experienced candidate) — see the backend's
+   * utils/mandatoryFields.ts. The submission report leads with these.
+   */
+  mandatory: boolean
 }
 
 export interface CandidateHistoryEntry {
@@ -344,7 +351,20 @@ export interface ThreadMessage {
 
 export interface MessageThread {
   companyId: string
-  companyName: string | null
+  /**
+   * Always a readable name, never the account email. Signup seeds a company's
+   * profile name with its email address, so the server derives something
+   * human from the domain when the company hasn't filled in its setup form —
+   * see the backend's utils/displayName.ts.
+   */
+  companyName: string
+  logoLink: string | null
+  industry: string | null
+  verified: boolean
+  /** This candidate has blocked the company; the composer is closed. */
+  blocked: boolean
+  unreadCount: number
+  lastMessageAt: string | null
   messages: ThreadMessage[]
 }
 
@@ -356,6 +376,13 @@ export function replyToThread(companyId: string, body: string) {
   return apiFetch<ThreadMessage>(`/candidates/me/messages/${companyId}/reply`, {
     method: 'POST',
     body: JSON.stringify({ body }),
+  })
+}
+
+/** Clears the unread badge for one conversation. Fire-and-forget at call sites. */
+export function markThreadRead(companyId: string) {
+  return apiFetch<{ updated: number }>(`/candidates/me/messages/${companyId}/read`, {
+    method: 'PATCH',
   })
 }
 

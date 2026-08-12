@@ -1,12 +1,23 @@
 import { Request, Response } from 'express';
 import { Op } from 'sequelize';
 import { z } from 'zod';
-import { Message, User, CompanyBlock, CompanyProfile, PlanMaster, Notification } from '../models';
+import {
+  Message,
+  User,
+  CandidateProfile,
+  RoleMaster,
+  CompanyBlock,
+  CompanyProfile,
+  PlanMaster,
+  Notification,
+} from '../models';
 import type { CompanyProfileAttributes } from '../models/CompanyProfile';
+import type { CandidateProfileAttributes } from '../models/CandidateProfile';
 import type { PlanMasterAttributes } from '../models/PlanMaster';
 import { asyncHandler } from '../utils/asyncHandler';
 import { ApiError } from '../utils/ApiError';
 import { runInRequestContext } from '../utils/withRequestContext';
+import { candidateDisplayName } from '../utils/displayName';
 
 // A small constant, independent of plan, on top of the plan's monthly new-
 // conversation cap — see startOrReplyThread below.
@@ -32,7 +43,24 @@ export const listMyThreads = asyncHandler(async (req: Request, res: Response) =>
       where: { id: { [Op.in]: candidateIds } },
       transaction: t,
     });
-    const candidateNameById = new Map(candidateUsers.map((u) => [u.id, u.fullName]));
+    const userById = new Map(candidateUsers.map((u) => [u.id, u]));
+
+    // The candidate's role gives the thread a subtitle worth reading
+    // ("Senior Backend Engineer") in place of the id the UI used to fall
+    // back to.
+    const candidateProfiles = await CandidateProfile.findAll({
+      where: { userId: { [Op.in]: candidateIds } },
+      include: [{ model: RoleMaster, as: 'primaryRole' }],
+      transaction: t,
+    });
+    const profileByUserId = new Map(
+      candidateProfiles.map((p) => [
+        p.userId,
+        p.get({ plain: true }) as CandidateProfileAttributes & {
+          primaryRole: { roleName: string } | null;
+        },
+      ]),
+    );
 
     const messagesByCandidate = new Map<string, Message[]>();
     for (const message of messages) {
@@ -41,14 +69,52 @@ export const listMyThreads = asyncHandler(async (req: Request, res: Response) =>
       messagesByCandidate.set(message.candidateId, bucket);
     }
 
-    return candidateIds.map((candidateId) => ({
-      candidateId,
-      candidateName: candidateNameById.get(candidateId) ?? null,
-      messages: messagesByCandidate.get(candidateId) ?? [],
-    }));
+    return candidateIds
+      .map((candidateId) => {
+        const user = userById.get(candidateId);
+        const profile = profileByUserId.get(candidateId);
+        const threadMessages = messagesByCandidate.get(candidateId) ?? [];
+        const lastMessage = threadMessages[threadMessages.length - 1];
+
+        return {
+          candidateId,
+          candidateName: candidateDisplayName(user?.fullName, user?.email),
+          primaryRole: profile?.primaryRole?.roleName ?? null,
+          location: profile?.location ?? null,
+          unreadCount: threadMessages.filter((m) => m.senderRole === 'candidate' && !m.readAt)
+            .length,
+          lastMessageAt: lastMessage?.createdAt ?? null,
+          messages: threadMessages,
+        };
+      })
+      .sort((a, b) => (b.lastMessageAt?.getTime() ?? 0) - (a.lastMessageAt?.getTime() ?? 0));
   });
 
   res.json(threads);
+});
+
+/** PATCH /me/messages/:candidateId/read — see messageController.markThreadRead. */
+export const markThreadRead = asyncHandler(async (req: Request, res: Response) => {
+  const authUser = req.user!;
+  const { candidateId } = req.params;
+
+  const updatedCount = await runInRequestContext(authUser, async (t) => {
+    const [count] = await Message.update(
+      { readAt: new Date() },
+      {
+        where: {
+          companyId: authUser.id,
+          candidateId,
+          senderRole: 'candidate',
+          readAt: null,
+        },
+        transaction: t,
+      },
+    );
+    return count;
+  });
+
+  res.json({ updated: updatedCount });
 });
 
 // ---------------------------------------------------------------------

@@ -3,7 +3,7 @@ import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import Select from '@/components/ui/Select'
 import Badge from '@/components/ui/Badge'
-import PageLoader from '@/components/ui/PageLoader'
+import ListSkeleton from '@/components/ui/ListSkeleton'
 import { listPayments, type AdminPaymentRow } from '@/lib/adminApi'
 
 const PAGE_SIZE = 20
@@ -90,7 +90,7 @@ export default function AdminPaymentsPage() {
           />
         </div>
 
-        {loading && <PageLoader compact label="Loading payments…" />}
+        {loading && <ListSkeleton rows={3} />}
         {!loading && error && <p className="mt-4 text-danger">{error}</p>}
         {!loading && !error && rows.length === 0 && (
           <p className="py-8 text-center text-ink/50">No payments match these filters.</p>

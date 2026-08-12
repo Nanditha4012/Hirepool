@@ -9,6 +9,7 @@ import {
   FeedPost,
   PostReaction,
   PostComment,
+  CommentReaction,
   PostReport,
 } from '../models';
 import type { FeedPostKind } from '../models/FeedPost';
@@ -615,6 +616,15 @@ export const toggleLike = asyncHandler(async (req: Request, res: Response) => {
 // Discussion
 // ---------------------------------------------------------------------
 
+/**
+ * The discussion under one post, as top-level comments each carrying their
+ * own replies.
+ *
+ * Assembled in JS from one query rather than fetched per level: a thread is
+ * capped at one level deep (see addComment), so the whole discussion is a
+ * single `WHERE post_id = ?` and grouping it here costs nothing. A recursive
+ * query would buy depth this feature does not have.
+ */
 export const listComments = asyncHandler(async (req: Request, res: Response) => {
   const authUser = req.user!;
   const { id } = req.params;
@@ -626,13 +636,51 @@ export const listComments = asyncHandler(async (req: Request, res: Response) => 
       transaction: t,
     });
 
-    return comments.map((comment) => ({
+    const commentIds = comments.map((comment) => comment.id);
+
+    // Two queries for the like state, not one per comment: the counts for
+    // everyone, and this reader's own rows to decide which hearts are filled.
+    const reactions = commentIds.length
+      ? await CommentReaction.findAll({
+          where: { commentId: { [Op.in]: commentIds } },
+          transaction: t,
+        })
+      : [];
+
+    const likeCountByComment = new Map<string, number>();
+    const likedByMe = new Set<string>();
+    for (const reaction of reactions) {
+      likeCountByComment.set(
+        reaction.commentId,
+        (likeCountByComment.get(reaction.commentId) ?? 0) + 1,
+      );
+      if (reaction.userId === authUser.id) likedByMe.add(reaction.commentId);
+    }
+
+    const toView = (comment: PostComment) => ({
       id: comment.id,
       body: comment.body,
       author: { id: comment.userId, name: comment.authorName, role: comment.authorRole },
       canDelete: comment.userId === authUser.id || authUser.role === 'admin',
+      likeCount: likeCountByComment.get(comment.id) ?? 0,
+      likedByMe: likedByMe.has(comment.id),
       createdAt: comment.createdAt,
-    }));
+    });
+
+    const repliesByParent = new Map<string, ReturnType<typeof toView>[]>();
+    for (const comment of comments) {
+      if (!comment.parentCommentId) continue;
+      const bucket = repliesByParent.get(comment.parentCommentId) ?? [];
+      bucket.push(toView(comment));
+      repliesByParent.set(comment.parentCommentId, bucket);
+    }
+
+    return comments
+      .filter((comment) => !comment.parentCommentId)
+      .map((comment) => ({
+        ...toView(comment),
+        replies: repliesByParent.get(comment.id) ?? [],
+      }));
   });
 
   res.json(result);
@@ -640,6 +688,8 @@ export const listComments = asyncHandler(async (req: Request, res: Response) => 
 
 const addCommentSchema = z.object({
   body: z.string().trim().min(1, 'Say something').max(2000),
+  /** Answers this comment rather than the post. */
+  parentCommentId: z.string().uuid().optional(),
 });
 
 export const addComment = asyncHandler(async (req: Request, res: Response) => {
@@ -651,6 +701,18 @@ export const addComment = asyncHandler(async (req: Request, res: Response) => {
     const post = await FeedPost.findByPk(id, { transaction: t });
     if (!post) throw ApiError.notFound('Post not found');
 
+    let parentCommentId: string | null = null;
+    if (parsed.parentCommentId) {
+      const parent = await PostComment.findByPk(parsed.parentCommentId, { transaction: t });
+      if (!parent || parent.postId !== id) {
+        throw ApiError.notFound('The comment you are replying to no longer exists');
+      }
+      // Flatten: replying to a reply attaches to the same top-level comment.
+      // A drive's discussion is not improved by six levels of indentation,
+      // and one level keeps "who is answering whom" legible on a phone.
+      parentCommentId = parent.parentCommentId ?? parent.id;
+    }
+
     const comment = await PostComment.create(
       {
         postId: id,
@@ -658,6 +720,7 @@ export const addComment = asyncHandler(async (req: Request, res: Response) => {
         authorName: await resolveAuthorName(authUser.id, t),
         authorRole: authUser.role,
         body: parsed.body,
+        parentCommentId,
       },
       { transaction: t },
     );
@@ -666,6 +729,37 @@ export const addComment = asyncHandler(async (req: Request, res: Response) => {
   });
 
   res.status(201).json(result);
+});
+
+/**
+ * POST /feed/comments/:commentId/like — a toggle, exactly like toggleLike on
+ * a post: the unique index is what makes a second click an un-like rather
+ * than a second row.
+ */
+export const toggleCommentLike = asyncHandler(async (req: Request, res: Response) => {
+  const authUser = req.user!;
+  const { commentId } = req.params;
+
+  const result = await runInRequestContext(authUser, async (t) => {
+    const comment = await PostComment.findByPk(commentId, { transaction: t });
+    if (!comment) throw ApiError.notFound('Comment not found');
+
+    const existing = await CommentReaction.findOne({
+      where: { commentId, userId: authUser.id },
+      transaction: t,
+    });
+
+    if (existing) {
+      await existing.destroy({ transaction: t });
+    } else {
+      await CommentReaction.create({ commentId, userId: authUser.id }, { transaction: t });
+    }
+
+    const likeCount = await CommentReaction.count({ where: { commentId }, transaction: t });
+    return { likeCount, likedByMe: !existing };
+  });
+
+  res.json(result);
 });
 
 export const deleteComment = asyncHandler(async (req: Request, res: Response) => {

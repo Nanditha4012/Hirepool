@@ -35,6 +35,7 @@ import { Community } from './Community';
 import { CommunityMember } from './CommunityMember';
 import { FeedPost } from './FeedPost';
 import { PostReaction } from './PostReaction';
+import { CommentReaction } from './CommentReaction';
 import { PostComment } from './PostComment';
 import { PostReport } from './PostReport';
 
@@ -184,6 +185,16 @@ PostReaction.belongsTo(User, { foreignKey: 'userId', as: 'user' });
 
 FeedPost.hasMany(PostComment, { foreignKey: 'postId', as: 'comments' });
 PostComment.belongsTo(FeedPost, { foreignKey: 'postId', as: 'post' });
+
+// Self-reference: a reply belongs to the comment it answers. Capped at one
+// level by feedController.addComment, not by the association.
+PostComment.hasMany(PostComment, { foreignKey: 'parentCommentId', as: 'replies' });
+PostComment.belongsTo(PostComment, { foreignKey: 'parentCommentId', as: 'parent' });
+
+PostComment.hasMany(CommentReaction, { foreignKey: 'commentId', as: 'reactions' });
+CommentReaction.belongsTo(PostComment, { foreignKey: 'commentId', as: 'comment' });
+User.hasMany(CommentReaction, { foreignKey: 'userId', as: 'commentReactions' });
+CommentReaction.belongsTo(User, { foreignKey: 'userId', as: 'user' });
 User.hasMany(PostComment, { foreignKey: 'userId', as: 'postComments' });
 PostComment.belongsTo(User, { foreignKey: 'userId', as: 'user' });
 
@@ -231,5 +242,6 @@ export {
   FeedPost,
   PostReaction,
   PostComment,
+  CommentReaction,
   PostReport,
 };

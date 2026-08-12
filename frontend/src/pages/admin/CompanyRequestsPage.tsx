@@ -3,7 +3,7 @@ import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import Badge from '@/components/ui/Badge'
 import Input from '@/components/ui/Input'
-import PageLoader from '@/components/ui/PageLoader'
+import ListSkeleton from '@/components/ui/ListSkeleton'
 import {
   approveCompanyRequest,
   listCompanyRequests,
@@ -152,7 +152,7 @@ export default function CompanyRequestsPage() {
       </div>
 
       <Card className="mt-6">
-        {loading && <PageLoader compact label="Loading requests…" />}
+        {loading && <ListSkeleton rows={3} />}
         {!loading && error && <p className="text-danger">{error}</p>}
         {!loading && !error && requests.length === 0 && (
           <p className="py-8 text-center text-ink/50">No {tab} requests.</p>

@@ -198,23 +198,43 @@ export function toggleScamReport(postId: string, reason?: string) {
   })
 }
 
-export interface PostComment {
+/** A reply. Same shape as a top-level comment, minus its own replies. */
+export interface PostCommentReply {
   id: string
   body: string
   author: FeedAuthor
   canDelete: boolean
+  likeCount: number
+  likedByMe: boolean
   createdAt: string
+}
+
+export interface PostComment extends PostCommentReply {
+  /**
+   * Answers to this comment. One level deep by design — the server flattens
+   * a reply-to-a-reply onto the same parent, so this never nests further.
+   */
+  replies: PostCommentReply[]
 }
 
 export function listComments(postId: string) {
   return apiFetch<PostComment[]>(`/feed/posts/${postId}/comments`)
 }
 
-export function addComment(postId: string, body: string) {
+/** Omit `parentCommentId` for a top-level comment; pass it to reply to one. */
+export function addComment(postId: string, body: string, parentCommentId?: string) {
   return apiFetch<{ id: string; commentCount: number }>(`/feed/posts/${postId}/comments`, {
     method: 'POST',
-    body: JSON.stringify({ body }),
+    body: JSON.stringify({ body, parentCommentId }),
   })
+}
+
+/** Toggle — a second call un-likes. Returns the settled count and state. */
+export function toggleCommentLike(commentId: string) {
+  return apiFetch<{ likeCount: number; likedByMe: boolean }>(
+    `/feed/comments/${commentId}/like`,
+    { method: 'POST' },
+  )
 }
 
 export function deleteComment(commentId: string) {

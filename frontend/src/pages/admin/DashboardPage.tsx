@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import Card from '@/components/ui/Card'
 import Badge from '@/components/ui/Badge'
-import PageLoader from '@/components/ui/PageLoader'
+import PageSkeleton from '@/components/ui/PageSkeleton'
 import { getAnalyticsOverview, type AnalyticsOverview, type CandidateStatus } from '@/lib/adminApi'
 
 function StatTile({ label, value, tone }: { label: string; value: string; tone?: 'danger' | 'boost' }) {
@@ -49,11 +49,7 @@ export default function DashboardPage() {
   }, [])
 
   if (loading) {
-    return (
-      <div className="mx-auto max-w-app px-4 py-16 text-center sm:px-6 lg:px-10">
-        <PageLoader label="Loading dashboard…" />
-      </div>
-    )
+    return <PageSkeleton columns={2} blocks={2} />
   }
 
   if (error || !analytics) {

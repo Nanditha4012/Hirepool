@@ -5,7 +5,7 @@ import Button from '@/components/ui/Button'
 import Badge from '@/components/ui/Badge'
 import Select from '@/components/ui/Select'
 import Input from '@/components/ui/Input'
-import PageLoader from '@/components/ui/PageLoader'
+import PageSkeleton from '@/components/ui/PageSkeleton'
 import UserModerationActions from '@/components/admin/UserModerationActions'
 import {
   getCandidateDetail,
@@ -156,11 +156,7 @@ export default function CandidateDetailPage() {
   }
 
   if (loading) {
-    return (
-      <div className="mx-auto max-w-app px-4 py-16 text-center sm:px-6 lg:px-10">
-        <PageLoader label="Loading candidate…" />
-      </div>
-    )
+    return <PageSkeleton columns={2} blocks={2} />
   }
 
   if (error || !detail) {

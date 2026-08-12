@@ -77,6 +77,21 @@ interface AuthContextValue extends AuthState {
   refreshAccessToken: () => Promise<boolean>
   setCategory: (category: CandidateCategory) => Promise<Profile>
   /**
+   * Replaces the cached profile with one a page has just fetched first-hand.
+   *
+   * The session's copy of `profile` comes from GET /auth/me at sign-in and is
+   * never touched again, which is fine for everything except the verification
+   * gate (src/lib/verification.ts) — that reads `profile.status` /
+   * `profile.verified` to decide what the account may open, so a candidate
+   * approved mid-session would stay locked out until they signed in again.
+   * The candidate and company home screens fetch the real profile on every
+   * visit anyway; handing it to the store here is what makes approval take
+   * effect on the spot, without adding a poll.
+   *
+   * A no-op when nobody is signed in.
+   */
+  syncProfile: (profile: Profile | null) => void
+  /**
    * True when the last sign-out was the idle timer firing rather than the
    * user clicking "Log out" — the login page reads it to explain why they
    * are suddenly back at the door. Cleared on the next successful sign-in.
@@ -197,6 +212,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [applyToken])
 
+  const syncProfile = useCallback((profile: Profile | null) => {
+    setUser((prev) => (prev ? { ...prev, profile } : prev))
+  }, [])
+
   const setCategory = useCallback(async (category: CandidateCategory): Promise<Profile> => {
     const profile = await apiFetch<Profile>('/candidates/me/category', {
       method: 'PATCH',
@@ -261,6 +280,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       logout,
       refreshAccessToken,
       setCategory,
+      syncProfile,
       sessionExpired,
       expireSession,
     }),
@@ -275,6 +295,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       logout,
       refreshAccessToken,
       setCategory,
+      syncProfile,
       sessionExpired,
       expireSession,
     ],

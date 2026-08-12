@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import Avatar from '@/components/ui/Avatar'
 import Badge from '@/components/ui/Badge'
+import CommunityCrest from '@/components/community/CommunityCrest'
 import CommentThread from './CommentThread'
 import { deletePost, toggleLike, toggleScamReport, type FeedPost } from '@/lib/feedApi'
 
@@ -158,9 +159,20 @@ export default function PostCard({ post, onChange, onRemoved }: PostCardProps) {
                 </span>
               )}
             </p>
-            <p className="truncate text-xs text-ink/50">
+            <p className="flex items-center gap-1.5 truncate text-xs text-ink/50">
               {timeAgo(post.createdAt)}
-              {post.community && ` · ${post.community.icon ?? ''} ${post.community.name}`}
+              {post.community && (
+                <>
+                  <span aria-hidden="true">·</span>
+                  <CommunityCrest
+                    slug={post.community.slug}
+                    name={post.community.name}
+                    size="sm"
+                    className="h-4 w-4 rounded-[4px]"
+                  />
+                  <span className="truncate">{post.community.name}</span>
+                </>
+              )}
             </p>
           </div>
         </div>

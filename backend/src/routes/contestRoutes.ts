@@ -2,12 +2,19 @@ import { Router } from 'express';
 import * as contestController from '../controllers/contestController';
 import { requireAuth } from '../middleware/requireAuth';
 import { requireRole } from '../middleware/requireRole';
+import { requireVerified } from '../middleware/requireVerified';
 
 const router = Router();
 
 // Same per-route convention as candidateRoutes/adminRoutes rather than a
 // blanket router.use().
-const candidateOnly = [requireAuth, requireRole('candidate')] as const;
+//
+// requireVerified as well as requireRole: a contest score is published on the
+// candidate's profile as proof of ability, so it can only be earned by an
+// account that has actually passed verification. Without this an unapproved
+// (or rejected) candidate could still sit tests and bank results against a
+// profile no company will ever see.
+const candidateOnly = [requireAuth, requireRole('candidate'), requireVerified] as const;
 
 // ----- Hub & listing -----
 router.get('/hub', ...candidateOnly, contestController.getHub);

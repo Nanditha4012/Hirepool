@@ -4,7 +4,8 @@ import Button from '@/components/ui/Button'
 import Badge from '@/components/ui/Badge'
 import Input from '@/components/ui/Input'
 import Select from '@/components/ui/Select'
-import PageLoader from '@/components/ui/PageLoader'
+import ListSkeleton from '@/components/ui/ListSkeleton'
+import PageSkeleton from '@/components/ui/PageSkeleton'
 import SegmentedTabs, { type SegmentedTabOption } from '@/components/ui/SegmentedTabs'
 import {
   COMPLEXITY_META,
@@ -433,7 +434,7 @@ export default function AdminContestsPage() {
     }
   }
 
-  if (loading) return <PageLoader label="Loading contests…" />
+  if (loading) return <PageSkeleton blocks={4} />
 
   return (
     <div className="mx-auto max-w-app px-4 py-8 sm:px-6 lg:px-10">
@@ -563,7 +564,7 @@ export default function AdminContestsPage() {
             {openContestId === contest.id && (
               <div className="mt-5 border-t border-line pt-5">
                 {questionsLoading ? (
-                  <PageLoader compact label="Loading questions…" />
+                  <ListSkeleton rows={3} />
                 ) : (
                   <>
                     <div className="flex flex-wrap items-center justify-between gap-2">

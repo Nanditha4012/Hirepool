@@ -10,10 +10,20 @@ export interface PostCommentAttributes {
   authorName: string;
   authorRole: string;
   body: string;
+  /**
+   * NULL for a top-level comment; the comment this one answers otherwise.
+   *
+   * The column permits any depth, but the controller flattens a reply-to-a-
+   * reply onto the same top-level parent — see feedController.addComment.
+   */
+  parentCommentId: string | null;
   createdAt: Date;
 }
 
-type PostCommentCreationAttributes = Optional<PostCommentAttributes, 'id' | 'createdAt'>;
+type PostCommentCreationAttributes = Optional<
+  PostCommentAttributes,
+  'id' | 'createdAt' | 'parentCommentId'
+>;
 
 export class PostComment
   extends Model<PostCommentAttributes, PostCommentCreationAttributes>
@@ -25,6 +35,7 @@ export class PostComment
   declare authorName: string;
   declare authorRole: string;
   declare body: string;
+  declare parentCommentId: string | null;
   declare readonly createdAt: Date;
 }
 
@@ -36,6 +47,7 @@ PostComment.init(
     authorName: { type: DataTypes.STRING, allowNull: false, field: 'author_name' },
     authorRole: { type: DataTypes.STRING, allowNull: false, field: 'author_role' },
     body: { type: DataTypes.TEXT, allowNull: false },
+    parentCommentId: { type: DataTypes.UUID, allowNull: true, field: 'parent_comment_id' },
     createdAt: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW, field: 'created_at' },
   },
   {

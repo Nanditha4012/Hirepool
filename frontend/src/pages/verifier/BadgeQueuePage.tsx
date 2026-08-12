@@ -3,7 +3,7 @@ import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Select from '@/components/ui/Select'
-import PageLoader from '@/components/ui/PageLoader'
+import ListSkeleton from '@/components/ui/ListSkeleton'
 import {
   decideBadge,
   listBadgeQueue,
@@ -90,7 +90,7 @@ export default function BadgeQueuePage() {
       <p className="mt-1 text-ink/60">Verify coding-platform badges claimed by candidates.</p>
 
       <Card className="mt-6">
-        {loading && <PageLoader compact label="Loading badge queue…" />}
+        {loading && <ListSkeleton rows={3} />}
         {!loading && error && <p className="text-danger">{error}</p>}
         {!loading && !error && rows.length === 0 && <p className="text-ink/60">No badges pending verification.</p>}
 

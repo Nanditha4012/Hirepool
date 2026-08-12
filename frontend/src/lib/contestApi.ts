@@ -30,6 +30,18 @@ export const CONTEST_TYPE_META: Record<
   },
 }
 
+/** The tab order on the contests screen, and the order of the type meta above. */
+export const CONTEST_TYPES: ContestType[] = ['dsa', 'domain', 'quant']
+
+/**
+ * Narrows an untrusted string (a `?tab=` value, an old `/contests/:type` path
+ * segment) to a real contest type. Lives here rather than in a page because
+ * both the tabbed screen and the legacy-URL redirect need the same answer.
+ */
+export function isContestType(value: string | undefined | null): value is ContestType {
+  return value === 'dsa' || value === 'domain' || value === 'quant'
+}
+
 export const COMPLEXITY_META: Record<
   ContestComplexity,
   { label: string; tone: 'verified' | 'boost' | 'danger' }

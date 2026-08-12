@@ -305,12 +305,36 @@ interface AchievementsSectionProps {
   typesToShow: AchievementType[]
   /** Minimum entries required per type, e.g. { project: 3, achievement: 1 }. Omitted types are optional. */
   requiredCounts?: Partial<Record<AchievementType, number>>
+  /**
+   * Fires with the live per-type counts whenever they change (load, add,
+   * delete). The profile builder's readiness meter subscribes to this so
+   * adding a third project ticks "3 projects" off in the same beat as the row
+   * appearing — without it the meter would have to refetch, and would sit
+   * visibly stale in between.
+   */
+  onCountsChange?: (counts: Record<AchievementType, number>) => void
 }
 
-export default function AchievementsSection({ typesToShow, requiredCounts = {} }: AchievementsSectionProps) {
+export default function AchievementsSection({
+  typesToShow,
+  requiredCounts = {},
+  onCountsChange,
+}: AchievementsSectionProps) {
   const [rows, setRows] = useState<AchievementRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    onCountsChange?.({
+      project: rows.filter((r) => r.type === 'project').length,
+      research: rows.filter((r) => r.type === 'research').length,
+      achievement: rows.filter((r) => r.type === 'achievement').length,
+    })
+    // onCountsChange intentionally excluded: parents pass an inline setState
+    // callback, and depending on it would re-run this on every parent render.
+    // Same convention as PlatformBadgesSection's onCountChange.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows])
 
   const refetch = async () => {
     try {

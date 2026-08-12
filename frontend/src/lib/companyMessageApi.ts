@@ -21,7 +21,12 @@ export interface CompanyThreadMessage {
 
 export interface CompanyMessageThread {
   candidateId: string
-  candidateName: string | null
+  /** Always a readable name, never a UUID — see the backend's utils/displayName.ts. */
+  candidateName: string
+  primaryRole: string | null
+  location: string | null
+  unreadCount: number
+  lastMessageAt: string | null
   messages: CompanyThreadMessage[]
 }
 
@@ -33,5 +38,12 @@ export function sendMessage(candidateId: string, body: string) {
   return apiFetch<CompanyThreadMessage>(`/companies/me/messages/${candidateId}`, {
     method: 'POST',
     body: JSON.stringify({ body }),
+  })
+}
+
+/** Clears the unread badge for one conversation. Fire-and-forget at call sites. */
+export function markThreadRead(candidateId: string) {
+  return apiFetch<{ updated: number }>(`/companies/me/messages/${candidateId}/read`, {
+    method: 'PATCH',
   })
 }

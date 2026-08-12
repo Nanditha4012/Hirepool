@@ -4,7 +4,7 @@ import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Select from '@/components/ui/Select'
 import Badge from '@/components/ui/Badge'
-import PageLoader from '@/components/ui/PageLoader'
+import ListSkeleton from '@/components/ui/ListSkeleton'
 import { createAnnouncement, listAnnouncements, type AdminAnnouncement, type AnnouncementAudience } from '@/lib/adminApi'
 
 const audienceOptions: { value: AnnouncementAudience; label: string }[] = [
@@ -98,7 +98,7 @@ export default function AnnouncementsPage() {
 
       <Card className="mt-6">
         <h2 className="text-lg font-semibold text-ink">Past announcements</h2>
-        {loading && <PageLoader compact label="Loading announcements…" />}
+        {loading && <ListSkeleton rows={3} />}
         {!loading && error && <p className="mt-2 text-danger">{error}</p>}
         {!loading && !error && announcements.length === 0 && (
           <p className="mt-2 text-sm text-ink/50">No announcements posted yet.</p>

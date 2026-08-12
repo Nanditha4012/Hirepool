@@ -107,6 +107,46 @@ export default {
           '0%, 100%': { backgroundPosition: '0% 50%' },
           '50%': { backgroundPosition: '100% 50%' },
         },
+
+        // ----------------------------------------------------------------
+        // Landing-page scenery. All slow and wide-amplitude on purpose:
+        // this is a storybook backdrop, not UI feedback, so the motion has
+        // to be noticeable at a glance and never draw the eye off the copy
+        // sitting on top of it.
+        // ----------------------------------------------------------------
+
+        /** Clouds crossing the sky. Full width, so it must run linear. */
+        drift: {
+          from: { transform: 'translateX(-25%)' },
+          to: { transform: 'translateX(125%)' },
+        },
+        /** Grass and treetops leaning in a breeze. */
+        sway: {
+          '0%, 100%': { transform: 'rotate(-2.5deg)' },
+          '50%': { transform: 'rotate(2.5deg)' },
+        },
+        /** A character breathing / hovering, smaller than `float`. */
+        bob: {
+          '0%, 100%': { transform: 'translateY(0)' },
+          '50%': { transform: 'translateY(-5px)' },
+        },
+        /** Birds flapping — a squash on the vertical axis reads as wings. */
+        flap: {
+          '0%, 100%': { transform: 'scaleY(1)' },
+          '50%': { transform: 'scaleY(0.45)' },
+        },
+        /** Sun and lantern glow. */
+        'pulse-glow': {
+          '0%, 100%': { opacity: '0.45', transform: 'scale(1)' },
+          '50%': { opacity: '0.8', transform: 'scale(1.08)' },
+        },
+        /** Dust motes and pollen rising through a sunbeam. */
+        rise: {
+          from: { transform: 'translateY(0)', opacity: '0' },
+          '15%': { opacity: '0.9' },
+          '85%': { opacity: '0.9' },
+          to: { transform: 'translateY(-140px)', opacity: '0' },
+        },
       },
       animation: {
         dance: 'dance 1s ease-in-out infinite',
@@ -116,6 +156,15 @@ export default {
         float: 'float 6s ease-in-out infinite',
         shimmer: 'shimmer 1.6s infinite',
         'gradient-pan': 'gradient-pan 12s ease infinite',
+        // Scenery. Durations are long and mutually prime-ish so the layers
+        // never fall into a visible shared rhythm.
+        drift: 'drift 48s linear infinite',
+        'drift-slow': 'drift 78s linear infinite',
+        sway: 'sway 5.5s ease-in-out infinite',
+        bob: 'bob 3.4s ease-in-out infinite',
+        flap: 'flap 0.5s ease-in-out infinite',
+        'pulse-glow': 'pulse-glow 6s ease-in-out infinite',
+        rise: 'rise 9s linear infinite',
       },
     },
   },

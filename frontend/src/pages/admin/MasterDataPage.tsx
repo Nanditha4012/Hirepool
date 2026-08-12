@@ -3,7 +3,7 @@ import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Select from '@/components/ui/Select'
-import PageLoader from '@/components/ui/PageLoader'
+import ListSkeleton from '@/components/ui/ListSkeleton'
 import InlineCrudTable, { type CrudColumn, type CrudValues } from '@/components/admin/InlineCrudTable'
 import {
   type AdminPlanMaster,
@@ -292,7 +292,7 @@ function PlansTab() {
         <h3 className="text-sm font-semibold text-ink">All plans</h3>
         {loadError && <p className="mt-2 text-sm text-danger">{loadError}</p>}
         {loadingPlans ? (
-          <PageLoader compact label="Loading plans…" />
+          <ListSkeleton rows={3} />
         ) : (
           <div className="mt-3 overflow-x-auto">
             <table className="w-full text-left text-sm">
@@ -340,7 +340,7 @@ function PlansTab() {
           Click a row above, or choose it here — fields are prefilled with its current values.
         </p>
         {loadingPlans ? (
-          <PageLoader compact label="Loading plans…" />
+          <ListSkeleton rows={3} />
         ) : (
           <div className="mt-3 flex flex-col gap-4">
             <Select

@@ -4,7 +4,7 @@ import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import Badge from '@/components/ui/Badge'
 import Input from '@/components/ui/Input'
-import PageLoader from '@/components/ui/PageLoader'
+import ListSkeleton from '@/components/ui/ListSkeleton'
 import { useAuth } from '@/lib/authStore'
 import {
   CATALOG_LABELS,
@@ -215,7 +215,7 @@ export default function QueuePage() {
       </div>
 
       <Card className="mt-6">
-        {loading && <PageLoader compact label="Loading queue…" />}
+        {loading && <ListSkeleton rows={3} />}
         {!loading && error && <p className="text-danger">{error}</p>}
         {!loading && !error && rows.length === 0 && (
           <p className="py-8 text-center text-ink/50">

@@ -51,7 +51,8 @@
       "Bash(python3 -)",
       "Bash(cp \"C:/Users/asu/AppData/Local/Temp/claude/C--Users-asu-Downloads-Hirepool/5cfb65ff-ba99-43b5-9c3a-8bc8217dc0c7/scratchpad/check.js\" ./.check-social.cjs)",
       "Bash(rm -f ./.check-social.cjs)",
-      "Bash(perl -0777 -i -pe ' *)"
+      "Bash(perl -0777 -i -pe ' *)",
+      "Bash(npm view *)"
     ]
   },
   "enabledMcpjsonServers": [

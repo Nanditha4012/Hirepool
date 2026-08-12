@@ -20,6 +20,17 @@ export interface NavItem {
    * up while you are on `/candidate/edit`.
    */
   end?: boolean
+  /**
+   * Hidden until the account passes verification, matching `requireVerified`
+   * on the route (see components/ProtectedRoute.tsx) and requireVerified on
+   * the server. Anything that is "the product" carries this; the account's own
+   * home and its billing trail do not, because those are exactly what a
+   * pending or rejected account still needs.
+   *
+   * Offering a link that is guaranteed to land on a locked screen is worse
+   * than offering no link, so this is filtered out rather than shown disabled.
+   */
+  gated?: boolean
 }
 
 // Inline SVG in the stroke style already used by the header and menu glyphs
@@ -67,8 +78,8 @@ export const icons = {
 
 /** The surfaces every signed-in role shares. */
 const sharedItems: NavItem[] = [
-  { to: '/feed', label: 'Walk-ins & Jobs', short: 'Jobs', icon: icons.board },
-  { to: '/community', label: 'Community', short: 'Community', icon: icons.community },
+  { to: '/feed', label: 'Walk-ins & Jobs', short: 'Jobs', icon: icons.board, gated: true },
+  { to: '/community', label: 'Community', short: 'Community', icon: icons.community, gated: true },
 ]
 
 /**
@@ -80,14 +91,22 @@ const sharedItems: NavItem[] = [
  */
 const roleItems: Record<Role, NavItem[]> = {
   candidate: [
-    { to: '/contests', label: 'Contests', short: 'Contests', icon: icons.trophy, end: true },
-    { to: '/contests/leaderboard', label: 'Leaderboard', icon: icons.leaderboard },
+    { to: '/contests', label: 'Contests', short: 'Contests', icon: icons.trophy, end: true, gated: true },
+    {
+      to: '/candidate/messages',
+      label: 'Messages',
+      short: 'Inbox',
+      icon: icons.messages,
+      end: true,
+      gated: true,
+    },
+    { to: '/contests/leaderboard', label: 'Leaderboard', icon: icons.leaderboard, gated: true },
     { to: '/candidate/payments', label: 'Payments', icon: icons.payments, end: true },
   ],
   company: [
-    { to: '/company/search', label: 'Find candidates', short: 'Search', icon: icons.search },
-    { to: '/company/unlocked', label: 'Unlocked', icon: icons.unlocked },
-    { to: '/company/messages', label: 'Messages', short: 'Messages', icon: icons.messages },
+    { to: '/company/search', label: 'Find candidates', short: 'Search', icon: icons.search, gated: true },
+    { to: '/company/unlocked', label: 'Unlocked', icon: icons.unlocked, gated: true },
+    { to: '/company/messages', label: 'Messages', short: 'Messages', icon: icons.messages, gated: true },
     { to: '/company/payments', label: 'Payments', icon: icons.payments },
   ],
   verifier: [
@@ -102,13 +121,22 @@ const roleItems: Record<Role, NavItem[]> = {
   ],
 }
 
-/** Everything this role can reach — the drawer's list, in order. */
-export function navItemsFor(role: Role): NavItem[] {
-  return [
+/**
+ * Everything this role can reach — the drawer's list, in order.
+ *
+ * `verified` is the account's verification state (see lib/verification.ts).
+ * It defaults to true so a caller that genuinely has no notion of an account
+ * — nothing in the app today — still gets the full list rather than silently
+ * getting a stripped one.
+ */
+export function navItemsFor(role: Role, verified = true): NavItem[] {
+  const items: NavItem[] = [
     { to: roleHome[role].to, label: 'Home', short: 'Home', icon: icons.home, end: true },
     ...sharedItems,
     ...roleItems[role],
   ]
+
+  return verified ? items : items.filter((item) => !item.gated)
 }
 
 /**
@@ -119,8 +147,18 @@ export function navItemsFor(role: Role): NavItem[] {
  * are candidate-only and a nav item that 403s is worse than no nav item.
  * Verifiers and admins have their own pill navs inside their portals and so
  * get no bottom bar at all (see BottomNav).
+ *
+ * Returns null for an unverified account: three of the four slots are gated,
+ * and a bottom bar reduced to a single working tab (next to a compose button
+ * that only leads to a locked screen) is chrome pretending there is somewhere
+ * to go. BottomNav renders nothing at all in that case.
  */
-export function bottomNavItemsFor(role: 'candidate' | 'company'): [NavItem[], NavItem[]] {
+export function bottomNavItemsFor(
+  role: 'candidate' | 'company',
+  verified = true,
+): [NavItem[], NavItem[]] | null {
+  if (!verified) return null
+
   const items = navItemsFor(role)
   // Non-null asserted because the paths are the literals declared above, in
   // this same file — narrowing the parameter to the two roles that have a

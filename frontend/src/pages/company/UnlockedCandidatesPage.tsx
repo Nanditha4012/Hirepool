@@ -3,7 +3,7 @@ import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import ProfileCard, { type ProfileCardData } from '@/components/candidate/ProfileCard'
 import { listMyUnlocked, updateUnlockNote, type UnlockedCandidate } from '@/lib/companyApi'
-import PageLoader from '@/components/ui/PageLoader'
+import PageSkeleton from '@/components/ui/PageSkeleton'
 
 function mapToProfileCardData(candidate: UnlockedCandidate): ProfileCardData {
   return {
@@ -84,11 +84,7 @@ export default function UnlockedCandidatesPage() {
   }
 
   if (loading) {
-    return (
-      <div className="mx-auto max-w-app px-4 py-16 text-center sm:px-6 lg:px-10">
-        <PageLoader label="Loading your unlocked candidates…" />
-      </div>
-    )
+    return <PageSkeleton blocks={3} />
   }
 
   if (error) {

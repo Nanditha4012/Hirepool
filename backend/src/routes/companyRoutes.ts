@@ -6,51 +6,66 @@ import * as paymentController from '../controllers/paymentController';
 import * as contestController from '../controllers/contestController';
 import { requireAuth } from '../middleware/requireAuth';
 import { requireRole } from '../middleware/requireRole';
+import { requireVerified } from '../middleware/requireVerified';
 import { searchLimiter } from '../middleware/rateLimiter';
 
 const router = Router();
 
-router.get('/ping', requireAuth, requireRole('company'), companyController.ping);
+// Two tiers, deliberately.
+//
+// `companyOnly` is "signed in as a company": the account's own record and its
+// billing trail. An unverified company must still be able to read back what it
+// submitted and where that stands — that screen IS its whole app until an
+// admin approves it — and it must be able to edit and resubmit.
+//
+// `verifiedCompany` is everything that touches *candidates*: search, contest
+// performance, unlocks and messaging. searchCandidates already threw its own
+// 403 for an unverified company; the rest did not, so an unverified account
+// could still unlock a contact it had bought unlocks for, read and send
+// messages, and pull a named candidate's contest history. The gate is now
+// declared once per route instead of re-derived inside three controllers.
+const companyOnly = [requireAuth, requireRole('company')] as const;
+const verifiedCompany = [...companyOnly, requireVerified] as const;
+
+router.get('/ping', ...companyOnly, companyController.ping);
 
 // Profile
-router.get('/me/profile', requireAuth, requireRole('company'), companyController.getMyCompanyProfile);
-router.put('/me/profile', requireAuth, requireRole('company'), companyController.upsertMyCompanyProfile);
+router.get('/me/profile', ...companyOnly, companyController.getMyCompanyProfile);
+router.put('/me/profile', ...companyOnly, companyController.upsertMyCompanyProfile);
 
 // Search / browse candidates
-router.get(
-  '/search',
-  requireAuth,
-  requireRole('company'),
-  searchLimiter,
-  companyController.searchCandidates,
-);
+router.get('/search', ...verifiedCompany, searchLimiter, companyController.searchCandidates);
 
 // Contest performance for one candidate. Deliberately NOT behind an unlock —
 // it's Hirepool's own scored data, treated like the Achievements section
 // rather than like contact details.
 router.get(
   '/candidates/:candidateId/contest-performance',
-  requireAuth,
-  requireRole('company'),
+  ...verifiedCompany,
   contestController.getCandidateContestPerformance,
 );
 
 // Unlock-contact flow
-router.post('/unlock', requireAuth, requireRole('company'), unlockController.unlockCandidate);
-router.get('/me/unlocked', requireAuth, requireRole('company'), unlockController.listMyUnlocked);
+router.post('/unlock', ...verifiedCompany, unlockController.unlockCandidate);
+router.get('/me/unlocked', ...verifiedCompany, unlockController.listMyUnlocked);
 router.patch(
   '/me/unlocked/:candidateId/note',
-  requireAuth,
-  requireRole('company'),
+  ...verifiedCompany,
   unlockController.updateUnlockNote,
 );
 
-// Messaging
-router.get('/me/messages', requireAuth, requireRole('company'), companyMessageController.listMyThreads);
+// Messaging. The literal '/read' sub-resource is declared before the bare
+// ':candidateId' POST target for the ordering discipline used throughout this
+// codebase, even though the two differ by method.
+router.get('/me/messages', ...verifiedCompany, companyMessageController.listMyThreads);
+router.patch(
+  '/me/messages/:candidateId/read',
+  ...verifiedCompany,
+  companyMessageController.markThreadRead,
+);
 router.post(
   '/me/messages/:candidateId',
-  requireAuth,
-  requireRole('company'),
+  ...verifiedCompany,
   companyMessageController.startOrReplyThread,
 );
 

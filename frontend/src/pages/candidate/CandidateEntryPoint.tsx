@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import Card from '@/components/ui/Card'
-import PageLoader from '@/components/ui/PageLoader'
+import Skeleton from '@/components/ui/Skeleton'
 import ProfileBuilderPage from './ProfileBuilderPage'
 import DashboardPage from './DashboardPage'
 import SubmissionReportPage from './SubmissionReportPage'
 import { getMyProfile, type CandidateProfileResponse } from '@/lib/candidateApi'
+import { useAuth, type Profile } from '@/lib/authStore'
 
 /**
  * Routing gate for `/candidate`. Fetches the profile once, then picks the
@@ -27,6 +28,7 @@ import { getMyProfile, type CandidateProfileResponse } from '@/lib/candidateApi'
  * mounted.
  */
 export default function CandidateEntryPoint() {
+  const { syncProfile } = useAuth()
   const [profile, setProfile] = useState<CandidateProfileResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -36,7 +38,14 @@ export default function CandidateEntryPoint() {
     ;(async () => {
       try {
         const result = await getMyProfile()
-        if (!cancelled) setProfile(result)
+        if (cancelled) return
+        setProfile(result)
+        // Hand the freshly-read status to the session. The verification gate
+        // (lib/verification.ts) reads it from there to decide which surfaces
+        // are open, and the session's copy is otherwise only set at sign-in —
+        // so without this a candidate approved mid-session would stay locked
+        // out of the app until they signed in again.
+        syncProfile(result as unknown as Profile)
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load your profile')
       } finally {
@@ -46,10 +55,18 @@ export default function CandidateEntryPoint() {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [syncProfile])
 
+  // A skeleton in the shape of the dashboard, not a spinner in the middle of
+  // an empty page.
+  //
+  // This gate is the reason clicking "Home" felt like a full page load rather
+  // than a tab change: the entire viewport was replaced by a centred loader
+  // while it decided which surface to show, so every visit flashed blank.
+  // Holding the layout means the only thing that changes on arrival is the
+  // content filling in.
   if (loading) {
-    return <PageLoader label="Loading your profile…" />
+    return <CandidateHomeSkeleton />
   }
 
   if (error || !profile) {
@@ -67,8 +84,10 @@ export default function CandidateEntryPoint() {
     return <Navigate to="/onboarding/category" replace />
   }
 
+  // Handed down so the dashboard doesn't refetch what this gate just read —
+  // see DashboardPage's initialProfile.
   if (profile.status === 'approved') {
-    return <DashboardPage />
+    return <DashboardPage initialProfile={profile} />
   }
 
   if (profile.status === 'draft') {
@@ -76,4 +95,29 @@ export default function CandidateEntryPoint() {
   }
 
   return <SubmissionReportPage />
+}
+
+/**
+ * Roughly the shape of whichever surface is about to render — a banner, a
+ * stat row, and a two-column body. It cannot match all three destinations
+ * exactly, and does not try to: the job is to keep the page from collapsing
+ * to nothing and back, which is what registered as a page load.
+ */
+function CandidateHomeSkeleton() {
+  return (
+    <div className="mx-auto w-full max-w-app px-4 py-8 sm:px-6 lg:px-8 xl:px-10">
+      <Skeleton className="h-44 w-full rounded-card" />
+
+      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div className="flex flex-col gap-5 lg:col-span-2">
+          <Skeleton className="h-20 w-full rounded-card" />
+          <Skeleton className="h-72 w-full rounded-card" />
+        </div>
+        <div className="flex flex-col gap-5">
+          <Skeleton className="h-40 w-full rounded-card" />
+          <Skeleton className="h-52 w-full rounded-card" />
+        </div>
+      </div>
+    </div>
+  )
 }

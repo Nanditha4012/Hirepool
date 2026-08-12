@@ -3,7 +3,8 @@ import { Link, useParams } from 'react-router-dom'
 import Button from '@/components/ui/Button'
 import Card from '@/components/ui/Card'
 import PageHero from '@/components/ui/PageHero'
-import PageLoader from '@/components/ui/PageLoader'
+import PageSkeleton from '@/components/ui/PageSkeleton'
+import CommunityCrest from '@/components/community/CommunityCrest'
 import PostCard from '@/components/feed/PostCard'
 import { joinCommunity, leaveCommunity, listCommunityPosts, type CommunityFeed, type FeedPost } from '@/lib/feedApi'
 
@@ -70,7 +71,7 @@ export default function CommunityDetailPage() {
     )
   }
 
-  if (!feed) return <PageLoader label="Loading…" />
+  if (!feed) return <PageSkeleton blocks={3} />
 
   const { community } = feed
 
@@ -78,7 +79,14 @@ export default function CommunityDetailPage() {
     <div className="mx-auto max-w-app px-4 py-10 sm:px-6 lg:px-10">
       <PageHero
         eyebrow="Community"
-        title={`${community.icon ?? ''} ${community.name}`.trim()}
+        // The crest sits beside the name rather than an emoji being glued
+        // onto the front of the title string — see CommunityCrest.
+        title={
+          <span className="flex items-center gap-3">
+            <CommunityCrest slug={community.slug} name={community.name} size="md" />
+            {community.name}
+          </span>
+        }
         subtitle={community.description ?? undefined}
         meta={
           <span className="text-sm text-white/70">

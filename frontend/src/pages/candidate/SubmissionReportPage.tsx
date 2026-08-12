@@ -4,7 +4,7 @@ import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import Badge from '@/components/ui/Badge'
 import Avatar from '@/components/ui/Avatar'
-import PageLoader from '@/components/ui/PageLoader'
+import PageSkeleton from '@/components/ui/PageSkeleton'
 import PageHero from '@/components/ui/PageHero'
 import SupportNote from '@/components/ui/SupportNote'
 import { Detail, DetailGrid, DetailSection, EditIconButton } from '@/components/ui/DetailGrid'
@@ -119,7 +119,9 @@ export default function SubmissionReportPage() {
     }
   }
 
-  if (loading) return <PageLoader label="Loading your submission…" />
+  // Skeleton, not a spinner: this is one of the three surfaces `/candidate`
+  // resolves to, so it is on the path taken every time Home is clicked.
+  if (loading) return <PageSkeleton width="narrow" blocks={4} />
 
   if (error || !profile) {
     return (
@@ -136,6 +138,14 @@ export default function SubmissionReportPage() {
   const canResubmit = ['rejected', 'needs_info'].includes(profile.status)
   const failedFields = profile.fieldReview.filter((f) => !f.passed)
   const passedFields = profile.fieldReview.filter((f) => f.passed)
+  // The split that matters: a No on a mandatory field is why the profile is
+  // not live, a No on an optional one is a suggestion. Shown as two separate
+  // blocks rather than one list, because a rejected candidate reading a flat
+  // list of failures has no way to tell which ones they actually have to fix
+  // to get approved.
+  const blockingFields = failedFields.filter((f) => f.mandatory)
+  const optionalFields = failedFields.filter((f) => !f.mandatory)
+  const isBlocked = blockingFields.length > 0
 
   return (
     <div className="mx-auto max-w-app-narrow px-4 py-10 sm:px-6 lg:px-10">
@@ -179,6 +189,91 @@ export default function SubmissionReportPage() {
         )}
       </div>
 
+      {/* What is still closed, said plainly and once.
+          Until this profile is approved the account has exactly this page —
+          the nav hides the rest and both the route guard and the API refuse
+          it (see lib/verification.ts). Naming what is waiting on the other
+          side is the difference between "the app is broken for me" and "I
+          have one more step". */}
+      {profile.status !== 'approved' && (
+        <Card className="mt-6 animate-fade-up">
+          <h2 className="text-lg font-semibold text-ink">What opens when you&apos;re verified</h2>
+          <p className="mt-1 text-sm text-ink/60">
+            Your account is limited to this page for now. Approval turns all of it on at once — nothing
+            else is needed from you afterwards.
+          </p>
+          <ul className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {[
+              { icon: '📋', label: 'Walk-in Pedia', hint: 'drives you can turn up to' },
+              { icon: '💼', label: 'Job Book', hint: 'openings and referrals' },
+              { icon: '💬', label: 'Communities', hint: 'ask, share, compare notes' },
+              { icon: '🏆', label: 'Contests', hint: 'scored proof on your profile' },
+              { icon: '🔍', label: 'Discoverable by companies', hint: 'they find and unlock you' },
+              { icon: '✉️', label: 'Messages', hint: 'companies can reach you' },
+            ].map((item) => (
+              <li
+                key={item.label}
+                className="flex items-center gap-3 rounded-card bg-surface px-3 py-2.5"
+              >
+                <span className="text-lg opacity-60" aria-hidden="true">
+                  {item.icon}
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-sm font-semibold text-ink/70">{item.label}</span>
+                  <span className="block text-xs text-ink/40">{item.hint}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
+
+      {/* The blockers, on their own, above everything else on the page.
+          These are the required items a verifier said No to — the complete
+          answer to "why is my account still locked, and what do I do?" */}
+      {isBlocked && (
+        <Card className="mt-6 animate-fade-up border-2 border-danger/40 bg-danger/5">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge tone="danger">Must fix</Badge>
+            <h2 className="text-lg font-bold text-ink">
+              {blockingFields.length} required item{blockingFields.length === 1 ? '' : 's'} {' '}
+              {blockingFields.length === 1 ? 'was' : 'were'} not accepted
+            </h2>
+          </div>
+          <p className="mt-1 text-sm text-ink/70">
+            These are the items blocking approval. Your account stays limited to this page until every
+            one of them passes — fix them below, then resubmit.
+          </p>
+
+          <ol className="mt-4 flex flex-col gap-2">
+            {blockingFields.map((field, index) => (
+              <li
+                key={field.fieldKey}
+                style={{ animationDelay: `${Math.min(index, 6) * 60}ms` }}
+                className="flex animate-fade-up gap-3 rounded-card border border-danger/30 bg-card p-3 shadow-soft"
+              >
+                <span
+                  className="mt-0.5 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-danger/10 text-xs font-bold text-danger"
+                  aria-hidden="true"
+                >
+                  {index + 1}
+                </span>
+                <div className="min-w-0">
+                  <p className="font-semibold text-ink">{field.fieldLabel || field.fieldKey}</p>
+                  <p className="mt-0.5 text-sm text-danger">
+                    {field.reason || 'Marked as incorrect.'}
+                  </p>
+                </div>
+              </li>
+            ))}
+          </ol>
+
+          <Button className="mt-4" onClick={() => navigate('/candidate/edit')}>
+            Fix these now
+          </Button>
+        </Card>
+      )}
+
       {/* What the verifier said, field by field */}
       {profile.fieldReview.length > 0 && (
         <Card className="mt-6">
@@ -186,17 +281,53 @@ export default function SubmissionReportPage() {
           <p className="mt-1 text-sm text-ink/60">
             {failedFields.length === 0
               ? 'Every field checked so far has been accepted.'
-              : `${failedFields.length} item${failedFields.length === 1 ? '' : 's'} need${failedFields.length === 1 ? 's' : ''} your attention.`}
+              : isBlocked
+                ? `${blockingFields.length} required item${blockingFields.length === 1 ? '' : 's'} blocking approval${optionalFields.length > 0 ? `, and ${optionalFields.length} optional one${optionalFields.length === 1 ? '' : 's'} worth tidying up` : ''}.`
+                : `${optionalFields.length} optional item${optionalFields.length === 1 ? '' : 's'} to tidy up — none of them are blocking your approval.`}
           </p>
 
-          {failedFields.length > 0 && (
-            <div className="mt-4 flex flex-col gap-2">
-              {failedFields.map((field) => (
-                <div key={field.fieldKey} className="rounded-card border border-danger/30 bg-danger/5 p-3">
-                  <p className="font-semibold text-ink">{field.fieldLabel || field.fieldKey}</p>
-                  <p className="mt-1 text-sm text-danger">{field.reason || 'Marked as incorrect.'}</p>
-                </div>
-              ))}
+          {/* Repeated here in the full report so this card is a complete
+              record on its own, rather than one that quietly omits the
+              failures already summarised above. */}
+          {blockingFields.length > 0 && (
+            <div className="mt-4">
+              <p className="mb-2 text-xs font-bold uppercase tracking-wide text-danger">
+                Required — blocking ({blockingFields.length})
+              </p>
+              <div className="flex flex-col gap-2">
+                {blockingFields.map((field) => (
+                  <div
+                    key={field.fieldKey}
+                    className="rounded-card border border-danger/30 bg-danger/5 p-3"
+                  >
+                    <p className="font-semibold text-ink">{field.fieldLabel || field.fieldKey}</p>
+                    <p className="mt-1 text-sm text-danger">
+                      {field.reason || 'Marked as incorrect.'}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {optionalFields.length > 0 && (
+            <div className="mt-4">
+              <p className="mb-2 text-xs font-bold uppercase tracking-wide text-ink/40">
+                Optional — not blocking ({optionalFields.length})
+              </p>
+              <div className="flex flex-col gap-2">
+                {optionalFields.map((field) => (
+                  <div
+                    key={field.fieldKey}
+                    className="rounded-card border border-line bg-surface p-3"
+                  >
+                    <p className="font-semibold text-ink">{field.fieldLabel || field.fieldKey}</p>
+                    <p className="mt-1 text-sm text-ink/60">
+                      {field.reason || 'Marked as incorrect.'}
+                    </p>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 

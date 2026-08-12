@@ -8,9 +8,10 @@ import Combobox from '@/components/ui/Combobox'
 import ChipMultiSelect from '@/components/ui/ChipMultiSelect'
 import PlatformBadgesSection from './sections/PlatformBadgesSection'
 import AchievementsSection from './sections/AchievementsSection'
-import PageLoader from '@/components/ui/PageLoader'
+import PageSkeleton from '@/components/ui/PageSkeleton'
 import PageHero from '@/components/ui/PageHero'
 import SupportNote from '@/components/ui/SupportNote'
+import FormProgress, { type FormRequirement } from '@/components/ui/FormProgress'
 import {
   getMyProfile,
   listCompanies,
@@ -20,6 +21,7 @@ import {
   requestCompany,
   upsertMyProfile,
   submitMyProfile,
+  type AchievementType,
   type CandidateProfileResponse,
   type CompanyMaster,
   type DomainMaster,
@@ -143,6 +145,12 @@ export default function ProfileBuilderPage() {
   const [companies, setCompanies] = useState<CompanyMaster[]>([])
   const [badgeCount, setBadgeCount] = useState(0)
 
+  const [achievementCounts, setAchievementCounts] = useState<Record<AchievementType, number>>({
+    project: 0,
+    research: 0,
+    achievement: 0,
+  })
+
   const [form, setForm] = useState<FormState | null>(null)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -152,6 +160,8 @@ export default function ProfileBuilderPage() {
   const [saveNotice, setSaveNotice] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
+  /** Drives the send-off animation between a successful submit and the redirect. */
+  const [submitted, setSubmitted] = useState(false)
 
   const [companyRequestName, setCompanyRequestName] = useState('')
   const [companyRequestNotice, setCompanyRequestNotice] = useState<string | null>(null)
@@ -203,6 +213,88 @@ export default function ProfileBuilderPage() {
     [roleOptions, form?.primaryRoleId],
   )
 
+  /**
+   * What is still missing, recomputed on every keystroke.
+   *
+   * A deliberate mirror of the server's submit-time validation —
+   * candidateController.submitMyProfile plus findMissingCategoryFields — with
+   * the field names swapped for the labels actually printed next to the
+   * inputs. The server stays the authority (this can't be trusted, and a
+   * stale build could drift), but a candidate should not have to press Submit
+   * to be told that "domainId" is missing; they should be able to see, while
+   * filling the form in, that Domain is still empty.
+   *
+   * Derived from the FORM rather than the saved profile so it responds as you
+   * type instead of only after a save — with the exception of the counted
+   * items (projects, badges, achievements), which are their own sub-forms and
+   * report their live counts up through onCountsChange / onCountChange.
+   */
+  const requirements = useMemo<FormRequirement[]>(() => {
+    if (!form) return []
+
+    const list: FormRequirement[] = [
+      { key: 'fullName', label: 'Full name', done: form.fullName.trim().length > 0 },
+      { key: 'phone', label: 'Phone', done: form.phone.trim().length > 0 },
+      { key: 'primaryRole', label: 'Primary role', done: Boolean(form.primaryRoleId) },
+      { key: 'domain', label: 'Domain', done: Boolean(form.domainId) },
+      {
+        key: 'resumeLink',
+        label: 'Resume link',
+        done: form.resumeLink.trim().length > 0,
+        hint: 'A link a verifier can open',
+      },
+      {
+        key: 'projects',
+        label: '3 projects',
+        done: achievementCounts.project >= 3,
+        hint: `${achievementCounts.project} of 3 added`,
+      },
+    ]
+
+    if (form.category === 'fresher') {
+      list.push({
+        key: 'badges',
+        label: '1 platform badge',
+        done: badgeCount >= 1,
+        hint: `${badgeCount} of 1 added`,
+      })
+    } else {
+      list.push(
+        {
+          key: 'yearsOfExperience',
+          label: 'Years of experience',
+          done: form.yearsOfExperience.trim().length > 0,
+        },
+        { key: 'currentCompany', label: 'Current company', done: Boolean(form.currentCompanyId) },
+        { key: 'designationRole', label: 'Designation', done: Boolean(form.designationRoleId) },
+        {
+          key: 'offerLetter',
+          label: 'Offer letter or LinkedIn URL',
+          done: form.offerLetterOrLinkedinLink.trim().length > 0,
+        },
+        {
+          key: 'achievements',
+          label: '1 achievement',
+          done: achievementCounts.achievement >= 1,
+          hint: `${achievementCounts.achievement} of 1 added`,
+        },
+      )
+
+      if (form.category === 'executive') {
+        list.push({
+          key: 'teamSizeManaged',
+          label: 'Team size managed',
+          done: form.teamSizeManaged.trim().length > 0,
+        })
+      }
+    }
+
+    return list
+  }, [form, achievementCounts, badgeCount])
+
+  const outstanding = requirements.filter((r) => !r.done)
+  const readyToSubmit = outstanding.length === 0
+
   const updateField = <K extends keyof FormState>(key: K, value: FormState[K]) => {
     setForm((prev) => (prev ? { ...prev, [key]: value } : prev))
   }
@@ -241,16 +333,25 @@ export default function ProfileBuilderPage() {
       const updated = await submitMyProfile()
       setProfile(updated)
       setForm(profileToForm(updated))
-      setSaveNotice('Submitted for review.')
-      // Straight to the read-only report — staying on an editable form after
-      // submitting invites the candidate to keep tweaking a profile that is
-      // already in the verifier's queue.
-      navigate('/candidate')
+      // Hold the send-off for a beat before redirecting. Submitting is the
+      // single most consequential thing on this page — it hands the profile to
+      // a verifier and closes the form — and it used to be indistinguishable
+      // from a failed click: the button spun and the page changed, with no
+      // moment that said "that worked". The overlay is that moment.
+      setSubmitted(true)
+      window.setTimeout(() => {
+        // Straight to the read-only report — staying on an editable form after
+        // submitting invites the candidate to keep tweaking a profile that is
+        // already in the verifier's queue.
+        navigate('/candidate')
+      }, 1400)
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : 'Failed to submit')
-    } finally {
       setSubmitting(false)
     }
+    // Deliberately not a `finally`: on success the button must stay in its
+    // loading state until the redirect fires, or it flicks back to "Submit
+    // for review" underneath the success overlay.
   }
 
   const handleRequestCompany = async () => {
@@ -267,15 +368,15 @@ export default function ProfileBuilderPage() {
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-3xl px-4 py-16 text-center sm:px-6">
-        <PageLoader label="Loading your profile…" />
-      </div>
+      // Same reasoning as SubmissionReportPage: `/candidate` resolves here
+      // for a draft profile, so this sits on the Home path.
+      <PageSkeleton width="narrow" blocks={4} />
     )
   }
 
   if (loadError || !profile || !form) {
     return (
-      <div className="mx-auto max-w-3xl px-4 py-16 sm:px-6">
+      <div className="mx-auto w-full max-w-app-narrow px-4 py-16 sm:px-6 lg:px-8">
         <Card>
           <p className="text-danger">{loadError || 'Something went wrong loading your profile.'}</p>
         </Card>
@@ -285,7 +386,7 @@ export default function ProfileBuilderPage() {
 
   if (!profile.category) {
     return (
-      <div className="mx-auto max-w-3xl px-4 py-16 text-center sm:px-6">
+      <div className="mx-auto w-full max-w-app-narrow px-4 py-16 text-center sm:px-6 lg:px-8">
         <Card>
           <p className="text-ink">Please complete onboarding before building your profile.</p>
           <Link to="/onboarding/category" className="mt-3 inline-block text-primary hover:underline">
@@ -326,7 +427,7 @@ export default function ProfileBuilderPage() {
   const canCancel = profile.status !== 'draft'
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
+    <div className="mx-auto w-full max-w-app-narrow px-4 py-8 sm:px-6 lg:px-8">
       <PageHero
         eyebrow="Candidate"
         title={canCancel ? 'Edit your profile' : 'Build your profile'}
@@ -358,6 +459,18 @@ export default function ProfileBuilderPage() {
           <p className="font-semibold">What to fix:</p>
           <p className="mt-1">{profile.latestVerificationNote}</p>
         </div>
+      )}
+
+      {/* The readiness meter, above the form rather than buried at the bottom
+          with the buttons: it is the answer to "how much of this is left?",
+          which is the question you have on arriving, not on finishing. */}
+      {canSubmit && (
+        <FormProgress
+          className="mt-6"
+          requirements={requirements}
+          title="Ready to submit?"
+          completeMessage="Everything a verifier needs is filled in. Submit whenever you're ready."
+        />
       )}
 
       <div className="mt-8 flex flex-col gap-8">
@@ -560,6 +673,7 @@ export default function ProfileBuilderPage() {
               <AchievementsSection
                 typesToShow={isApproved ? ['project', 'research', 'achievement'] : ['project']}
                 requiredCounts={{ project: 3 }}
+                onCountsChange={setAchievementCounts}
               />
             </div>
           ) : (
@@ -567,39 +681,94 @@ export default function ProfileBuilderPage() {
               <AchievementsSection
                 typesToShow={['project', 'research', 'achievement']}
                 requiredCounts={{ project: 3, achievement: 1 }}
+                onCountsChange={setAchievementCounts}
               />
             </div>
           )}
         </Card>
 
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <Button type="button" onClick={handleSaveDraft} loading={saving}>
-            {isApproved ? 'Save changes' : 'Save draft'}
-          </Button>
-          {canSubmit && (
-            <Button type="button" variant="secondary" onClick={handleSubmitForReview} loading={submitting} disabled={saving}>
-              Submit for review
+        {/* The action bar sticks to the bottom of the viewport. On a form this
+            long, Save used to be somewhere below the fold at all times — you
+            had to scroll to the end to keep anything, which is how work gets
+            lost on a tab close. */}
+        <div className="sticky bottom-4 z-20 rounded-card border border-line bg-card/95 p-4 shadow-lift backdrop-blur-md">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <Button type="button" onClick={handleSaveDraft} loading={saving}>
+              {isApproved ? 'Save changes' : 'Save draft'}
             </Button>
-          )}
-          {canCancel && (
-            // Discards by navigating away without saving — nothing is written
-            // until Save is pressed, so leaving is the whole of the undo.
-            <Button
-              type="button"
-              variant="secondary"
-              disabled={saving || submitting}
-              onClick={() => navigate('/candidate')}
-            >
-              Cancel
-            </Button>
-          )}
-          {saveNotice && <p className="text-sm text-verified">{saveNotice}</p>}
+            {canSubmit && (
+              <Button
+                type="button"
+                variant={readyToSubmit ? 'primary' : 'secondary'}
+                onClick={handleSubmitForReview}
+                loading={submitting}
+                // Left clickable when incomplete: the server would reject it
+                // anyway, and a disabled button with no explanation is the
+                // thing this whole meter exists to avoid. The live count
+                // beside it says what is missing; pressing it surfaces the
+                // server's own list.
+                disabled={saving}
+                className={readyToSubmit ? 'animate-scale-in' : ''}
+              >
+                {readyToSubmit ? 'Submit for review' : `Submit — ${outstanding.length} left`}
+              </Button>
+            )}
+            {canCancel && (
+              // Discards by navigating away without saving — nothing is written
+              // until Save is pressed, so leaving is the whole of the undo.
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={saving || submitting}
+                onClick={() => navigate('/candidate')}
+              >
+                Cancel
+              </Button>
+            )}
+            {canSubmit && !readyToSubmit && (
+              <p className="text-sm text-ink/50">
+                Still needed:{' '}
+                <span className="font-medium text-ink/70">
+                  {outstanding
+                    .slice(0, 2)
+                    .map((r) => r.label)
+                    .join(', ')}
+                  {outstanding.length > 2 && ` +${outstanding.length - 2} more`}
+                </span>
+              </p>
+            )}
+            {saveNotice && <p className="animate-fade-in text-sm text-verified">{saveNotice}</p>}
+          </div>
+          {saveError && <p className="mt-2 text-sm text-danger">{saveError}</p>}
+          {submitError && <p className="mt-2 text-sm text-danger">{submitError}</p>}
         </div>
-        {saveError && <p className="text-sm text-danger">{saveError}</p>}
-        {submitError && <p className="text-sm text-danger">{submitError}</p>}
 
         <SupportNote className="mt-2">Stuck on something here?</SupportNote>
       </div>
+
+      {/* Send-off. Covers the form for the beat between a successful submit
+          and the redirect, so the transition reads as an outcome rather than
+          as the page having moved on its own. */}
+      {submitted && (
+        <div
+          className="fixed inset-0 z-50 flex animate-fade-in items-center justify-center bg-ink/50 backdrop-blur-sm"
+          role="status"
+          aria-live="polite"
+        >
+          <div className="mx-4 animate-scale-in rounded-card bg-card px-8 py-10 text-center shadow-lift">
+            <span
+              className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-verified/10 text-3xl"
+              aria-hidden="true"
+            >
+              ✈️
+            </span>
+            <p className="mt-4 text-xl font-bold text-ink">Sent to a verifier</p>
+            <p className="mt-1 text-sm text-ink/60">
+              Taking you to your submission — you can track its status there.
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

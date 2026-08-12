@@ -5,7 +5,7 @@ import Button from '@/components/ui/Button'
 import Badge from '@/components/ui/Badge'
 import Input from '@/components/ui/Input'
 import Select from '@/components/ui/Select'
-import PageLoader from '@/components/ui/PageLoader'
+import ListSkeleton from '@/components/ui/ListSkeleton'
 import { useAuth } from '@/lib/authStore'
 import {
   listAllProfiles,
@@ -137,7 +137,7 @@ export default function ProfilesManagementPage() {
       </Card>
 
       <Card className="mt-6">
-        {loading && <PageLoader compact label="Loading profiles…" />}
+        {loading && <ListSkeleton rows={3} />}
         {!loading && error && <p className="text-danger">{error}</p>}
         {!loading && !error && rows.length === 0 && (
           <p className="py-8 text-center text-ink/50">No profiles match these filters.</p>
