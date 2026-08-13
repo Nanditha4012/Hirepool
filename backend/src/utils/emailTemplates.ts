@@ -132,7 +132,11 @@ export function paymentFailedEmail(
 
 export function passwordResetOtpEmail(otp: string): { subject: string; html: string } {
   return {
-    subject: `${otp} is your Hirepool password reset code`,
+    // Deliberately doesn't include the code itself — the subject line is
+    // what shows in a lock-screen notification and inbox list preview
+    // without the email being opened, so putting the OTP there would defeat
+    // the point of it being a secret the recipient has to go get.
+    subject: 'Your Hirepool password reset code',
     html: renderEmail({
       heading: 'Reset your password',
       bodyHtml: `
