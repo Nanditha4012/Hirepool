@@ -27,7 +27,7 @@ export interface HiddenTestCase {
 export interface CodingContent {
   statement: string;
   constraints?: string;
-  /** Per-language starting scaffold, keyed by Piston language id. */
+  /** Per-language starting scaffold, keyed by code-runner language id. */
   starterCode?: Record<string, string>;
   timeLimitSeconds?: number;
   memoryLimitMb?: number;

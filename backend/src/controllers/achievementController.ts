@@ -7,7 +7,7 @@ import { runInRequestContext } from '../utils/withRequestContext';
 import { markProfileNeedsReverification } from '../utils/reverification';
 
 const listQuerySchema = z.object({
-  type: z.enum(['project', 'research', 'achievement']).optional(),
+  type: z.enum(['project', 'research', 'achievement', 'certificate']).optional(),
 });
 
 export const list = asyncHandler(async (req: Request, res: Response) => {
@@ -26,7 +26,7 @@ export const list = asyncHandler(async (req: Request, res: Response) => {
 });
 
 const createSchema = z.object({
-  type: z.enum(['project', 'research', 'achievement']),
+  type: z.enum(['project', 'research', 'achievement', 'certificate']),
   title: z.string().min(1),
   description: z.string().optional(),
   links: z.string().optional(),

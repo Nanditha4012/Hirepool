@@ -7,6 +7,7 @@ import Select from '@/components/ui/Select'
 import Combobox from '@/components/ui/Combobox'
 import ChipMultiSelect from '@/components/ui/ChipMultiSelect'
 import ProfileCard, { type ProfileCardData } from '@/components/candidate/ProfileCard'
+import CandidateProfileSheet from '@/components/company/CandidateProfileSheet'
 import PageSkeleton from '@/components/ui/PageSkeleton'
 import PageHero, { HeroStat } from '@/components/ui/PageHero'
 import SegmentedTabs, { type SegmentedTabOption } from '@/components/ui/SegmentedTabs'
@@ -116,14 +117,15 @@ function mapToProfileCardData(result: CandidateSearchResult): ProfileCardData {
     secondaryRoles: result.secondaryRoles,
     skills: result.skills,
     domain: result.domain,
-    resumeLink: result.resumeLink,
-    portfolioLink: result.portfolioLink,
+    education: result.education,
     location: result.location,
     isMncAlumni: result.isMncAlumni,
     isFaangMaangAlumni: result.isFaangMaangAlumni,
     isStartupAlumni: result.isStartupAlumni,
-    platformBadges: result.platformBadges,
-    verifiedAchievementCounts: result.verifiedAchievementCounts,
+    // resumeLink / portfolioLink / platformBadges / verifiedAchievementCounts
+    // are deliberately absent: the server no longer sends them to a company,
+    // and their blocks on the card don't render without them. Companies get
+    // the generated profile sheet instead — see CandidateProfileSheet.
     phone: result.phone,
     email: result.email,
     whatsappLink: result.whatsappLink,
@@ -289,6 +291,8 @@ export default function SearchPage() {
 
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [unlockingId, setUnlockingId] = useState<string | null>(null)
+  /** The candidate whose generated profile sheet is open, if any. */
+  const [sheetFor, setSheetFor] = useState<CandidateSearchResult | null>(null)
   const [unlockErrors, setUnlockErrors] = useState<Record<string, string>>({})
 
   const isVerified = Boolean(companyProfile?.verified)
@@ -866,6 +870,18 @@ export default function SearchPage() {
                     >
                       Message
                     </Button>
+                    {/* Replaces "open resume". The sheet is generated from the
+                        verified fields this company is entitled to see, so it
+                        can be printed and passed to a hiring manager without
+                        leaking the candidate's own resume file. */}
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => setSheetFor(result)}
+                    >
+                      Profile sheet
+                    </Button>
                     {!result.isUnlockedByMe && (
                       <Button
                         type="button"
@@ -912,6 +928,10 @@ export default function SearchPage() {
           <SupportNote className="mt-10" />
         </div>
       </div>
+
+      {sheetFor && (
+        <CandidateProfileSheet candidate={sheetFor} onClose={() => setSheetFor(null)} />
+      )}
     </div>
   )
 }

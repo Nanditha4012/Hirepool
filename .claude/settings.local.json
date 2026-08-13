@@ -52,7 +52,19 @@
       "Bash(cp \"C:/Users/asu/AppData/Local/Temp/claude/C--Users-asu-Downloads-Hirepool/5cfb65ff-ba99-43b5-9c3a-8bc8217dc0c7/scratchpad/check.js\" ./.check-social.cjs)",
       "Bash(rm -f ./.check-social.cjs)",
       "Bash(perl -0777 -i -pe ' *)",
-      "Bash(npm view *)"
+      "Bash(npm view *)",
+      "Bash(python -c ' *)",
+      "Bash(curl -s -m 25 -X POST \"https://ce.judge0.com/submissions?base64_encoded=false&wait=true\" -H \"Content-Type: application/json\" -d '{\"language_id\":71,\"source_code\":\"print\\(1+1\\)\",\"stdin\":\"\"}')",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" -m 25 -X POST \"https://ce.judge0.com/submissions?base64_encoded=false&wait=true\" -H \"Content-Type: application/json\" -d '{\"language_id\":71,\"source_code\":\"print\\(1\\)\",\"stdin\":\"\"}')",
+      "Bash(sed -i \"s|see backend utils/piston.ts|see backend utils/codeRunner.ts|\" frontend/src/lib/contestApi.ts)",
+      "Bash(sed -i \"s|both hammer Piston and|both hammer the judge and|\" backend/src/controllers/contestController.ts)",
+      "Bash(sed -i \"s|then execute OUTSIDE it. Piston|then execute OUTSIDE it. The judge|\" backend/src/controllers/contestController.ts)",
+      "Bash(sed -i \"s|keyed by Piston language id|keyed by code-runner language id|\" backend/src/models/ContestQuestion.ts)",
+      "Bash(sed -i \"s|as reported back from Piston|as reported back from the code runner|\" backend/src/models/ContestQuestionResponse.ts)",
+      "Bash(grep -n \"^}$\" frontend/src/pages/company/SearchPage.tsx)",
+      "Bash(cp \"C:/Users/asu/AppData/Local/Temp/claude/C--Users-asu-Downloads-Hirepool/fe65bbe1-362f-45b2-bf3e-d958bbfd277b/scratchpad/verify.js\" ./_verify_tmp.js)",
+      "Bash(rm -f ./_verify_tmp.js)",
+      "Bash(curl -s -o /dev/null -w \"contest runtime probe: %{http_code}\\\\n\" http://localhost:4000/api/contests/hub)"
     ]
   },
   "enabledMcpjsonServers": [

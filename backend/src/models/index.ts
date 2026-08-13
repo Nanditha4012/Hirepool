@@ -11,6 +11,8 @@ import { Message } from './Message';
 import { Notification } from './Notification';
 import { CandidatePlatformBadge } from './CandidatePlatformBadge';
 import { CandidateAchievement } from './CandidateAchievement';
+import { CandidateEducation } from './CandidateEducation';
+import { CandidateVerificationDocument } from './CandidateVerificationDocument';
 import { TotpSecret } from './TotpSecret';
 import { SkillMaster } from './SkillMaster';
 import { DomainMaster } from './DomainMaster';
@@ -58,6 +60,28 @@ CandidatePlatformBadge.belongsTo(User, { foreignKey: 'candidateId', as: 'candida
 // User <-> CandidateAchievement (1:many, via candidate_id)
 User.hasMany(CandidateAchievement, { foreignKey: 'candidateId', as: 'achievements' });
 CandidateAchievement.belongsTo(User, { foreignKey: 'candidateId', as: 'candidate' });
+
+// User <-> CandidateEducation (1:many, via candidate_id)
+User.hasMany(CandidateEducation, { foreignKey: 'candidateId', as: 'education' });
+CandidateEducation.belongsTo(User, { foreignKey: 'candidateId', as: 'candidate' });
+
+// User <-> CandidateVerificationDocument (1:many, via candidate_id), and
+// CandidateEducation <-> its backing documents (1:many, via education_id):
+// one education row can be backed by more than one scan (a marks card and a
+// degree certificate), which is why this is hasMany and not hasOne.
+User.hasMany(CandidateVerificationDocument, {
+  foreignKey: 'candidateId',
+  as: 'verificationDocuments',
+});
+CandidateVerificationDocument.belongsTo(User, { foreignKey: 'candidateId', as: 'candidate' });
+CandidateEducation.hasMany(CandidateVerificationDocument, {
+  foreignKey: 'educationId',
+  as: 'documents',
+});
+CandidateVerificationDocument.belongsTo(CandidateEducation, {
+  foreignKey: 'educationId',
+  as: 'education',
+});
 
 // User <-> Message (1:many twice, as company and as candidate)
 User.hasMany(Message, { foreignKey: 'companyId', as: 'sentAsCompany' });
@@ -217,6 +241,8 @@ export {
   Notification,
   CandidatePlatformBadge,
   CandidateAchievement,
+  CandidateEducation,
+  CandidateVerificationDocument,
   TotpSecret,
   SkillMaster,
   DomainMaster,

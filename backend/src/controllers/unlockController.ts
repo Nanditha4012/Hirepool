@@ -6,16 +6,22 @@ import {
   User,
   CandidateProfile,
   RoleMaster,
-  CandidateAchievement,
-  CandidatePlatformBadge,
+  CandidateSkill,
+  SkillMaster,
   Notification,
 } from '../models';
 import type { CandidateProfileAttributes } from '../models/CandidateProfile';
 import type { RoleMasterAttributes } from '../models/RoleMaster';
+import type { CandidateSkillAttributes } from '../models/CandidateSkill';
+import type { SkillMasterAttributes } from '../models/SkillMaster';
 import { asyncHandler } from '../utils/asyncHandler';
 import { ApiError } from '../utils/ApiError';
 import { runInRequestContext } from '../utils/withRequestContext';
 import { buildWhatsappLink } from '../utils/contact';
+import {
+  loadCompanyVisibleEducation,
+  type CompanyVisibleEducation,
+} from '../utils/companyVisibleProfile';
 
 // ---------------------------------------------------------------------
 // POST /unlock
@@ -111,20 +117,26 @@ export const unlockCandidate = asyncHandler(async (req: Request, res: Response) 
 // GET /me/unlocked
 // ---------------------------------------------------------------------
 
+/**
+ * Held to the same name / role / skills / experience / education boundary as
+ * search — see utils/companyVisibleProfile.ts.
+ *
+ * Paying to unlock buys the candidate's contact details, not a wider view of
+ * their profile: the projects and platform links withheld before the unlock
+ * are withheld after it too, because the reason for withholding them (they
+ * are routes to reach the candidate off-platform, and they belong to third
+ * parties as often as to the candidate) does not change once money has
+ * changed hands. `platformBadges` and `verifiedAchievementCounts` used to be
+ * on this interface and have been removed.
+ */
 interface UnlockedCandidateResponse {
   candidateId: string;
   fullName: string | null;
   primaryRole: { id: string; roleName: string } | null;
   category: string | null;
-  verifiedAchievementCounts: { projects: number; research: number; achievements: number };
-  platformBadges: {
-    id: string;
-    platformName: string;
-    badgeSelected: string;
-    platformProfileLink: string;
-    verificationStatus: string;
-    totalQuestionsSolved: number;
-  }[];
+  yearsOfExperience: number | null;
+  skills: { id: string; skillName: string }[];
+  education: CompanyVisibleEducation[];
   note: string | null;
   unlockedAt: Date;
   phone: string | null;
@@ -152,28 +164,18 @@ export const listMyUnlocked = asyncHandler(async (req: Request, res: Response) =
         include: [{ model: RoleMaster, as: 'primaryRole' }],
         transaction: t,
       });
-      const achievementRows = await CandidateAchievement.findAll({
-        where: { candidateId: unlock.candidateId, verificationStatus: 'verified' },
-        attributes: ['type'],
-        transaction: t,
-      });
-      const badgeRows = await CandidatePlatformBadge.findAll({
+      const skillRows = await CandidateSkill.findAll({
         where: { candidateId: unlock.candidateId },
+        include: [{ model: SkillMaster, as: 'skill' }],
         transaction: t,
       });
+      const education = await loadCompanyVisibleEducation(unlock.candidateId, t);
 
       const plainProfile = profile
         ? (profile.get({ plain: true }) as CandidateProfileAttributes & {
             primaryRole: RoleMasterAttributes | null;
           })
         : null;
-
-      const verifiedAchievementCounts = { projects: 0, research: 0, achievements: 0 };
-      for (const row of achievementRows) {
-        if (row.type === 'project') verifiedAchievementCounts.projects += 1;
-        else if (row.type === 'research') verifiedAchievementCounts.research += 1;
-        else if (row.type === 'achievement') verifiedAchievementCounts.achievements += 1;
-      }
 
       items.push({
         candidateId: unlock.candidateId,
@@ -182,15 +184,14 @@ export const listMyUnlocked = asyncHandler(async (req: Request, res: Response) =
           ? { id: plainProfile.primaryRole.id, roleName: plainProfile.primaryRole.roleName }
           : null,
         category: plainProfile?.category ?? null,
-        verifiedAchievementCounts,
-        platformBadges: badgeRows.map((b) => ({
-          id: b.id,
-          platformName: b.platformName,
-          badgeSelected: b.badgeSelected,
-          platformProfileLink: b.platformProfileLink,
-          verificationStatus: b.verificationStatus,
-          totalQuestionsSolved: b.totalQuestionsSolved,
-        })),
+        yearsOfExperience: plainProfile?.yearsOfExperience ?? null,
+        skills: skillRows.map((row) => {
+          const plain = row.get({ plain: true }) as CandidateSkillAttributes & {
+            skill: SkillMasterAttributes;
+          };
+          return { id: plain.skill.id, skillName: plain.skill.skillName };
+        }),
+        education,
         note: unlock.note,
         unlockedAt: unlock.unlockedAt,
         // Always shown here — being in this list means already unlocked.

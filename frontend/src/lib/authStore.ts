@@ -4,6 +4,7 @@ import {
   setAccessToken as setApiAccessToken,
   setRefreshHandler as setApiRefreshHandler,
 } from './apiClient'
+import { forgetSession, rememberSession } from './sessionHint'
 
 export type Role = 'candidate' | 'company' | 'verifier' | 'admin'
 
@@ -117,6 +118,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // purpose. Done here rather than in each of login/signup/google/totp so
     // a future fifth entry point can't forget to clear it.
     if (token) setSessionExpired(false)
+    // Keep the local "this browser had a session" marker in step with the
+    // real one. Every path that starts or ends a session funnels through
+    // here, which is the point — see lib/sessionHint.ts for why the landing
+    // page needs to know this before /auth/refresh has answered.
+    if (token) rememberSession()
+    else forgetSession()
   }, [])
 
   const login = useCallback(

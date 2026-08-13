@@ -13,10 +13,16 @@ import {
   VerificationLog,
   CandidateAchievement,
   CandidatePlatformBadge,
+  CandidateEducation,
   Unlock,
   CompanyProfile,
   ProfileFieldCheck,
 } from '../models';
+import {
+  EDUCATION_LEVEL_ORDER,
+  type EducationLevel,
+  type EducationVerificationStatus,
+} from '../models/CandidateEducation';
 import type {
   CandidateProfileAttributes,
   CandidateCategory,
@@ -97,6 +103,13 @@ interface CandidateProfileResponse {
   boostExpiresAt: Date | null;
   secondaryRoles: { id: string; roleName: string }[];
   skills: { id: string; skillName: string }[];
+  /**
+   * Included in the profile payload rather than left to the dedicated
+   * /me/education endpoint alone, because the profile builder's readiness
+   * meter and the submission report both need to know whether education is
+   * present before either of them would otherwise have fetched it.
+   */
+  education: CandidateEducationSummary[];
   latestVerificationNote: string | null;
   createdAt: Date;
   updatedAt: Date;
@@ -138,6 +151,24 @@ interface CandidateHistoryEntry {
   title: string;
   detail: string | null;
   tone: 'pass' | 'fail' | 'neutral';
+}
+
+/** One education row as the candidate's own screens render it. */
+interface CandidateEducationSummary {
+  id: string;
+  level: EducationLevel;
+  institution: string;
+  boardOrUniversity: string | null;
+  degree: string | null;
+  branch: string | null;
+  startYear: number | null;
+  endYear: number | null;
+  isOngoing: boolean;
+  scoreValue: number | null;
+  scoreType: string | null;
+  marksCardLink: string | null;
+  verificationStatus: EducationVerificationStatus;
+  rejectionReason: string | null;
 }
 
 async function buildProfileResponse(
@@ -184,6 +215,10 @@ async function buildProfileResponse(
   const skillRows = await CandidateSkill.findAll({
     where: { candidateId: userId },
     include: [{ model: SkillMaster, as: 'skill' }],
+    transaction: t,
+  });
+  const educationRows = await CandidateEducation.findAll({
+    where: { candidateId: userId },
     transaction: t,
   });
   const latestVerificationLog = await VerificationLog.findOne({
@@ -282,6 +317,34 @@ async function buildProfileResponse(
     return { id: plain.skill.id, skillName: plain.skill.skillName };
   });
 
+  // Oldest qualification first, so the profile reads as a timeline rather than
+  // in whatever order the candidate happened to type the rows in. Sorted by
+  // level rather than by year because years are optional and someone still
+  // studying has no end year at all — see educationController.byAcademicOrder,
+  // which applies the identical rule to the dedicated endpoint.
+  const education: CandidateEducationSummary[] = educationRows
+    .map((row) => ({
+      id: row.id,
+      level: row.level,
+      institution: row.institution,
+      boardOrUniversity: row.boardOrUniversity,
+      degree: row.degree,
+      branch: row.branch,
+      startYear: row.startYear,
+      endYear: row.endYear,
+      isOngoing: row.isOngoing,
+      scoreValue: row.scoreValue,
+      scoreType: row.scoreType,
+      marksCardLink: row.marksCardLink,
+      verificationStatus: row.verificationStatus,
+      rejectionReason: row.rejectionReason,
+    }))
+    .sort(
+      (a, b) =>
+        EDUCATION_LEVEL_ORDER[a.level] - EDUCATION_LEVEL_ORDER[b.level] ||
+        (a.endYear ?? 0) - (b.endYear ?? 0),
+    );
+
   return {
     id: plainProfile.id,
     userId: plainProfile.userId,
@@ -324,6 +387,7 @@ async function buildProfileResponse(
     boostExpiresAt: plainProfile.boostExpiresAt,
     secondaryRoles,
     skills,
+    education,
     latestVerificationNote: latestVerificationLog?.notes ?? null,
     createdAt: plainProfile.createdAt,
     updatedAt: plainProfile.updatedAt,
@@ -515,6 +579,21 @@ async function findMissingCategoryFields(
   const require = (condition: boolean, field: string) => {
     if (!condition) missing.push(field);
   };
+
+  // Required of every candidate regardless of category, and checked before
+  // the category split because it is the one claim that is true of everyone:
+  // whatever else varies, a candidate has studied somewhere. It is also the
+  // claim the automated checker can settle on its own from a marks card, so
+  // requiring it is what makes the automation worth having.
+  //
+  // The bar is "at least one entry", not "10th and 12th and a degree": an
+  // executive with thirty years behind them should not be blocked because a
+  // 1988 marks card no longer exists.
+  const educationCount = await CandidateEducation.count({
+    where: { candidateId: candidateUserId },
+    transaction: t,
+  });
+  require(educationCount >= 1, 'education (at least 1 entry required)');
 
   if (profile.category === 'fresher') {
     require(!!profile.domainId, 'domainId');

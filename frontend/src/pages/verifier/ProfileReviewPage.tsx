@@ -36,7 +36,10 @@ const decisionLabels: Record<ProfileDecision, string> = {
   flagged: 'Flag for admin',
 }
 
-const GROUP_ORDER: ChecklistGroup[] = ['identity', 'profile', 'experience', 'proof']
+// Education sits directly after the profile details and before work history:
+// it is checked in the same pass as who-they-are, and for a fresher it is
+// most of the decision.
+const GROUP_ORDER: ChecklistGroup[] = ['identity', 'profile', 'education', 'experience', 'proof']
 
 const statusTone: Record<string, 'verified' | 'boost' | 'danger' | 'neutral'> = {
   approved: 'verified',

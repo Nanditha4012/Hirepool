@@ -30,7 +30,7 @@ import {
   executeAgainstCases,
   isSupportedLanguage,
   type LanguageId,
-} from '../utils/piston';
+} from '../utils/codeRunner';
 
 const CONTEST_TYPES = ['dsa', 'domain', 'quant'] as const;
 const COMPLEXITIES = ['easy', 'medium', 'hard'] as const;
@@ -411,7 +411,7 @@ export const saveResponse = asyncHandler(async (req: Request, res: Response) => 
     }
 
     // Answers are stored unscored during the test — grading happens once, at
-    // submit. Scoring on every keystroke-save would both hammer Piston and
+    // submit. Scoring on every keystroke-save would both hammer the judge and
     // leak correctness back to the candidate through response timing.
     const existing = await ContestQuestionResponse.findOne({
       where: { attemptId, questionId },
@@ -453,7 +453,7 @@ export const runCode = asyncHandler(async (req: Request, res: Response) => {
   }
   const language: LanguageId = body.language;
 
-  // Read the question inside a transaction, then execute OUTSIDE it. Piston
+  // Read the question inside a transaction, then execute OUTSIDE it. The judge
   // calls take seconds; holding a pg connection open across them would tie up
   // the pool on a slow third party for no reason.
   const question = await runInRequestContext(authUser, async (t) => {

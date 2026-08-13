@@ -129,6 +129,11 @@ export default function DashboardPage({ initialProfile }: DashboardPageProps = {
       secondaryRoles: profile.secondaryRoles,
       skills: profile.skills,
       domain: profile.domain,
+      // The candidate's own view shows every qualification, whatever its
+      // verdict — including the ones still pending — because this is the
+      // screen where they check what they submitted. The company-facing
+      // payload filters to verified only; see utils/companyVisibleProfile.ts.
+      education: profile.education ?? [],
       resumeLink: profile.resumeLink,
       portfolioLink: profile.portfolioLink,
       location: profile.location,

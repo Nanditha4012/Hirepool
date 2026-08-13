@@ -1,8 +1,12 @@
-import { Link } from 'react-router-dom'
+import { Link, Navigate } from 'react-router-dom'
 import Button from '@/components/ui/Button'
+import PageLoader from '@/components/ui/PageLoader'
 import { APP_NAME } from '@/lib/config'
 import { IMAGES, AVATARS } from '@/lib/images'
 import { useReveal } from '@/lib/useReveal'
+import { useAuth } from '@/lib/authStore'
+import { homePathFor } from '@/lib/roleHome'
+import { hasSessionHint } from '@/lib/sessionHint'
 import HeroScene from '@/components/landing/HeroScene'
 import StepScene from '@/components/landing/StepScene'
 
@@ -64,6 +68,29 @@ export default function LandingPage() {
   const statsRef = useReveal<HTMLDivElement>()
   const trustRef = useReveal<HTMLDivElement>()
   const ctaRef = useReveal<HTMLDivElement>()
+  const { user, isLoading } = useAuth()
+
+  // `/` is a marketing page, and it is also where every cold start lands:
+  // the PWA manifest's start_url is '/', and so is a bookmark, a shared link
+  // and the address bar. For someone already signed in that is the wrong
+  // screen — reopening the app on a phone showed the "Register & get
+  // verified" pitch even though the session was alive and the portal was one
+  // tap away. Signed in, home is *their* home.
+  //
+  // Not a redirect in an effect: rendering the pitch first and navigating
+  // afterwards is exactly the flash being removed here.
+  if (user) {
+    return <Navigate to={homePathFor(user.role)} replace />
+  }
+
+  // The session is only knowable after /auth/refresh answers, so during
+  // bootstrap `user` is null for members and non-members alike. Holding a
+  // loader for everyone would tax first-time visitors — the people this page
+  // is actually for — so it is held only when this browser recently had a
+  // session and the redirect above is therefore the likely outcome.
+  if (isLoading && hasSessionHint()) {
+    return <PageLoader label="Welcome back…" />
+  }
 
   return (
     <div>

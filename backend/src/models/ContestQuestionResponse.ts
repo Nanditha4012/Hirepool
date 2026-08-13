@@ -1,7 +1,7 @@
 import { DataTypes, Model, Optional } from 'sequelize';
 import { sequelize } from '../config/database';
 
-/** One executed test case, as reported back from Piston. */
+/** One executed test case, as reported back from the code runner. */
 export interface CodeRunCase {
   passed: boolean;
   stdin?: string;

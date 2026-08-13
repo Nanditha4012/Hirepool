@@ -16,7 +16,7 @@ import ForgotPasswordPage from '@/pages/ForgotPasswordPage'
 import VerifierLoginPage from '@/pages/VerifierLoginPage'
 import VerifierSignupPage from '@/pages/VerifierSignupPage'
 import AdminLoginPage from '@/pages/AdminLoginPage'
-import CategoryPage from '@/pages/onboarding/CategoryPage'
+import OnboardingWizard from '@/pages/onboarding/OnboardingWizard'
 import TotpPage from '@/pages/onboarding/TotpPage'
 import CandidateEntryPoint from '@/pages/candidate/CandidateEntryPoint'
 import ProfileBuilderPage from '@/pages/candidate/ProfileBuilderPage'
@@ -87,11 +87,15 @@ function AppShell() {
           <Route path="/privacy" element={<PrivacyPolicyPage />} />
           <Route path="/terms" element={<TermsOfServicePage />} />
 
+          {/* Path kept as /onboarding/category even though it is now a
+              three-step wizard: postAuthRoute, CandidateEntryPoint and the
+              builder's "complete onboarding first" notice all point here, and
+              so do any links already in the wild. */}
           <Route
             path="/onboarding/category"
             element={
               <ProtectedRoute allow={['candidate']}>
-                <CategoryPage />
+                <OnboardingWizard />
               </ProtectedRoute>
             }
           />

@@ -12,11 +12,12 @@ import type { CandidateCategory } from '../models/CandidateProfile';
  * their rejection saw a flat list of failures with no way to tell "this is why
  * you were turned down" from "fix this when you get a chance".
  *
- * Keys match ProfileFieldCheck.fieldKey. Two of them are prefixed rather than
- * literal, because there is one row per item:
+ * Keys match ProfileFieldCheck.fieldKey. Three of them are prefixed rather
+ * than literal, because there is one row per item:
  *
  *   project:<achievementId>   one attached project / research / achievement
  *   badge:<badgeId>           one coding-platform badge
+ *   education:<educationId>   one listed qualification
  *
  * The category argument is what makes the answer correct: a project link is
  * gating proof for a fresher (who must submit three) and optional colour for
@@ -33,6 +34,10 @@ const ALWAYS_MANDATORY = new Set([
   'primaryRole',
   'domain',
   'resumeLink',
+  // "Did they list any education at all?" — the count row, mirroring
+  // `projectCount`. Individual entries are `education:<id>` and handled by
+  // the prefix rule below.
+  'educationCount',
 ]);
 
 /** Mandatory only for experienced/executive candidates. */
@@ -49,6 +54,13 @@ export function isMandatoryFieldKey(
   category: CandidateCategory | null,
 ): boolean {
   if (ALWAYS_MANDATORY.has(fieldKey)) return true;
+
+  // Each listed qualification gates, for every category — an unverifiable
+  // degree is exactly the claim a hiring company most needs to be able to
+  // trust, and unlike a project link it is checkable from a single document.
+  // Checked before the category guard because it does not depend on one.
+  if (fieldKey.startsWith('education:')) return true;
+
   if (!category) return false;
 
   if (category === 'fresher') {

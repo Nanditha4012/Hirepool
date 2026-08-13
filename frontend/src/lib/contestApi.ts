@@ -141,7 +141,7 @@ export interface StartAttemptResponse {
   savedResponses: { questionId: string; response: Record<string, unknown> | null }[]
   languages: { id: string; label: string }[]
   hasCodingQuestions: boolean
-  /** Whether the code runner is reachable — see backend utils/piston.ts. */
+  /** Whether the code runner is reachable — see backend utils/codeRunner.ts. */
   codeExecution: { ok: boolean; detail: string | null }
 }
 

@@ -105,6 +105,35 @@ export interface SearchCandidatesParams {
   pageSize?: number
 }
 
+/** One verified qualification, as a company sees it. */
+export interface CandidateEducationSummary {
+  id: string
+  level: 'tenth' | 'twelfth' | 'diploma' | 'undergraduate' | 'postgraduate' | 'doctorate'
+  institution: string
+  boardOrUniversity: string | null
+  degree: string | null
+  branch: string | null
+  startYear: number | null
+  endYear: number | null
+  isOngoing: boolean
+  scoreValue: number | null
+  scoreType: string | null
+  /** A human verifier signed off, rather than the automated document check. */
+  humanVerified: boolean
+}
+
+/**
+ * A candidate as a company sees them: name, role, skills, experience,
+ * education — and nothing else.
+ *
+ * `resumeLink`, `portfolioLink`, `platformBadges` and the achievement counts
+ * were removed from this payload; the server no longer sends them. See the
+ * backend's utils/companyVisibleProfile.ts for the reasoning. The resume in
+ * particular is deliberate rather than an oversight: a resume PDF carries a
+ * personal phone number, an address and every project link, and the platform
+ * cannot redact a file it does not own — so companies get the generated
+ * profile sheet (see CandidateProfileSheet.tsx) built from the fields below.
+ */
 export interface CandidateSearchResult {
   id: string
   fullName: string | null
@@ -115,22 +144,12 @@ export interface CandidateSearchResult {
   secondaryRoles: { id: string; roleName: string }[]
   skills: { id: string; skillName: string }[]
   domain: { id: string; domainName: string } | null
-  resumeLink: string | null
-  portfolioLink: string | null
+  education: CandidateEducationSummary[]
   location: string | null
   noticePeriod: NoticePeriod | null
   isMncAlumni: boolean
   isFaangMaangAlumni: boolean
   isStartupAlumni: boolean
-  platformBadges: {
-    id: string
-    platformName: string
-    badgeSelected: string
-    platformProfileLink: string
-    verificationStatus: 'pending' | 'verified' | 'rejected'
-    totalQuestionsSolved: number
-  }[]
-  verifiedAchievementCounts: { projects: number; research: number; achievements: number }
   isUnlockedByMe: boolean
   phone: string | null
   email: string | null
@@ -180,20 +199,16 @@ export function unlockCandidate(candidateId: string) {
   })
 }
 
+/** Same visibility boundary as CandidateSearchResult — paying unlocks the
+ *  contact details, not a wider view of the profile. */
 export interface UnlockedCandidate {
   candidateId: string
   fullName: string | null
   primaryRole: { id: string; roleName: string } | null
   category: string | null
-  verifiedAchievementCounts: { projects: number; research: number; achievements: number }
-  platformBadges: {
-    id: string
-    platformName: string
-    badgeSelected: string
-    platformProfileLink: string
-    verificationStatus: string
-    totalQuestionsSolved: number
-  }[]
+  yearsOfExperience: number | null
+  skills: { id: string; skillName: string }[]
+  education: CandidateEducationSummary[]
   note: string | null
   unlockedAt: string
   phone: string | null

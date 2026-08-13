@@ -34,6 +34,10 @@ import { asyncHandler } from '../utils/asyncHandler';
 import { ApiError } from '../utils/ApiError';
 import { runInRequestContext } from '../utils/withRequestContext';
 import { buildWhatsappLink } from '../utils/contact';
+import {
+  loadCompanyVisibleEducation,
+  type CompanyVisibleEducation,
+} from '../utils/companyVisibleProfile';
 import { sendEmail } from '../utils/email';
 import { renewalReminderEmail } from '../utils/emailTemplates';
 
@@ -303,6 +307,16 @@ const searchCandidatesQuerySchema = z.object({
   pageSize: nonNegativeIntQueryParam,
 });
 
+/**
+ * What a company gets back for one candidate.
+ *
+ * Scoped to name / role / skills / experience / education — see
+ * utils/companyVisibleProfile.ts for the full statement of that rule and what
+ * it deliberately withholds. `resumeLink`, `portfolioLink`, `platformBadges`
+ * and the achievement counts used to be on this interface and have been
+ * removed; the frontend renders a generated profile sheet from the fields
+ * below instead of linking the candidate's own resume file.
+ */
 interface CandidateCardResponse {
   id: string;
   fullName: string | null;
@@ -313,22 +327,17 @@ interface CandidateCardResponse {
   secondaryRoles: { id: string; roleName: string }[];
   skills: { id: string; skillName: string }[];
   domain: { id: string; domainName: string } | null;
-  resumeLink: string | null;
-  portfolioLink: string | null;
+  education: CompanyVisibleEducation[];
   location: string | null;
   noticePeriod: NoticePeriod | null;
+  /**
+   * Employer *shape*, not employer identity: a company filtering for MNC
+   * alumni gets to filter, without every subscriber learning exactly where
+   * each candidate currently works before paying to unlock them.
+   */
   isMncAlumni: boolean;
   isFaangMaangAlumni: boolean;
   isStartupAlumni: boolean;
-  platformBadges: {
-    id: string;
-    platformName: string;
-    badgeSelected: string;
-    platformProfileLink: string;
-    verificationStatus: string;
-    totalQuestionsSolved: number;
-  }[];
-  verifiedAchievementCounts: { projects: number; research: number; achievements: number };
   isUnlockedByMe: boolean;
   phone: string | null;
   email: string | null;
@@ -532,15 +541,7 @@ export const searchCandidates = asyncHandler(async (req: Request, res: Response)
         include: [{ model: SkillMaster, as: 'skill' }],
         transaction: t,
       });
-      const badgeRows = await CandidatePlatformBadge.findAll({
-        where: { candidateId: plain.userId },
-        transaction: t,
-      });
-      const achievementRows = await CandidateAchievement.findAll({
-        where: { candidateId: plain.userId, verificationStatus: 'verified' },
-        attributes: ['type'],
-        transaction: t,
-      });
+      const education = await loadCompanyVisibleEducation(plain.userId, t);
 
       // Unverified companies never see contact info or an unlocked state,
       // even if an Unlock row exists from before the company lost
@@ -567,13 +568,6 @@ export const searchCandidates = asyncHandler(async (req: Request, res: Response)
         return { id: p.skill.id, skillName: p.skill.skillName };
       });
 
-      const verifiedAchievementCounts = { projects: 0, research: 0, achievements: 0 };
-      for (const row of achievementRows) {
-        if (row.type === 'project') verifiedAchievementCounts.projects += 1;
-        else if (row.type === 'research') verifiedAchievementCounts.research += 1;
-        else if (row.type === 'achievement') verifiedAchievementCounts.achievements += 1;
-      }
-
       results.push({
         // "id" is the candidate's user id (not the candidate_profiles row
         // id) — this is what unlock/messaging/block routes address a
@@ -589,22 +583,12 @@ export const searchCandidates = asyncHandler(async (req: Request, res: Response)
         secondaryRoles,
         skills,
         domain: plain.domain ? { id: plain.domain.id, domainName: plain.domain.domainName } : null,
-        resumeLink: plain.resumeLink,
-        portfolioLink: plain.portfolioLink,
+        education,
         location: plain.location,
         noticePeriod: plain.noticePeriod,
         isMncAlumni: plain.currentCompany?.isMnc ?? false,
         isFaangMaangAlumni: plain.currentCompany?.isFaangMaang ?? false,
         isStartupAlumni: plain.companyType === 'startup',
-        platformBadges: badgeRows.map((b) => ({
-          id: b.id,
-          platformName: b.platformName,
-          badgeSelected: b.badgeSelected,
-          platformProfileLink: b.platformProfileLink,
-          verificationStatus: b.verificationStatus,
-          totalQuestionsSolved: b.totalQuestionsSolved,
-        })),
-        verifiedAchievementCounts,
         isUnlockedByMe,
         phone: isUnlockedByMe ? candidateUser?.phone ?? null : null,
         email: isUnlockedByMe ? candidateUser?.email ?? null : null,

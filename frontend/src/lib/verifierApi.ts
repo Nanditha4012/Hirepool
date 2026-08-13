@@ -142,13 +142,52 @@ export interface VerifierAchievement {
   createdAt: string
 }
 
-export type ChecklistGroup = 'identity' | 'profile' | 'experience' | 'proof'
+export type ChecklistGroup = 'identity' | 'profile' | 'education' | 'experience' | 'proof'
 
 export const CHECKLIST_GROUP_LABELS: Record<ChecklistGroup, string> = {
   identity: 'Identity',
   profile: 'Profile details',
+  education: 'Education',
   experience: 'Work experience',
   proof: 'Proof & links',
+}
+
+/** One qualification, as the review screen renders it. */
+export interface VerifierEducation {
+  id: string
+  level: 'tenth' | 'twelfth' | 'diploma' | 'undergraduate' | 'postgraduate' | 'doctorate'
+  institution: string
+  boardOrUniversity: string | null
+  degree: string | null
+  branch: string | null
+  startYear: number | null
+  endYear: number | null
+  isOngoing: boolean
+  scoreValue: number | null
+  scoreType: string | null
+  marksCardLink: string | null
+  verificationStatus: 'pending' | 'auto_verified' | 'verified' | 'rejected'
+  rejectionReason: string | null
+}
+
+/**
+ * What the automated document check concluded. Read-only context for the
+ * reviewer: an `auto_verified` row is a recommendation that saves them
+ * opening the document themselves, and their Yes/No still overrides it.
+ */
+export interface VerifierDocumentSummary {
+  id: string
+  docType: 'aadhaar' | 'marks_card' | 'degree_certificate'
+  source: 'drive_link' | 'digilocker'
+  status: 'pending' | 'processing' | 'auto_verified' | 'manual_review' | 'failed'
+  educationId: string | null
+  documentLink: string | null
+  confidence: number | null
+  fieldMatches: Record<string, boolean> | null
+  extracted: Record<string, unknown> | null
+  aadhaarLast4: string | null
+  failureReason: string | null
+  processedAt: string | null
 }
 
 /** One row the verifier says Yes/No to. Built server-side — see buildChecklist. */
@@ -216,6 +255,8 @@ export interface VerifierProfileReview {
   updatedAt: string
   platformBadges: VerifierPlatformBadge[]
   achievements: VerifierAchievement[]
+  education: VerifierEducation[]
+  verificationDocuments: VerifierDocumentSummary[]
   submittedAt: string | null
   assignedVerifierId: string | null
   assignedVerifierName: string | null

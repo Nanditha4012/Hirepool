@@ -1,7 +1,13 @@
 import { DataTypes, Model, Optional } from 'sequelize';
 import { sequelize } from '../config/database';
 
-export type CandidateAchievementType = 'project' | 'research' | 'achievement';
+/**
+ * `certificate` joined the other three rather than getting its own table: a
+ * certificate is an achievement with a different shelf in the UI, not a
+ * different shape of record. Same title/description/proof-link/verdict
+ * columns, same verifier queue, same RLS policies.
+ */
+export type CandidateAchievementType = 'project' | 'research' | 'achievement' | 'certificate';
 export type CandidateAchievementVerificationStatus = 'pending' | 'verified' | 'rejected';
 
 export interface CandidateAchievementAttributes {
@@ -43,7 +49,7 @@ CandidateAchievement.init(
     id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
     candidateId: { type: DataTypes.UUID, allowNull: false, field: 'candidate_id' },
     type: {
-      type: DataTypes.ENUM('project', 'research', 'achievement'),
+      type: DataTypes.ENUM('project', 'research', 'achievement', 'certificate'),
       allowNull: false,
     },
     title: { type: DataTypes.STRING, allowNull: false },

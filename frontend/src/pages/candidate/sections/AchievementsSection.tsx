@@ -16,6 +16,7 @@ const typeLabel: Record<AchievementType, string> = {
   project: 'Project',
   research: 'Research paper',
   achievement: 'Achievement',
+  certificate: 'Certificate',
 }
 
 const statusTone: Record<AchievementRow['verificationStatus'], 'neutral' | 'verified' | 'danger'> = {
@@ -28,20 +29,42 @@ const statusTone: Record<AchievementRow['verificationStatus'], 'neutral' | 'veri
 // palette (primary/accent/boost) rather than new colour — build in blue,
 // research in the "insight" purple already used for platform stats,
 // achievement in the same amber the app uses for boosted/starred profiles.
-const typeAccent: Record<AchievementType, 'primary' | 'accent' | 'boost'> = {
+// Certificates take the "verified" green: unlike the other three, a
+// certificate is the one kind of entry that is a third party attesting to
+// something rather than the candidate showing their own work.
+const typeAccent: Record<AchievementType, 'primary' | 'accent' | 'boost' | 'verified'> = {
   project: 'primary',
   research: 'accent',
   achievement: 'boost',
+  certificate: 'verified',
 }
 
-const accentClasses: Record<'primary' | 'accent' | 'boost', { icon: string; ring: string }> = {
+const accentClasses: Record<
+  'primary' | 'accent' | 'boost' | 'verified',
+  { icon: string; ring: string }
+> = {
   primary: { icon: 'bg-primary/10 text-primary', ring: 'border-primary/30' },
   accent: { icon: 'bg-accent/10 text-accent', ring: 'border-accent/30' },
   boost: { icon: 'bg-boost/10 text-boost', ring: 'border-boost/30' },
+  verified: { icon: 'bg-verified/10 text-verified', ring: 'border-verified/30' },
 }
 
 function TypeIcon({ type, className }: { type: AchievementType; className?: string }) {
   const common = { className, fill: 'none', viewBox: '0 0 24 24', stroke: 'currentColor', 'aria-hidden': true }
+  if (type === 'certificate') {
+    // A rosette/seal — reads as "issued to you by someone else", which is the
+    // distinction between this and the other three types.
+    return (
+      <svg {...common}>
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={1.75}
+          d="M16.5 18.75a3.75 3.75 0 1 0-4.5-3.674m4.5 3.674L18 22.5l-2.25-1.125L13.5 22.5l1.125-3.375M16.5 18.75a3.735 3.735 0 0 1-2.25.75M4.5 3.75h11.25c.621 0 1.125.504 1.125 1.125v6.045M4.5 3.75A1.125 1.125 0 0 0 3.375 4.875v10.5c0 .621.504 1.125 1.125 1.125h4.125M6.75 7.5h6.75M6.75 10.5h4.5"
+        />
+      </svg>
+    )
+  }
   if (type === 'project') {
     return (
       <svg {...common}>
@@ -306,13 +329,19 @@ interface AchievementsSectionProps {
   /** Minimum entries required per type, e.g. { project: 3, achievement: 1 }. Omitted types are optional. */
   requiredCounts?: Partial<Record<AchievementType, number>>
   /**
-   * Fires with the live per-type counts whenever they change (load, add,
-   * delete). The profile builder's readiness meter subscribes to this so
-   * adding a third project ticks "3 projects" off in the same beat as the row
-   * appearing — without it the meter would have to refetch, and would sit
-   * visibly stale in between.
+   * Fires with the live counts whenever they change (load, add, delete). The
+   * profile builder's readiness meter subscribes to this so adding a third
+   * project ticks "3 projects" off in the same beat as the row appearing —
+   * without it the meter would have to refetch, and would sit visibly stale
+   * in between.
+   *
+   * Reports ONLY the types this instance was asked to show, and the parent
+   * merges. The builder renders two of these — one for projects/research/
+   * achievements, one for certificates — and a full Record from each would
+   * mean the certificates instance broadcasting `project: 0` and wiping out
+   * the other instance's count a moment after it arrived.
    */
-  onCountsChange?: (counts: Record<AchievementType, number>) => void
+  onCountsChange?: (counts: Partial<Record<AchievementType, number>>) => void
 }
 
 export default function AchievementsSection({
@@ -325,16 +354,16 @@ export default function AchievementsSection({
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    onCountsChange?.({
-      project: rows.filter((r) => r.type === 'project').length,
-      research: rows.filter((r) => r.type === 'research').length,
-      achievement: rows.filter((r) => r.type === 'achievement').length,
-    })
+    const counts: Partial<Record<AchievementType, number>> = {}
+    for (const type of typesToShow) {
+      counts[type] = rows.filter((r) => r.type === type).length
+    }
+    onCountsChange?.(counts)
     // onCountsChange intentionally excluded: parents pass an inline setState
     // callback, and depending on it would re-run this on every parent render.
     // Same convention as PlatformBadgesSection's onCountChange.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows])
+  }, [rows, typesToShow.join(',')])
 
   const refetch = async () => {
     try {

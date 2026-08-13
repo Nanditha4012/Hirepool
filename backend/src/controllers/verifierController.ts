@@ -12,11 +12,18 @@ import {
   SkillMaster,
   CandidatePlatformBadge,
   CandidateAchievement,
+  CandidateEducation,
+  CandidateVerificationDocument,
   VerificationLog,
   Notification,
   RejectionReasonMaster,
   ProfileFieldCheck,
 } from '../models';
+import {
+  EDUCATION_LEVEL_ORDER,
+  type CandidateEducationAttributes,
+  type EducationLevel,
+} from '../models/CandidateEducation';
 import type {
   CandidateProfileAttributes,
   CandidateCategory,
@@ -369,7 +376,17 @@ async function loadCurrentFieldChecks(
 // mandatory to submit, it is mandatory to check.
 // ---------------------------------------------------------------------
 
-type ChecklistGroup = 'identity' | 'profile' | 'experience' | 'proof';
+type ChecklistGroup = 'identity' | 'profile' | 'education' | 'experience' | 'proof';
+
+/** Printed on the checklist row — `tenth` is not what a reviewer should read. */
+const EDUCATION_LEVEL_LABELS: Record<EducationLevel, string> = {
+  tenth: '10th',
+  twelfth: '12th',
+  diploma: 'Diploma',
+  undergraduate: 'Undergraduate',
+  postgraduate: 'Postgraduate',
+  doctorate: 'Doctorate',
+};
 
 interface ChecklistItem {
   fieldKey: string;
@@ -467,6 +484,60 @@ function buildChecklist(
     group: 'profile',
     hint: null,
   });
+
+  // ----- Education -----
+  // One row per qualification, for the same reason projects get one row each:
+  // a reviewer needs to be able to accept the 12th and query the degree.
+  //
+  // Where the automated check already matched a marks card, that is stated in
+  // the hint rather than the row being hidden or pre-passed. The verifier
+  // still decides — a machine may hand them a shortcut, not a verdict.
+  const documentsByEducation = new Map<string, VerifierDocumentSummary>();
+  for (const doc of profile.verificationDocuments) {
+    if (doc.educationId && !documentsByEducation.has(doc.educationId)) {
+      documentsByEducation.set(doc.educationId, doc);
+    }
+  }
+
+  for (const entry of profile.education) {
+    const period = entry.isOngoing
+      ? `${entry.startYear ?? '?'} – present`
+      : [entry.startYear, entry.endYear].filter(Boolean).join(' – ');
+    const score =
+      entry.scoreValue != null
+        ? `${entry.scoreValue}${entry.scoreType === 'percentage' ? '%' : ` ${entry.scoreType ?? ''}`.trimEnd()}`
+        : null;
+
+    const auto = documentsByEducation.get(entry.id);
+    const autoHint =
+      auto?.status === 'auto_verified'
+        ? `Auto-matched against the marks card (${Math.round((auto.confidence ?? 0) * 100)}% agreement) — spot-check only.`
+        : auto?.status === 'manual_review'
+          ? `Automated check could not confirm this: ${auto.failureReason ?? 'needs a look'}`
+          : auto?.status === 'failed'
+            ? `The candidate's document could not be read: ${auto.failureReason ?? 'unreadable'}`
+            : 'No document attached — check against the resume.';
+
+    add({
+      fieldKey: `education:${entry.id}`,
+      label: `${EDUCATION_LEVEL_LABELS[entry.level]} — ${entry.institution}`,
+      value: [entry.degree, entry.branch, period, score].filter(Boolean).join(' · ') || null,
+      link: entry.marksCardLink,
+      group: 'education',
+      hint: autoHint,
+    });
+  }
+
+  if (profile.education.length === 0) {
+    add({
+      fieldKey: 'educationCount',
+      label: 'Education (none submitted)',
+      value: null,
+      link: null,
+      group: 'education',
+      hint: 'Every candidate must list at least one qualification',
+    });
+  }
 
   if (profile.category === 'fresher') {
     // One row per project rather than a single "projects" row: the whole
@@ -740,6 +811,14 @@ interface VerifierProfileReviewResponse {
   updatedAt: Date;
   platformBadges: CandidatePlatformBadgeAttributes[];
   achievements: CandidateAchievementAttributes[];
+  education: CandidateEducationAttributes[];
+  /**
+   * What the automated document check concluded, so a reviewer can see that
+   * a marks card already matched rather than opening it again themselves.
+   * Read-only context: an `auto_verified` row is a recommendation, and the
+   * verifier's Yes/No still overrides it.
+   */
+  verificationDocuments: VerifierDocumentSummary[];
   // Phase 5 additions. `checklist` is populated by decorateReview() after
   // this base object exists, since buildChecklist() reads the profile it is
   // describing.
@@ -751,6 +830,29 @@ interface VerifierProfileReviewResponse {
   checklist: ChecklistItem[];
   fieldChecks: CurrentFieldCheck[];
   timeline: TimelineEntry[];
+}
+
+/**
+ * One automated check, as the verifier portal shows it.
+ *
+ * `extracted` is passed through in full here — including the raw text sample
+ * the candidate's own view strips — because a reviewer looking at a failed
+ * match needs to see what the reader actually read to judge whether the
+ * document or the parser is at fault.
+ */
+interface VerifierDocumentSummary {
+  id: string;
+  docType: string;
+  source: string;
+  status: string;
+  educationId: string | null;
+  documentLink: string | null;
+  confidence: number | null;
+  fieldMatches: Record<string, boolean> | null;
+  extracted: Record<string, unknown> | null;
+  aadhaarLast4: string | null;
+  failureReason: string | null;
+  processedAt: Date | null;
 }
 
 async function buildReviewProfileResponse(
@@ -819,6 +921,15 @@ async function buildReviewProfileResponse(
     where: { candidateId: plainProfile.userId },
     transaction: t,
   });
+  const educationRows = await CandidateEducation.findAll({
+    where: { candidateId: plainProfile.userId },
+    transaction: t,
+  });
+  const documentRows = await CandidateVerificationDocument.findAll({
+    where: { candidateId: plainProfile.userId },
+    order: [['createdAt', 'DESC']],
+    transaction: t,
+  });
 
   const secondaryRoles = secondaryRoleRows.map((row) => {
     const plain = row.get({ plain: true }) as CandidateSecondaryRoleAttributes & {
@@ -872,6 +983,27 @@ async function buildReviewProfileResponse(
     updatedAt: plainProfile.updatedAt,
     platformBadges: platformBadgeRows.map((row) => row.get({ plain: true })),
     achievements: achievementRows.map((row) => row.get({ plain: true })),
+    education: educationRows
+      .map((row) => row.get({ plain: true }))
+      .sort(
+        (a, b) =>
+          EDUCATION_LEVEL_ORDER[a.level] - EDUCATION_LEVEL_ORDER[b.level] ||
+          (a.endYear ?? 0) - (b.endYear ?? 0),
+      ),
+    verificationDocuments: documentRows.map((row) => ({
+      id: row.id,
+      docType: row.docType,
+      source: row.source,
+      status: row.status,
+      educationId: row.educationId,
+      documentLink: row.documentLink,
+      confidence: row.confidence,
+      fieldMatches: row.fieldMatches,
+      extracted: row.extracted as Record<string, unknown> | null,
+      aadhaarLast4: row.aadhaarLast4,
+      failureReason: row.failureReason,
+      processedAt: row.processedAt,
+    })),
     submittedAt: plainProfile.submittedAt,
     assignedVerifierId: plainProfile.assignedVerifierId,
     assignedVerifierName,
@@ -974,7 +1106,45 @@ async function persistFieldChecks(
       },
       { transaction: t },
     );
+
+    await syncEducationVerdict(profile.userId, check, reasonText, t);
   }
+}
+
+/**
+ * Carries an `education:<id>` verdict onto the education row itself.
+ *
+ * Without this the verifier's Yes would live only in profile_field_checks —
+ * fine for the candidate's report, useless everywhere the qualification is
+ * actually read, since the company-facing payload and the profile card both
+ * go by `candidate_education.verification_status`. Projects and badges have
+ * dedicated queue endpoints doing the same job; education rides the main
+ * checklist instead, so the sync belongs here.
+ *
+ * A human verdict overwrites an `auto_verified` one in both directions: that
+ * is the entire point of keeping the two states distinct.
+ */
+async function syncEducationVerdict(
+  candidateUserId: string,
+  check: z.infer<typeof fieldCheckSchema>,
+  reasonText: string | null,
+  t: Transaction,
+): Promise<void> {
+  if (!check.fieldKey.startsWith('education:')) return;
+
+  const educationId = check.fieldKey.slice('education:'.length);
+  const row = await CandidateEducation.findOne({
+    where: { id: educationId, candidateId: candidateUserId },
+    transaction: t,
+  });
+  // Gone means the candidate deleted it between the review loading and the
+  // verdict being saved. Nothing to record against, and not an error.
+  if (!row) return;
+
+  row.verificationStatus = check.passed ? 'verified' : 'rejected';
+  row.rejectionReason = check.passed ? null : reasonText;
+  row.updatedAt = new Date();
+  await row.save({ transaction: t });
 }
 
 export const saveFieldChecks = asyncHandler(async (req: Request, res: Response) => {
@@ -1353,7 +1523,7 @@ export const decideBadge = asyncHandler(async (req: Request, res: Response) => {
 // ---------------------------------------------------------------------
 
 const listAchievementQueueSchema = z.object({
-  type: z.enum(['project', 'research', 'achievement']).optional(),
+  type: z.enum(['project', 'research', 'achievement', 'certificate']).optional(),
 });
 
 export const listAchievementQueue = asyncHandler(async (req: Request, res: Response) => {

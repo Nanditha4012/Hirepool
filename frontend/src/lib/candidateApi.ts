@@ -116,6 +116,8 @@ export interface CandidateProfileResponse {
   isActivelyLooking: boolean
   secondaryRoles: RoleMaster[]
   skills: SkillMaster[]
+  /** Included here as well as on /me/education so the readiness meter has it on first paint. */
+  education: EducationRow[]
   latestVerificationNote: string | null
   createdAt: string
   updatedAt: string
@@ -277,10 +279,166 @@ export function deletePlatformBadge(id: string) {
 }
 
 // ---------------------------------------------------------------------------
+// Education
+// ---------------------------------------------------------------------------
+
+export type EducationLevel =
+  | 'tenth'
+  | 'twelfth'
+  | 'diploma'
+  | 'undergraduate'
+  | 'postgraduate'
+  | 'doctorate'
+
+/** `auto_verified` came from the document checker; `verified` from a human. */
+export type EducationVerificationStatus = 'pending' | 'auto_verified' | 'verified' | 'rejected'
+
+/** All numeric — a letter-grade board leaves the score blank instead. */
+export type EducationScoreType = 'percentage' | 'cgpa_10' | 'cgpa_4' | 'gpa_4'
+
+export const EDUCATION_LEVEL_LABELS: Record<EducationLevel, string> = {
+  tenth: '10th / SSLC',
+  twelfth: '12th / PUC',
+  diploma: 'Diploma',
+  undergraduate: 'Undergraduate',
+  postgraduate: 'Postgraduate',
+  doctorate: 'Doctorate',
+}
+
+export const EDUCATION_SCORE_LABELS: Record<EducationScoreType, string> = {
+  percentage: 'Percentage (%)',
+  cgpa_10: 'CGPA (out of 10)',
+  cgpa_4: 'CGPA (out of 4)',
+  gpa_4: 'GPA (out of 4)',
+}
+
+export interface EducationRow {
+  id: string
+  level: EducationLevel
+  institution: string
+  boardOrUniversity: string | null
+  degree: string | null
+  branch: string | null
+  startYear: number | null
+  endYear: number | null
+  isOngoing: boolean
+  scoreValue: number | null
+  scoreType: string | null
+  marksCardLink: string | null
+  verificationStatus: EducationVerificationStatus
+  rejectionReason: string | null
+}
+
+export interface UpsertEducationBody {
+  level: EducationLevel
+  institution: string
+  boardOrUniversity?: string | null
+  degree?: string | null
+  branch?: string | null
+  startYear?: number | null
+  endYear?: number | null
+  isOngoing?: boolean
+  scoreValue?: number | null
+  scoreType?: EducationScoreType | null
+  marksCardLink?: string | null
+}
+
+export function listEducation() {
+  return apiFetch<EducationRow[]>('/candidates/me/education')
+}
+
+export function createEducation(body: UpsertEducationBody) {
+  return apiFetch<EducationRow>('/candidates/me/education', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+}
+
+export function updateEducation(id: string, body: Partial<UpsertEducationBody>) {
+  return apiFetch<EducationRow>(`/candidates/me/education/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  })
+}
+
+export function deleteEducation(id: string) {
+  return apiFetch<void>(`/candidates/me/education/${id}`, { method: 'DELETE' })
+}
+
+// ---------------------------------------------------------------------------
+// Automated verification (document OCR + DigiLocker)
+// ---------------------------------------------------------------------------
+
+export type VerificationDocType = 'aadhaar' | 'marks_card' | 'degree_certificate'
+
+/**
+ * `manual_review` is not a failure — it means the document was read but could
+ * not be confirmed on its own, so a human will look. The UI must not present
+ * it as an error, or candidates will keep re-uploading a document that was
+ * already accepted into the queue.
+ */
+export type VerificationDocStatus =
+  | 'pending'
+  | 'processing'
+  | 'auto_verified'
+  | 'manual_review'
+  | 'failed'
+
+export interface VerificationDocumentRow {
+  id: string
+  docType: VerificationDocType
+  source: 'drive_link' | 'digilocker'
+  documentLink: string | null
+  educationId: string | null
+  status: VerificationDocStatus
+  extracted: Record<string, string | number> | null
+  fieldMatches: Record<string, boolean> | null
+  confidence: number | null
+  aadhaarLast4: string | null
+  failureReason: string | null
+  processedAt: string | null
+  createdAt: string
+}
+
+export function listVerificationDocuments() {
+  return apiFetch<VerificationDocumentRow[]>('/candidates/me/verification-documents')
+}
+
+/**
+ * Submits a link for automatic checking. Slow by nature — the server fetches
+ * the file and runs OCR over it before answering — so callers should show a
+ * working state rather than assume this returns quickly.
+ */
+export function submitVerificationDocument(body: {
+  docType: VerificationDocType
+  documentLink: string
+  educationId?: string
+}) {
+  return apiFetch<VerificationDocumentRow>('/candidates/me/verification-documents', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+}
+
+export function deleteVerificationDocument(id: string) {
+  return apiFetch<void>(`/candidates/me/verification-documents/${id}`, { method: 'DELETE' })
+}
+
+export function getDigilockerStatus() {
+  return apiFetch<{ configured: boolean; message: string }>('/candidates/me/digilocker/status')
+}
+
+export function startDigilocker() {
+  return apiFetch<{ authorizeUrl: string; state: string }>('/candidates/me/digilocker/start', {
+    method: 'POST',
+  })
+}
+
+// ---------------------------------------------------------------------------
 // Achievements
 // ---------------------------------------------------------------------------
 
-export type AchievementType = 'project' | 'research' | 'achievement'
+export type AchievementType = 'project' | 'research' | 'achievement' | 'certificate'
 
 export interface AchievementRow {
   id: string

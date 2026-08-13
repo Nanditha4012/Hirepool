@@ -2,6 +2,8 @@ import { Router } from 'express';
 import * as candidateController from '../controllers/candidateController';
 import * as platformBadgeController from '../controllers/platformBadgeController';
 import * as achievementController from '../controllers/achievementController';
+import * as educationController from '../controllers/educationController';
+import * as verificationController from '../controllers/verificationController';
 import * as messageController from '../controllers/messageController';
 import * as candidateBlockController from '../controllers/candidateBlockController';
 import * as paymentController from '../controllers/paymentController';
@@ -81,6 +83,51 @@ router.delete(
   requireAuth,
   requireRole('candidate'),
   achievementController.remove,
+);
+
+// Education
+router.get('/me/education', requireAuth, requireRole('candidate'), educationController.list);
+router.post('/me/education', requireAuth, requireRole('candidate'), educationController.create);
+router.patch('/me/education/:id', requireAuth, requireRole('candidate'), educationController.update);
+router.delete('/me/education/:id', requireAuth, requireRole('candidate'), educationController.remove);
+
+// Automated verification (OCR over a candidate-supplied document link, plus
+// the DigiLocker hand-off). See controllers/verificationController.ts.
+router.get(
+  '/me/verification-documents',
+  requireAuth,
+  requireRole('candidate'),
+  verificationController.listMyDocuments,
+);
+router.post(
+  '/me/verification-documents',
+  requireAuth,
+  requireRole('candidate'),
+  verificationController.submitDocument,
+);
+router.delete(
+  '/me/verification-documents/:id',
+  requireAuth,
+  requireRole('candidate'),
+  verificationController.removeDocument,
+);
+router.get(
+  '/me/digilocker/status',
+  requireAuth,
+  requireRole('candidate'),
+  verificationController.digilockerStatus,
+);
+router.post(
+  '/me/digilocker/start',
+  requireAuth,
+  requireRole('candidate'),
+  verificationController.digilockerStart,
+);
+router.post(
+  '/me/digilocker/callback',
+  requireAuth,
+  requireRole('candidate'),
+  verificationController.digilockerCallback,
 );
 
 // Inbox

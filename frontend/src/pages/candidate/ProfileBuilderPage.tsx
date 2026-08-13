@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
@@ -6,8 +6,11 @@ import Input from '@/components/ui/Input'
 import Select from '@/components/ui/Select'
 import Combobox from '@/components/ui/Combobox'
 import ChipMultiSelect from '@/components/ui/ChipMultiSelect'
+import SectionCard from '@/components/ui/SectionCard'
+import DocumentCheck from '@/components/candidate/DocumentCheck'
 import PlatformBadgesSection from './sections/PlatformBadgesSection'
 import AchievementsSection from './sections/AchievementsSection'
+import EducationSection from './sections/EducationSection'
 import PageSkeleton from '@/components/ui/PageSkeleton'
 import PageHero from '@/components/ui/PageHero'
 import SupportNote from '@/components/ui/SupportNote'
@@ -18,6 +21,7 @@ import {
   listDomains,
   listRoles,
   listSkills,
+  listVerificationDocuments,
   requestCompany,
   upsertMyProfile,
   submitMyProfile,
@@ -28,7 +32,23 @@ import {
   type RoleMaster,
   type SkillMaster,
   type UpsertProfileBody,
+  type VerificationDocumentRow,
 } from '@/lib/candidateApi'
+
+/**
+ * The profile builder, as six folding sections in the order a person tells
+ * their own story:
+ *
+ *   Basic info → Education → Professional → Projects → Certificates → Coding
+ *
+ * That ordering is not cosmetic. The old page was one flat column with the
+ * category picker on top, "Basics" second and everything else in whatever
+ * order it had been added — so a candidate arriving to change one thing had
+ * to scroll the entire form to find it, and a candidate filling it in for the
+ * first time got no sense of how much was left. Sections that are complete
+ * fold themselves away (see SectionCard), which turns a return visit into a
+ * short list of what still needs doing.
+ */
 
 const CATEGORY_OPTIONS = [
   { value: 'fresher', label: 'Fresher' },
@@ -135,6 +155,32 @@ function formToBody(form: FormState): UpsertProfileBody {
   }
 }
 
+/**
+ * Which section each requirement belongs to.
+ *
+ * The readiness meter lists what is missing; the sections score themselves
+ * from the same list. Keeping the mapping in one place is what stops a
+ * section's ring saying "done" while the meter still lists one of its fields.
+ */
+type SectionKey = 'basic' | 'education' | 'professional' | 'projects' | 'certificates' | 'coding'
+
+const SECTION_OF: Record<string, SectionKey> = {
+  fullName: 'basic',
+  phone: 'basic',
+  primaryRole: 'basic',
+  domain: 'basic',
+  resumeLink: 'basic',
+  education: 'education',
+  yearsOfExperience: 'professional',
+  currentCompany: 'professional',
+  designationRole: 'professional',
+  offerLetter: 'professional',
+  projects: 'projects',
+  achievements: 'projects',
+  teamSizeManaged: 'professional',
+  badges: 'coding',
+}
+
 export default function ProfileBuilderPage() {
   const navigate = useNavigate()
 
@@ -144,12 +190,26 @@ export default function ProfileBuilderPage() {
   const [domains, setDomains] = useState<DomainMaster[]>([])
   const [companies, setCompanies] = useState<CompanyMaster[]>([])
   const [badgeCount, setBadgeCount] = useState(0)
+  const [educationCount, setEducationCount] = useState(0)
+  const [documents, setDocuments] = useState<VerificationDocumentRow[]>([])
 
   const [achievementCounts, setAchievementCounts] = useState<Record<AchievementType, number>>({
     project: 0,
     research: 0,
     achievement: 0,
+    certificate: 0,
   })
+
+  // Merged, not replaced: two AchievementsSection instances report here (the
+  // Projects section and the Certificates section) and each only knows about
+  // its own types. Overwriting would let whichever reported last zero out the
+  // other's count. See the note on AchievementsSection's onCountsChange.
+  const mergeAchievementCounts = useCallback(
+    (counts: Partial<Record<AchievementType, number>>) => {
+      setAchievementCounts((prev) => ({ ...prev, ...counts }))
+    },
+    [],
+  )
 
   const [form, setForm] = useState<FormState | null>(null)
   const [loading, setLoading] = useState(true)
@@ -166,17 +226,28 @@ export default function ProfileBuilderPage() {
   const [companyRequestName, setCompanyRequestName] = useState('')
   const [companyRequestNotice, setCompanyRequestNotice] = useState<string | null>(null)
 
+  const refreshDocuments = useCallback(async () => {
+    try {
+      setDocuments(await listVerificationDocuments())
+    } catch {
+      // The document checks are an accelerant, not a dependency: the profile
+      // is perfectly submittable without them, so a failure to list them must
+      // not take the whole builder down.
+    }
+  }, [])
+
   useEffect(() => {
     let cancelled = false
     ;(async () => {
       try {
-        const [profileResult, rolesResult, skillsResult, domainsResult, companiesResult] = await Promise.all([
-          getMyProfile(),
-          listRoles(),
-          listSkills(),
-          listDomains(),
-          listCompanies(),
-        ])
+        const [profileResult, rolesResult, skillsResult, domainsResult, companiesResult] =
+          await Promise.all([
+            getMyProfile(),
+            listRoles(),
+            listSkills(),
+            listDomains(),
+            listCompanies(),
+          ])
         if (cancelled) return
         setProfile(profileResult)
         setForm(profileToForm(profileResult))
@@ -184,11 +255,12 @@ export default function ProfileBuilderPage() {
         setSkills(skillsResult)
         setDomains(domainsResult)
         setCompanies(companiesResult)
+        setEducationCount(profileResult.education?.length ?? 0)
 
         // projectCount/badgeCount/achievementCount are kept live by
-        // AchievementsSection/PlatformBadgesSection's onCountsChange /
-        // onCountChange callbacks below, not fetched here — no need to
-        // duplicate those requests on load.
+        // AchievementsSection/PlatformBadgesSection/EducationSection's
+        // callbacks below, not fetched here — no need to duplicate those
+        // requests on load.
       } catch (err) {
         if (!cancelled) setLoadError(err instanceof Error ? err.message : 'Failed to load your profile')
       } finally {
@@ -199,6 +271,10 @@ export default function ProfileBuilderPage() {
       cancelled = true
     }
   }, [])
+
+  useEffect(() => {
+    void refreshDocuments()
+  }, [refreshDocuments])
 
   const roleOptions = useMemo(() => roles.map((r) => ({ value: r.id, label: r.roleName })), [roles])
   const skillOptions = useMemo(() => skills.map((s) => ({ value: s.id, label: s.skillName })), [skills])
@@ -221,13 +297,12 @@ export default function ProfileBuilderPage() {
    * the field names swapped for the labels actually printed next to the
    * inputs. The server stays the authority (this can't be trusted, and a
    * stale build could drift), but a candidate should not have to press Submit
-   * to be told that "domainId" is missing; they should be able to see, while
-   * filling the form in, that Domain is still empty.
+   * to be told that "domainId" is missing.
    *
    * Derived from the FORM rather than the saved profile so it responds as you
    * type instead of only after a save — with the exception of the counted
-   * items (projects, badges, achievements), which are their own sub-forms and
-   * report their live counts up through onCountsChange / onCountChange.
+   * items (education, projects, badges, achievements), which are their own
+   * sub-forms and report their live counts up through their callbacks.
    */
   const requirements = useMemo<FormRequirement[]>(() => {
     if (!form) return []
@@ -242,6 +317,12 @@ export default function ProfileBuilderPage() {
         label: 'Resume link',
         done: form.resumeLink.trim().length > 0,
         hint: 'A link a verifier can open',
+      },
+      {
+        key: 'education',
+        label: 'Education',
+        done: educationCount >= 1,
+        hint: educationCount > 0 ? `${educationCount} added` : 'At least one qualification',
       },
       {
         key: 'projects',
@@ -290,10 +371,19 @@ export default function ProfileBuilderPage() {
     }
 
     return list
-  }, [form, achievementCounts, badgeCount])
+  }, [form, achievementCounts, badgeCount, educationCount])
 
   const outstanding = requirements.filter((r) => !r.done)
   const readyToSubmit = outstanding.length === 0
+
+  /** Per-section done/total, derived from the same requirement list. */
+  const sectionScore = useCallback(
+    (section: SectionKey) => {
+      const items = requirements.filter((r) => SECTION_OF[r.key] === section)
+      return { done: items.filter((r) => r.done).length, total: items.length }
+    },
+    [requirements],
+  )
 
   const updateField = <K extends keyof FormState>(key: K, value: FormState[K]) => {
     setForm((prev) => (prev ? { ...prev, [key]: value } : prev))
@@ -367,11 +457,7 @@ export default function ProfileBuilderPage() {
   }
 
   if (loading) {
-    return (
-      // Same reasoning as SubmissionReportPage: `/candidate` resolves here
-      // for a draft profile, so this sits on the Home path.
-      <PageSkeleton width="narrow" blocks={4} />
-    )
+    return <PageSkeleton width="narrow" blocks={4} />
   }
 
   if (loadError || !profile || !form) {
@@ -399,8 +485,7 @@ export default function ProfileBuilderPage() {
 
   // Derived from the FORM's category (not the saved profile's) so the field
   // set below updates immediately when the candidate picks a new category,
-  // before they've hit Save — otherwise picking "Experienced" would keep
-  // showing Fresher fields until a round trip completed.
+  // before they've hit Save.
   const isFresher = form.category === 'fresher'
   const isApproved = profile.status === 'approved'
   const canSubmit = ['draft', 'rejected', 'needs_info'].includes(profile.status)
@@ -409,8 +494,7 @@ export default function ProfileBuilderPage() {
 
   // Once approved, category can only move forward (see
   // CATEGORY_CHANGE_DESIGN.md) — options below current rank are hidden
-  // entirely rather than shown-then-rejected, since the backend blocks them
-  // anyway and there's no legitimate reason to offer a choice that always errors.
+  // entirely rather than shown-then-rejected.
   const categoryOptions = isApproved
     ? CATEGORY_OPTIONS.filter(
         (opt) =>
@@ -420,11 +504,17 @@ export default function ProfileBuilderPage() {
     : CATEGORY_OPTIONS
   const categoryIsUpgradePending = isApproved && form.category !== profile.category
 
-  // A candidate who has already submitted arrived here from the "Edit" pencil
-  // on their profile card, so there is a saved version to go back to and
-  // Cancel is meaningful. A first-time draft has nothing to return to —
-  // /candidate would just route straight back here — so Cancel is hidden.
   const canCancel = profile.status !== 'draft'
+
+  const aadhaarDoc = documents.find((d) => d.docType === 'aadhaar')
+
+  // Only the sections that exist for this category are numbered, so a fresher
+  // sees 1–5 rather than 1–6 with a gap where "Professional" would be.
+  const sections: SectionKey[] = isFresher
+    ? ['basic', 'education', 'projects', 'certificates', 'coding']
+    : ['basic', 'education', 'professional', 'projects', 'certificates', 'coding']
+  const stepOf = (key: SectionKey) => sections.indexOf(key) + 1
+  const stepCount = sections.length
 
   return (
     <div className="mx-auto w-full max-w-app-narrow px-4 py-8 sm:px-6 lg:px-8">
@@ -461,9 +551,6 @@ export default function ProfileBuilderPage() {
         </div>
       )}
 
-      {/* The readiness meter, above the form rather than buried at the bottom
-          with the buttons: it is the answer to "how much of this is left?",
-          which is the question you have on arriving, not on finishing. */}
       {canSubmit && (
         <FormProgress
           className="mt-6"
@@ -473,38 +560,18 @@ export default function ProfileBuilderPage() {
         />
       )}
 
-      <div className="mt-8 flex flex-col gap-8">
-        <Card>
-          <h2 className="text-lg font-semibold text-ink">Category</h2>
-          {isApproved && (
-            <p className="mt-1 text-sm text-ink/60">
-              Career moved on? You can move up (Fresher → Experienced → Executive) — you can&apos;t move
-              backward once approved.
-            </p>
-          )}
-          <div className="mt-4 max-w-xs">
-            <Select
-              label="Category"
-              options={categoryOptions}
-              value={form.category}
-              onChange={(e) => updateField('category', e.target.value)}
-            />
-          </div>
-          {categoryIsUpgradePending && (
-            <div className="mt-3 rounded-card border border-boost/30 bg-boost/10 px-4 py-3 text-sm text-ink/70">
-              <p className="font-semibold text-boost">Upgrading to {form.category}</p>
-              <p className="mt-1">
-                Your profile stays live under your current approved details until this is saved and
-                re-verified. Fill in the new fields below, hit Save, then request re-verification from
-                your dashboard.
-              </p>
-            </div>
-          )}
-        </Card>
-
-        <Card>
-          <h2 className="text-lg font-semibold text-ink">Basics</h2>
-          <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <div className="mt-8 flex flex-col gap-4">
+        {/* ---------------- 01 · Basic info ---------------- */}
+        <SectionCard
+          icon="👤"
+          title="Basic info"
+          subtitle="Who you are and what you do"
+          accent="primary"
+          step={stepOf('basic')}
+          stepCount={stepCount}
+          {...sectionScore('basic')}
+        >
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Input
               label="Full name"
               value={form.fullName}
@@ -571,25 +638,76 @@ export default function ProfileBuilderPage() {
               onChange={(e) => updateField('noticePeriod', e.target.value)}
             />
           </div>
-        </Card>
 
-        {isFresher && (
-          <Card>
-            <h2 className="text-lg font-semibold text-ink">Platform badges</h2>
-            <p className="mt-1 text-sm text-ink/60">Show off your coding platform standing.</p>
-            <div className="mt-4">
-              <PlatformBadgesSection onCountChange={setBadgeCount} />
+          {/* Identity check sits with the identity fields — the candidate has
+              just typed the name it is checked against. */}
+          <DocumentCheck
+            className="mt-5"
+            docType="aadhaar"
+            existing={aadhaarDoc}
+            onChanged={refreshDocuments}
+            title="Verify your identity in seconds"
+            help="Link your Aadhaar and we'll match the name against this profile. We never store the document or the full number — only the last 4 digits."
+          />
+
+          <div className="mt-5 rounded-card border border-line bg-surface/60 p-4">
+            <p className="text-sm font-semibold text-ink">Your category</p>
+            {isApproved && (
+              <p className="mt-1 text-sm text-ink/60">
+                Career moved on? You can move up (Fresher → Experienced → Executive) — you can&apos;t
+                move backward once approved.
+              </p>
+            )}
+            <div className="mt-3 max-w-xs">
+              <Select
+                label="Category"
+                options={categoryOptions}
+                value={form.category}
+                onChange={(e) => updateField('category', e.target.value)}
+              />
             </div>
-            <p className="mt-4 text-sm font-medium text-ink/70">
-              {badgeCount}/1 platform badges added — at least 1 platform badge is required for approval.
-            </p>
-          </Card>
-        )}
+            {categoryIsUpgradePending && (
+              <div className="mt-3 rounded-card border border-boost/30 bg-boost/10 px-4 py-3 text-sm text-ink/70">
+                <p className="font-semibold text-boost">Upgrading to {form.category}</p>
+                <p className="mt-1">
+                  Your profile stays live under your current approved details until this is saved and
+                  re-verified. Fill in the new fields below, hit Save, then request re-verification
+                  from your dashboard.
+                </p>
+              </div>
+            )}
+          </div>
+        </SectionCard>
 
+        {/* ---------------- 02 · Education ---------------- */}
+        <SectionCard
+          icon="🎓"
+          title="Education"
+          subtitle="Schools and degrees — verified from your marks card"
+          accent="accent"
+          step={stepOf('education')}
+          stepCount={stepCount}
+          {...sectionScore('education')}
+        >
+          <EducationSection
+            onCountChange={setEducationCount}
+            documents={documents}
+            onDocumentsChanged={refreshDocuments}
+          />
+        </SectionCard>
+
+        {/* ---------------- 03 · Professional ---------------- */}
         {!isFresher && (
-          <Card>
-            <h2 className="text-lg font-semibold text-ink">Experience</h2>
-            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <SectionCard
+            icon="💼"
+            title="Professional"
+            subtitle="Where you work and what you run"
+            accent="verified"
+            step={stepOf('professional')}
+            stepCount={stepCount}
+            {...sectionScore('professional')}
+          >
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Input
                 label="Years of experience"
                 type="number"
@@ -618,13 +736,15 @@ export default function ProfileBuilderPage() {
                 value={form.companyType}
                 onChange={(e) => updateField('companyType', e.target.value)}
               />
-              <Input
-                label="Offer letter or LinkedIn URL"
-                type="url"
-                placeholder="https://..."
-                value={form.offerLetterOrLinkedinLink}
-                onChange={(e) => updateField('offerLetterOrLinkedinLink', e.target.value)}
-              />
+              <div className="sm:col-span-2">
+                <Input
+                  label="Offer letter or LinkedIn URL"
+                  type="url"
+                  placeholder="https://..."
+                  value={form.offerLetterOrLinkedinLink}
+                  onChange={(e) => updateField('offerLetterOrLinkedinLink', e.target.value)}
+                />
+              </div>
             </div>
 
             <div className="mt-4 flex flex-wrap items-end gap-2 rounded-card bg-surface p-3">
@@ -663,29 +783,73 @@ export default function ProfileBuilderPage() {
                 />
               </div>
             )}
-          </Card>
+          </SectionCard>
         )}
 
-        <Card>
-          <h2 className="text-lg font-semibold text-ink">Achievements &amp; work</h2>
-          {isFresher ? (
-            <div className="mt-4">
-              <AchievementsSection
-                typesToShow={isApproved ? ['project', 'research', 'achievement'] : ['project']}
-                requiredCounts={{ project: 3 }}
-                onCountsChange={setAchievementCounts}
-              />
-            </div>
-          ) : (
-            <div className="mt-4">
-              <AchievementsSection
-                typesToShow={['project', 'research', 'achievement']}
-                requiredCounts={{ project: 3, achievement: 1 }}
-                onCountsChange={setAchievementCounts}
-              />
-            </div>
-          )}
-        </Card>
+        {/* ---------------- 04 · Projects ---------------- */}
+        <SectionCard
+          icon="🛠️"
+          title="Projects"
+          subtitle={
+            isFresher
+              ? 'Three pieces of real work — your main proof'
+              : 'Work and achievements worth showing'
+          }
+          accent="primary"
+          step={stepOf('projects')}
+          stepCount={stepCount}
+          {...sectionScore('projects')}
+        >
+          {/* Only companies never see these — verifiers do, and they are what a
+              fresher is approved on. Kept in the builder for exactly that
+              reason; see utils/companyVisibleProfile.ts on the backend. */}
+          <p className="mb-4 rounded-card bg-surface px-3 py-2 text-xs text-ink/55">
+            Your verifier reads these. Companies don&apos;t see project links — they see your name,
+            role, skills, experience and education only.
+          </p>
+          <AchievementsSection
+            typesToShow={isFresher && !isApproved ? ['project'] : ['project', 'research', 'achievement']}
+            requiredCounts={isFresher ? { project: 3 } : { project: 3, achievement: 1 }}
+            onCountsChange={mergeAchievementCounts}
+          />
+        </SectionCard>
+
+        {/* ---------------- 05 · Certificates ---------------- */}
+        <SectionCard
+          icon="📜"
+          title="Certificates"
+          subtitle="Courses and credentials you've earned"
+          accent="verified"
+          step={stepOf('certificates')}
+          stepCount={stepCount}
+          headerAside={
+            achievementCounts.certificate > 0 ? (
+              <span className="text-xs font-medium text-ink/50">
+                {achievementCounts.certificate} added
+              </span>
+            ) : undefined
+          }
+        >
+          <AchievementsSection typesToShow={['certificate']} onCountsChange={mergeAchievementCounts} />
+        </SectionCard>
+
+        {/* ---------------- 06 · Coding platforms ---------------- */}
+        <SectionCard
+          icon="⌨️"
+          title="Coding platforms"
+          subtitle="LeetCode, Codeforces, GitHub and the rest"
+          accent="boost"
+          step={stepOf('coding')}
+          stepCount={stepCount}
+          {...(isFresher ? sectionScore('coding') : {})}
+        >
+          <PlatformBadgesSection onCountChange={setBadgeCount} />
+          <p className="mt-4 text-sm font-medium text-ink/70">
+            {isFresher
+              ? `${badgeCount}/1 added — at least 1 platform badge is required for approval.`
+              : `${badgeCount} added — optional for your category, but strong corroboration.`}
+          </p>
+        </SectionCard>
 
         {/* The action bar sticks to the bottom of the viewport. On a form this
             long, Save used to be somewhere below the fold at all times — you
@@ -704,9 +868,7 @@ export default function ProfileBuilderPage() {
                 loading={submitting}
                 // Left clickable when incomplete: the server would reject it
                 // anyway, and a disabled button with no explanation is the
-                // thing this whole meter exists to avoid. The live count
-                // beside it says what is missing; pressing it surfaces the
-                // server's own list.
+                // thing this whole meter exists to avoid.
                 disabled={saving}
                 className={readyToSubmit ? 'animate-scale-in' : ''}
               >
@@ -714,8 +876,6 @@ export default function ProfileBuilderPage() {
               </Button>
             )}
             {canCancel && (
-              // Discards by navigating away without saving — nothing is written
-              // until Save is pressed, so leaving is the whole of the undo.
               <Button
                 type="button"
                 variant="secondary"

@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, Navigate, useNavigate } from 'react-router-dom'
 import Card from '@/components/ui/Card'
 import Input from '@/components/ui/Input'
 import Button from '@/components/ui/Button'
@@ -10,6 +10,7 @@ import { isGoogleConfigured } from '@/lib/googleIdentity'
 import { IMAGES } from '@/lib/images'
 import Logo from '@/components/ui/Logo'
 import { navigateAfterAuth } from '@/lib/postAuthRoute'
+import { homePathFor } from '@/lib/roleHome'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -17,8 +18,17 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
-  const { login, loginWithGoogle, sessionExpired } = useAuth()
+  const { login, loginWithGoogle, sessionExpired, user, isLoading } = useAuth()
   const navigate = useNavigate()
+
+  // Same reasoning as the landing page: a live session reaching a sign-in
+  // form is a returning user being asked to prove something they have
+  // already proven. Bounce them home instead. Guarded on `isLoading` so the
+  // check runs against a settled session, not the null one every cold start
+  // begins with — otherwise this renders the form for a beat and then jumps.
+  if (!isLoading && user) {
+    return <Navigate to={homePathFor(user.role)} replace />
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

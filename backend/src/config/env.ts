@@ -54,6 +54,27 @@ const envSchema = z.object({
   // lives here — the site key is public and only used by the frontend widget
   // (VITE_RECAPTCHA_SITE_KEY).
   RECAPTCHA_SECRET_KEY: z.string().optional().default(''),
+  // DigiLocker (automated basic/education verification) — same "optional,
+  // empty-string default" pattern as Razorpay/SMTP/reCAPTCHA above. These
+  // credentials only exist once a partner agreement with NeGD is signed and
+  // an application is approved on the Meripehchaan partner portal; until then
+  // isDigilockerConfigured() is false, the endpoints return a clear "not
+  // available" and candidates verify via the document-link + OCR path
+  // instead. Nothing here may crash the app at boot when unset.
+  DIGILOCKER_CLIENT_ID: z.string().optional().default(''),
+  DIGILOCKER_CLIENT_SECRET: z.string().optional().default(''),
+  /** Must exactly match the redirect URI registered on the partner portal. */
+  DIGILOCKER_REDIRECT_URI: z.string().optional().default(''),
+  /** Overridable so a partner sandbox can be pointed at without a code change. */
+  DIGILOCKER_BASE_URL: z.string().optional().default('https://api.digitallocker.gov.in'),
+  /**
+   * How much of a document has to agree with what the candidate typed before
+   * the match is accepted without a human. 0.8 means "essentially everything
+   * checkable agreed"; anything less goes to the verifier queue rather than
+   * being rejected. Configurable because the right number depends on document
+   * quality in the field, which is not knowable up front.
+   */
+  AUTO_VERIFY_THRESHOLD: z.coerce.number().min(0).max(1).default(0.8),
 });
 
 const parsed = envSchema.safeParse(process.env);
