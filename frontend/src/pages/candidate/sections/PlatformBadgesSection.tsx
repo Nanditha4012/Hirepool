@@ -168,7 +168,11 @@ export default function PlatformBadgesSection({ onCountChange }: PlatformBadgesS
           {rows.map((row) => (
             <Card key={row.id} className="p-4">
               <div className="flex flex-wrap items-start justify-between gap-2">
-                <div>
+                {/* min-w-0 lets this shrink inside the flex row; break-all on
+                    the link below stops a long unbroken URL (no spaces to
+                    wrap on) from forcing the card wider than the phone
+                    screen — the actual cause of the sideways overflow here. */}
+                <div className="min-w-0 flex-1">
                   <p className="font-semibold text-ink">
                     {row.platformName} <span className="font-normal text-ink/60">· {row.badgeSelected}</span>
                   </p>
@@ -176,7 +180,7 @@ export default function PlatformBadgesSection({ onCountChange }: PlatformBadgesS
                     href={row.platformProfileLink}
                     target="_blank"
                     rel="noreferrer"
-                    className="text-sm text-primary hover:underline"
+                    className="break-all text-sm text-primary hover:underline"
                   >
                     {row.platformProfileLink}
                   </a>

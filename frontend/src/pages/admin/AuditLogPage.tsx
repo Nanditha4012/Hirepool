@@ -49,7 +49,27 @@ export default function AuditLogPage() {
         )}
         {!loading && !error && rows.length > 0 && (
           <>
-            <div className="overflow-x-auto">
+            {/* Card list below `sm` — a 4-column table with a monospace action
+                column doesn't fit a phone width, so each entry becomes a
+                stacked card instead of forcing a hidden horizontal scroll. */}
+            <div className="flex flex-col gap-2 sm:hidden">
+              {rows.map((row) => (
+                <div key={row.id} className="rounded-card border border-line p-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-sm font-medium text-ink">
+                      {row.adminFullName || row.adminEmail || row.adminId}
+                    </p>
+                    <p className="flex-shrink-0 text-xs text-ink/50">
+                      {new Date(row.createdAt).toLocaleString()}
+                    </p>
+                  </div>
+                  <p className="mt-1 break-words font-mono text-xs text-ink/70">{row.action}</p>
+                  <p className="mt-1 text-sm text-ink/70">Target: {row.target || '—'}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="hidden overflow-x-auto sm:block">
               <table className="w-full min-w-[720px] table-auto text-left text-sm">
                 <thead>
                   <tr className="border-b border-line text-ink/60">

@@ -148,7 +148,71 @@ export default function ProfilesManagementPage() {
             <p className="mb-3 text-sm text-ink/50">
               {rows.length} profile{rows.length === 1 ? '' : 's'}
             </p>
-            <div className="overflow-x-auto">
+
+            {/* Card list below `sm` — mirrors the QueuePage treatment so a
+                7-column table doesn't get silently clipped on a phone. */}
+            <div className="flex flex-col gap-3 sm:hidden">
+              {rows.map((row) => (
+                <div key={row.id} className="rounded-card border border-line p-4">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="truncate font-medium text-ink">{row.fullName || 'Unnamed candidate'}</p>
+                      {row.email && <p className="truncate text-xs text-ink/50">{row.email}</p>}
+                    </div>
+                    <Badge tone={statusTone(row.status)} className="flex-shrink-0">
+                      {statusLabels[row.status] || row.status}
+                    </Badge>
+                  </div>
+                  <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
+                    <div>
+                      <dt className="text-xs text-ink/40">Level</dt>
+                      <dd className="capitalize text-ink/70">{row.category || '—'}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs text-ink/40">Checks</dt>
+                      <dd>
+                        {row.checksPassed + row.checksFailed === 0 ? (
+                          <span className="text-ink/40">—</span>
+                        ) : (
+                          <span className="font-medium">
+                            <span className="text-verified">{row.checksPassed} ✓</span>
+                            {row.checksFailed > 0 && (
+                              <span className="ml-2 text-danger">{row.checksFailed} ✕</span>
+                            )}
+                          </span>
+                        )}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs text-ink/40">Last activity</dt>
+                      <dd className="text-ink/70">{new Date(row.updatedAt).toLocaleDateString()}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs text-ink/40">Reviewer</dt>
+                      <dd className="text-ink/70">
+                        {row.assignedVerifierId
+                          ? user && row.assignedVerifierId === user.id
+                            ? 'You'
+                            : row.assignedVerifierName || 'Assigned'
+                          : '—'}
+                      </dd>
+                    </div>
+                  </dl>
+                  <div className="mt-3 border-t border-line pt-3">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => navigate(`/verify/profiles/${row.id}`)}
+                    >
+                      Open
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="hidden overflow-x-auto sm:block">
               <table className="w-full min-w-[820px] table-auto text-left text-sm">
                 <thead>
                   <tr className="border-b border-line text-ink/60">

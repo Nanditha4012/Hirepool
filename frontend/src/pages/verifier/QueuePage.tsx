@@ -226,104 +226,197 @@ export default function QueuePage() {
         )}
 
         {!loading && !error && rows.length > 0 && (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[860px] table-auto text-left text-sm">
-              <thead>
-                <tr className="border-b border-line text-ink/60">
-                  <th className="py-2 pr-4 font-medium">Candidate</th>
-                  <th className="py-2 pr-4 font-medium">Level</th>
-                  <th className="py-2 pr-4 font-medium">Primary role</th>
-                  <th className="py-2 pr-4 font-medium">Status</th>
-                  <th className="py-2 pr-4 font-medium">Checks</th>
-                  <th className="py-2 pr-4 font-medium">Submitted</th>
-                  <th className="py-2 pr-4 font-medium">Assignee</th>
-                  <th className="py-2 pr-4 font-medium">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((row) => {
-                  const isMine = Boolean(user && row.assignedVerifierId === user.id)
-                  const isClaimedByOther = Boolean(row.assignedVerifierId && !isMine)
-                  return (
-                    <tr
-                      key={row.id}
-                      className="border-b border-line transition-colors last:border-0 hover:bg-surface/60"
-                    >
-                      <td className="py-3 pr-4">
-                        <p className="font-medium text-ink">{row.fullName || 'Unnamed candidate'}</p>
-                        {row.email && <p className="text-xs text-ink/50">{row.email}</p>}
-                        {row.reverificationRequestedAt && (
-                          <Badge tone="boost" className="mt-1">
-                            Re-verification requested
+          <>
+            {/* Card list below `sm` — a horizontally-scrolling 8-column table has
+                no visible affordance on a phone and reads as "broken", so mobile
+                gets the same stacked-card treatment as the badge/achievement
+                queues instead of a table at all. */}
+            <div className="flex flex-col gap-3 sm:hidden">
+              {rows.map((row) => {
+                const isMine = Boolean(user && row.assignedVerifierId === user.id)
+                const isClaimedByOther = Boolean(row.assignedVerifierId && !isMine)
+                return (
+                  <div key={row.id} className="rounded-card border border-line p-4">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="truncate font-medium text-ink">{row.fullName || 'Unnamed candidate'}</p>
+                        {row.email && <p className="truncate text-xs text-ink/50">{row.email}</p>}
+                      </div>
+                      <Badge tone={statusTone(row.status)} className="flex-shrink-0">
+                        {statusLabels[row.status] || row.status}
+                      </Badge>
+                    </div>
+                    {row.reverificationRequestedAt && (
+                      <Badge tone="boost" className="mt-2">
+                        Re-verification requested
+                      </Badge>
+                    )}
+                    <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
+                      <div>
+                        <dt className="text-xs text-ink/40">Level</dt>
+                        <dd className="capitalize text-ink/70">{row.category || '—'}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-xs text-ink/40">Primary role</dt>
+                        <dd className="truncate text-ink/70">{row.primaryRole?.roleName || '—'}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-xs text-ink/40">Checks</dt>
+                        <dd>
+                          {row.checksPassed + row.checksFailed === 0 ? (
+                            <span className="text-ink/40">Not started</span>
+                          ) : (
+                            <span className="font-medium">
+                              <span className="text-verified">{row.checksPassed} ✓</span>
+                              {row.checksFailed > 0 && (
+                                <span className="ml-2 text-danger">{row.checksFailed} ✕</span>
+                              )}
+                            </span>
+                          )}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-xs text-ink/40">Submitted</dt>
+                        <dd className="text-ink/70">
+                          {row.submittedAt ? new Date(row.submittedAt).toLocaleDateString() : '—'}
+                        </dd>
+                      </div>
+                      <div className="col-span-2">
+                        <dt className="text-xs text-ink/40">Assignee</dt>
+                        <dd className="text-ink/70">
+                          {row.assignedVerifierId
+                            ? isMine
+                              ? 'You'
+                              : row.assignedVerifierName || 'Assigned'
+                            : 'Unclaimed'}
+                        </dd>
+                      </div>
+                    </dl>
+                    <div className="mt-3 flex flex-wrap gap-2 border-t border-line pt-3">
+                      {isClaimedByOther ? (
+                        <Button type="button" size="sm" variant="secondary" disabled>
+                          Claimed
+                        </Button>
+                      ) : !row.assignedVerifierId ? (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="secondary"
+                          loading={claimingId === row.id}
+                          onClick={() => handleClaim(row.id)}
+                        >
+                          Claim
+                        </Button>
+                      ) : null}
+                      <Button type="button" size="sm" onClick={() => navigate(`/verify/profiles/${row.id}`)}>
+                        {catalog === 'unverified' ? 'Review' : 'Open'}
+                      </Button>
+                    </div>
+                    {claimErrors[row.id] && <p className="mt-2 text-xs text-danger">{claimErrors[row.id]}</p>}
+                  </div>
+                )
+              })}
+            </div>
+
+            <div className="hidden overflow-x-auto sm:block">
+              <table className="w-full min-w-[860px] table-auto text-left text-sm">
+                <thead>
+                  <tr className="border-b border-line text-ink/60">
+                    <th className="py-2 pr-4 font-medium">Candidate</th>
+                    <th className="py-2 pr-4 font-medium">Level</th>
+                    <th className="py-2 pr-4 font-medium">Primary role</th>
+                    <th className="py-2 pr-4 font-medium">Status</th>
+                    <th className="py-2 pr-4 font-medium">Checks</th>
+                    <th className="py-2 pr-4 font-medium">Submitted</th>
+                    <th className="py-2 pr-4 font-medium">Assignee</th>
+                    <th className="py-2 pr-4 font-medium">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((row) => {
+                    const isMine = Boolean(user && row.assignedVerifierId === user.id)
+                    const isClaimedByOther = Boolean(row.assignedVerifierId && !isMine)
+                    return (
+                      <tr
+                        key={row.id}
+                        className="border-b border-line transition-colors last:border-0 hover:bg-surface/60"
+                      >
+                        <td className="py-3 pr-4">
+                          <p className="font-medium text-ink">{row.fullName || 'Unnamed candidate'}</p>
+                          {row.email && <p className="text-xs text-ink/50">{row.email}</p>}
+                          {row.reverificationRequestedAt && (
+                            <Badge tone="boost" className="mt-1">
+                              Re-verification requested
+                            </Badge>
+                          )}
+                        </td>
+                        <td className="py-3 pr-4 capitalize text-ink/70">{row.category || '—'}</td>
+                        <td className="py-3 pr-4 text-ink/70">{row.primaryRole?.roleName || '—'}</td>
+                        <td className="py-3 pr-4">
+                          <Badge tone={statusTone(row.status)}>
+                            {statusLabels[row.status] || row.status}
                           </Badge>
-                        )}
-                      </td>
-                      <td className="py-3 pr-4 capitalize text-ink/70">{row.category || '—'}</td>
-                      <td className="py-3 pr-4 text-ink/70">{row.primaryRole?.roleName || '—'}</td>
-                      <td className="py-3 pr-4">
-                        <Badge tone={statusTone(row.status)}>
-                          {statusLabels[row.status] || row.status}
-                        </Badge>
-                      </td>
-                      <td className="py-3 pr-4">
-                        {row.checksPassed + row.checksFailed === 0 ? (
-                          <span className="text-ink/40">Not started</span>
-                        ) : (
-                          <span className="whitespace-nowrap font-medium">
-                            <span className="text-verified">{row.checksPassed} ✓</span>
-                            {row.checksFailed > 0 && (
-                              <span className="ml-2 text-danger">{row.checksFailed} ✕</span>
-                            )}
-                          </span>
-                        )}
-                      </td>
-                      <td className="py-3 pr-4 text-ink/70">
-                        {row.submittedAt ? new Date(row.submittedAt).toLocaleDateString() : '—'}
-                      </td>
-                      <td className="py-3 pr-4 text-ink/70">
-                        {row.assignedVerifierId
-                          ? isMine
-                            ? 'You'
-                            : row.assignedVerifierName || 'Assigned'
-                          : 'Unclaimed'}
-                      </td>
-                      <td className="py-3 pr-4">
-                        <div className="flex flex-col gap-1">
-                          <div className="flex flex-wrap gap-2">
-                            {isClaimedByOther ? (
-                              <Button type="button" size="sm" variant="secondary" disabled>
-                                Claimed
-                              </Button>
-                            ) : !row.assignedVerifierId ? (
+                        </td>
+                        <td className="py-3 pr-4">
+                          {row.checksPassed + row.checksFailed === 0 ? (
+                            <span className="text-ink/40">Not started</span>
+                          ) : (
+                            <span className="whitespace-nowrap font-medium">
+                              <span className="text-verified">{row.checksPassed} ✓</span>
+                              {row.checksFailed > 0 && (
+                                <span className="ml-2 text-danger">{row.checksFailed} ✕</span>
+                              )}
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-3 pr-4 text-ink/70">
+                          {row.submittedAt ? new Date(row.submittedAt).toLocaleDateString() : '—'}
+                        </td>
+                        <td className="py-3 pr-4 text-ink/70">
+                          {row.assignedVerifierId
+                            ? isMine
+                              ? 'You'
+                              : row.assignedVerifierName || 'Assigned'
+                            : 'Unclaimed'}
+                        </td>
+                        <td className="py-3 pr-4">
+                          <div className="flex flex-col gap-1">
+                            <div className="flex flex-wrap gap-2">
+                              {isClaimedByOther ? (
+                                <Button type="button" size="sm" variant="secondary" disabled>
+                                  Claimed
+                                </Button>
+                              ) : !row.assignedVerifierId ? (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="secondary"
+                                  loading={claimingId === row.id}
+                                  onClick={() => handleClaim(row.id)}
+                                >
+                                  Claim
+                                </Button>
+                              ) : null}
                               <Button
                                 type="button"
                                 size="sm"
-                                variant="secondary"
-                                loading={claimingId === row.id}
-                                onClick={() => handleClaim(row.id)}
+                                onClick={() => navigate(`/verify/profiles/${row.id}`)}
                               >
-                                Claim
+                                {catalog === 'unverified' ? 'Review' : 'Open'}
                               </Button>
-                            ) : null}
-                            <Button
-                              type="button"
-                              size="sm"
-                              onClick={() => navigate(`/verify/profiles/${row.id}`)}
-                            >
-                              {catalog === 'unverified' ? 'Review' : 'Open'}
-                            </Button>
+                            </div>
+                            {claimErrors[row.id] && (
+                              <p className="text-xs text-danger">{claimErrors[row.id]}</p>
+                            )}
                           </div>
-                          {claimErrors[row.id] && (
-                            <p className="text-xs text-danger">{claimErrors[row.id]}</p>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </Card>
     </div>

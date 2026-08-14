@@ -159,108 +159,201 @@ export default function InlineCrudTable({
       {loading && <PageLoader compact label="Loading…" />}
       {!loading && error && <p className="text-danger">{error}</p>}
       {!loading && !error && (
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[600px] table-auto text-left text-sm">
-            <thead>
-              <tr className="border-b border-line text-ink/60">
-                {columns.map((col) => (
-                  <th key={col.key} className="py-2 pr-4 font-medium">
-                    {col.label}
-                  </th>
-                ))}
-                <th className="py-2 pr-4 font-medium" />
-              </tr>
-            </thead>
-            <tbody>
-              {rows.length === 0 && !creating && (
-                <tr>
-                  <td colSpan={columns.length + 1} className="py-6 text-center text-ink/50">
-                    {emptyLabel || 'No rows yet.'}
-                  </td>
-                </tr>
-              )}
+        <>
+          {rows.length === 0 && !creating && (
+            <p className="py-6 text-center text-ink/50">{emptyLabel || 'No rows yet.'}</p>
+          )}
+
+          {/* Card list below `sm` — a wide multi-column edit table has no
+              natural mobile layout, so each row becomes a stacked
+              label/field card instead of a horizontally-scrolled table. */}
+          {(rows.length > 0 || creating) && (
+            <div className="flex flex-col gap-3 sm:hidden">
               {rows.map((row) => {
                 const id = String(row.id)
                 const isEditing = editingId === id
                 return (
-                  <tr key={id} className="border-b border-line transition-colors last:border-0 hover:bg-surface/60">
-                    {columns.map((col) => (
-                      <td key={col.key} className="py-2 pr-4">
-                        {isEditing ? (
-                          <CrudFieldInput
-                            column={col}
-                            value={editValues[col.key]}
-                            onChange={(v) => setEditValues((prev) => ({ ...prev, [col.key]: v }))}
-                          />
-                        ) : col.type === 'checkbox' ? (
-                          row[col.key] ? (
-                            'Yes'
+                  <div key={id} className="rounded-card border border-line p-3">
+                    <div className="flex flex-col gap-2">
+                      {columns.map((col) => (
+                        <div key={col.key}>
+                          <p className="mb-1 text-xs font-medium text-ink/50">{col.label}</p>
+                          {isEditing ? (
+                            <CrudFieldInput
+                              column={col}
+                              value={editValues[col.key]}
+                              onChange={(v) => setEditValues((prev) => ({ ...prev, [col.key]: v }))}
+                            />
                           ) : (
-                            'No'
-                          )
-                        ) : (
-                          String(row[col.key] ?? '—')
-                        )}
-                      </td>
-                    ))}
-                    <td className="py-2 pr-4">
+                            <p className="text-sm text-ink">
+                              {col.type === 'checkbox' ? (row[col.key] ? 'Yes' : 'No') : String(row[col.key] ?? '—')}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    <div className="mt-3 flex gap-2 border-t border-line pt-3">
                       {isEditing ? (
-                        <div className="flex gap-2">
+                        <>
                           <Button type="button" size="sm" loading={busy} onClick={saveEdit}>
                             Save
                           </Button>
                           <Button type="button" size="sm" variant="secondary" onClick={cancelEdit}>
                             Cancel
                           </Button>
-                        </div>
+                        </>
                       ) : (
-                        <div className="flex gap-2">
+                        <>
                           <Button type="button" size="sm" variant="secondary" onClick={() => startEdit(row)}>
                             Edit
                           </Button>
                           <Button type="button" size="sm" variant="danger" onClick={() => handleDelete(id)}>
                             Delete
                           </Button>
-                        </div>
+                        </>
                       )}
-                    </td>
-                  </tr>
+                    </div>
+                  </div>
                 )
               })}
               {creating && (
-                <tr className="border-b border-line">
-                  {columns.map((col) => (
-                    <td key={col.key} className="py-2 pr-4">
-                      <CrudFieldInput
-                        column={col}
-                        value={newValues[col.key]}
-                        onChange={(v) => setNewValues((prev) => ({ ...prev, [col.key]: v }))}
-                      />
-                    </td>
-                  ))}
-                  <td className="py-2 pr-4">
-                    <div className="flex gap-2">
-                      <Button type="button" size="sm" loading={busy} onClick={handleCreate}>
-                        Add
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="secondary"
-                        onClick={() => {
-                          setCreating(false)
-                          setNewValues(defaultValuesFor(columns))
-                        }}
-                      >
-                        Cancel
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
+                <div className="rounded-card border border-line p-3">
+                  <div className="flex flex-col gap-2">
+                    {columns.map((col) => (
+                      <div key={col.key}>
+                        <p className="mb-1 text-xs font-medium text-ink/50">{col.label}</p>
+                        <CrudFieldInput
+                          column={col}
+                          value={newValues[col.key]}
+                          onChange={(v) => setNewValues((prev) => ({ ...prev, [col.key]: v }))}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-3 flex gap-2 border-t border-line pt-3">
+                    <Button type="button" size="sm" loading={busy} onClick={handleCreate}>
+                      Add
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => {
+                        setCreating(false)
+                        setNewValues(defaultValuesFor(columns))
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
               )}
-            </tbody>
-          </table>
-        </div>
+            </div>
+          )}
+
+          <div className="hidden overflow-x-auto sm:block">
+            <table className="w-full min-w-[600px] table-auto text-left text-sm">
+              <thead>
+                <tr className="border-b border-line text-ink/60">
+                  {columns.map((col) => (
+                    <th key={col.key} className="py-2 pr-4 font-medium">
+                      {col.label}
+                    </th>
+                  ))}
+                  <th className="py-2 pr-4 font-medium" />
+                </tr>
+              </thead>
+              <tbody>
+                {rows.length === 0 && !creating && (
+                  <tr>
+                    <td colSpan={columns.length + 1} className="py-6 text-center text-ink/50">
+                      {emptyLabel || 'No rows yet.'}
+                    </td>
+                  </tr>
+                )}
+                {rows.map((row) => {
+                  const id = String(row.id)
+                  const isEditing = editingId === id
+                  return (
+                    <tr key={id} className="border-b border-line transition-colors last:border-0 hover:bg-surface/60">
+                      {columns.map((col) => (
+                        <td key={col.key} className="py-2 pr-4">
+                          {isEditing ? (
+                            <CrudFieldInput
+                              column={col}
+                              value={editValues[col.key]}
+                              onChange={(v) => setEditValues((prev) => ({ ...prev, [col.key]: v }))}
+                            />
+                          ) : col.type === 'checkbox' ? (
+                            row[col.key] ? (
+                              'Yes'
+                            ) : (
+                              'No'
+                            )
+                          ) : (
+                            String(row[col.key] ?? '—')
+                          )}
+                        </td>
+                      ))}
+                      <td className="py-2 pr-4">
+                        {isEditing ? (
+                          <div className="flex gap-2">
+                            <Button type="button" size="sm" loading={busy} onClick={saveEdit}>
+                              Save
+                            </Button>
+                            <Button type="button" size="sm" variant="secondary" onClick={cancelEdit}>
+                              Cancel
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="flex gap-2">
+                            <Button type="button" size="sm" variant="secondary" onClick={() => startEdit(row)}>
+                              Edit
+                            </Button>
+                            <Button type="button" size="sm" variant="danger" onClick={() => handleDelete(id)}>
+                              Delete
+                            </Button>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })}
+                {creating && (
+                  <tr className="border-b border-line">
+                    {columns.map((col) => (
+                      <td key={col.key} className="py-2 pr-4">
+                        <CrudFieldInput
+                          column={col}
+                          value={newValues[col.key]}
+                          onChange={(v) => setNewValues((prev) => ({ ...prev, [col.key]: v }))}
+                        />
+                      </td>
+                    ))}
+                    <td className="py-2 pr-4">
+                      <div className="flex gap-2">
+                        <Button type="button" size="sm" loading={busy} onClick={handleCreate}>
+                          Add
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => {
+                            setCreating(false)
+                            setNewValues(defaultValuesFor(columns))
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
       {!creating && (
         <Button type="button" size="sm" variant="secondary" className="mt-3" onClick={() => setCreating(true)}>

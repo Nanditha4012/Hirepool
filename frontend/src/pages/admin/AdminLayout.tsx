@@ -28,7 +28,10 @@ export default function AdminLayout() {
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-ink/40">Admin portal</p>
           {/* Name deliberately not repeated here — see VerifierLayout. */}
         </div>
-        <nav className="mx-auto flex max-w-app gap-1 overflow-x-auto px-4 py-3 sm:px-6 lg:px-10">
+        {/* Wraps rather than scrolling sideways — 11 destinations is too many
+            to fit one line below a wide desktop, and an overflow-x-auto bar
+            ran off the edge of the page with no visible scroll affordance. */}
+        <nav className="mx-auto flex max-w-app flex-wrap gap-1 px-4 py-3 sm:px-6 lg:px-10">
           {navLinks.map((link) => (
             <NavLink
               key={link.to}

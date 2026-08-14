@@ -293,44 +293,65 @@ function PlansTab() {
         {loadError && <p className="mt-2 text-sm text-danger">{loadError}</p>}
         {loadingPlans ? (
           <ListSkeleton rows={3} />
+        ) : plans.length === 0 ? (
+          <p className="mt-3 py-4 text-center text-ink/50">No plans yet.</p>
         ) : (
-          <div className="mt-3 overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead>
-                <tr className="text-xs uppercase text-ink/50">
-                  <th className="pb-2 pr-4">Name</th>
-                  <th className="pb-2 pr-4">Monthly unlocks</th>
-                  <th className="pb-2 pr-4">Message cap</th>
-                  <th className="pb-2 pr-4">Price</th>
-                  <th className="pb-2 pr-4">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {plans.map((plan) => (
-                  <tr
-                    key={plan.id}
-                    onClick={() => selectPlan(plan.id)}
-                    className={`cursor-pointer border-t border-line/60 hover:bg-surface-subtle ${
-                      selectedPlanId === plan.id ? 'bg-surface-subtle' : ''
-                    }`}
-                  >
-                    <td className="py-2 pr-4 font-medium text-ink">{plan.name}</td>
-                    <td className="py-2 pr-4">{plan.monthlyUnlocks}</td>
-                    <td className="py-2 pr-4">{plan.monthlyMessageCap ?? 'Unlimited'}</td>
-                    <td className="py-2 pr-4">{plan.price}</td>
-                    <td className="py-2 pr-4">{plan.isActive ? 'Active' : 'Inactive'}</td>
+          <>
+            {/* Card list below `sm` — a 5-column table left plan rows cut off
+                on a phone; tap targets are the same "select this plan" rows. */}
+            <div className="mt-3 flex flex-col gap-2 sm:hidden">
+              {plans.map((plan) => (
+                <button
+                  key={plan.id}
+                  type="button"
+                  onClick={() => selectPlan(plan.id)}
+                  className={`rounded-card border p-3 text-left transition-colors ${
+                    selectedPlanId === plan.id ? 'border-primary bg-surface-subtle' : 'border-line/60'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="font-medium text-ink">{plan.name}</p>
+                    <span className="text-xs text-ink/60">{plan.isActive ? 'Active' : 'Inactive'}</span>
+                  </div>
+                  <p className="mt-1 text-sm text-ink/60">
+                    {plan.monthlyUnlocks} unlocks/mo · {plan.monthlyMessageCap ?? 'Unlimited'} messages · ₹
+                    {plan.price}
+                  </p>
+                </button>
+              ))}
+            </div>
+
+            <div className="mt-3 hidden overflow-x-auto sm:block">
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="text-xs uppercase text-ink/50">
+                    <th className="pb-2 pr-4">Name</th>
+                    <th className="pb-2 pr-4">Monthly unlocks</th>
+                    <th className="pb-2 pr-4">Message cap</th>
+                    <th className="pb-2 pr-4">Price</th>
+                    <th className="pb-2 pr-4">Status</th>
                   </tr>
-                ))}
-                {plans.length === 0 && (
-                  <tr>
-                    <td colSpan={5} className="py-4 text-center text-ink/50">
-                      No plans yet.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {plans.map((plan) => (
+                    <tr
+                      key={plan.id}
+                      onClick={() => selectPlan(plan.id)}
+                      className={`cursor-pointer border-t border-line/60 hover:bg-surface-subtle ${
+                        selectedPlanId === plan.id ? 'bg-surface-subtle' : ''
+                      }`}
+                    >
+                      <td className="py-2 pr-4 font-medium text-ink">{plan.name}</td>
+                      <td className="py-2 pr-4">{plan.monthlyUnlocks}</td>
+                      <td className="py-2 pr-4">{plan.monthlyMessageCap ?? 'Unlimited'}</td>
+                      <td className="py-2 pr-4">{plan.price}</td>
+                      <td className="py-2 pr-4">{plan.isActive ? 'Active' : 'Inactive'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </Card>
 

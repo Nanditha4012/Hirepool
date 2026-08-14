@@ -89,17 +89,20 @@ export default function BadgeQueuePage() {
       <h1 className="text-2xl font-bold text-ink">Badge queue</h1>
       <p className="mt-1 text-ink/60">Verify coding-platform badges claimed by candidates.</p>
 
-      <Card className="mt-6">
+      <Card className="mt-6" style={{ width: '100%' }}>
         {loading && <ListSkeleton rows={3} />}
         {!loading && error && <p className="text-danger">{error}</p>}
         {!loading && !error && rows.length === 0 && <p className="text-ink/60">No badges pending verification.</p>}
 
         {!loading && !error && rows.length > 0 && (
-          <div className="flex flex-col gap-3">
+          // Single column, full row width — matches how wide the Catalogs
+          // table reads. The `lg:` padding bump is desktop-only; below `lg`
+          // this is unchanged from before (p-4, same gap).
+          <div className="flex flex-col gap-3 lg:gap-6">
             {rows.map((row) => {
               const isActive = activeRowId === row.id
               return (
-                <div key={row.id} className="rounded-card border border-line p-4">
+                <div key={row.id} className="rounded-card border border-line p-4 lg:-mx-6 lg:px-6 lg:py-5">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                       <p className="font-medium text-ink">{row.candidateFullName || 'Unnamed candidate'}</p>

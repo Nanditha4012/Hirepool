@@ -26,7 +26,11 @@ export default function VerifierLayout() {
               same name in the app header. Identity now lives in exactly one
               place: the header avatar and its hover card. */}
         </div>
-        <nav className="mx-auto flex max-w-app gap-1 overflow-x-auto px-4 py-3 sm:px-6 lg:px-10">
+        {/* Wraps rather than scrolling sideways — on a narrow phone six
+            destinations didn't fit one line and an overflow-x-auto bar ran
+            off the edge with no visible scroll affordance. Same fix as
+            AdminLayout's nav. */}
+        <nav className="mx-auto flex max-w-app flex-wrap gap-1 px-4 py-3 sm:px-6 lg:px-10">
           {navLinks.map((link) => (
             <NavLink
               key={link.to}

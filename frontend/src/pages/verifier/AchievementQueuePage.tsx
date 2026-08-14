@@ -123,7 +123,7 @@ export default function AchievementQueuePage() {
         ))}
       </div>
 
-      <Card className="mt-6">
+      <Card className="mt-6" style={{ width: '100%' }}>
         {loading && <ListSkeleton rows={3} />}
         {!loading && error && <p className="text-danger">{error}</p>}
         {!loading && !error && rows.length === 0 && (
@@ -131,11 +131,14 @@ export default function AchievementQueuePage() {
         )}
 
         {!loading && !error && rows.length > 0 && (
-          <div className="flex flex-col gap-3">
+          // Single column, full row width — matches how wide the Catalogs
+          // table reads. The `lg:` padding bump is desktop-only; below `lg`
+          // this is unchanged from before (p-4, same gap).
+          <div className="flex flex-col gap-3 lg:gap-4">
             {rows.map((row) => {
               const isActive = activeRowId === row.id
               return (
-                <div key={row.id} className="rounded-card border border-line p-4">
+                <div key={row.id} className="rounded-card border border-line p-4 lg:-mx-6 lg:px-6 lg:py-5">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                       <p className="font-medium text-ink">{row.candidateFullName || 'Unnamed candidate'}</p>

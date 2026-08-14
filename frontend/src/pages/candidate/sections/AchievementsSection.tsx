@@ -224,15 +224,20 @@ function TypeGroup({ type, rows, minRequired = 0, onChanged }: TypeGroupProps) {
           {rows.map((row) => (
             <div key={row.id} className="rounded-card border border-line/70 bg-page/40 p-3.5">
               <div className="flex flex-wrap items-start justify-between gap-2">
-                <div>
-                  <p className="font-medium text-ink">{row.title}</p>
-                  {row.description && <p className="mt-1 text-sm text-ink/60">{row.description}</p>}
+                {/* min-w-0 + break-all/words on the text below — same fix as
+                    PlatformBadgesSection: an unbroken URL or long title
+                    otherwise forces the card wider than the phone screen. */}
+                <div className="min-w-0 flex-1">
+                  <p className="break-words font-medium text-ink">{row.title}</p>
+                  {row.description && (
+                    <p className="mt-1 break-words text-sm text-ink/60">{row.description}</p>
+                  )}
                   {row.links && (
                     <a
                       href={row.links}
                       target="_blank"
                       rel="noreferrer"
-                      className="text-sm text-primary hover:underline"
+                      className="break-all text-sm text-primary hover:underline"
                     >
                       {row.links}
                     </a>
