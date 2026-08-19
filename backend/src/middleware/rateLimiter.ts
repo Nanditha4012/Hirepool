@@ -52,3 +52,28 @@ export const searchLimiter = rateLimit({
   legacyHeaders: false,
   message: { message: 'Too many search requests. Please slow down and try again shortly.' },
 });
+
+// Public Careers Page (Feature 2, Phase 5) — genuinely anonymous, no
+// requireAuth to lean on at all (unlike searchLimiter above, which is a
+// secondary guard behind a login wall). Ceiling is higher than search
+// since a job's careers link is meant to be embedded/shared widely and
+// legitimately hit by many distinct visitors, not just one signed-in user
+// browsing.
+export const careersLimiter = rateLimit({
+  windowMs: FIFTEEN_MINUTES_MS,
+  max: 200,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Too many requests. Please try again shortly.' },
+});
+
+// Submitting an application is a write, not a read — much lower ceiling
+// than careersLimiter above, same order of magnitude as signupLimiter
+// since both are "anonymous, creates a row" endpoints.
+export const careersApplyLimiter = rateLimit({
+  windowMs: FIFTEEN_MINUTES_MS,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Too many applications submitted. Please try again later.' },
+});

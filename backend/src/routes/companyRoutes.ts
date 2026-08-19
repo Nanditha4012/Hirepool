@@ -4,6 +4,10 @@ import * as unlockController from '../controllers/unlockController';
 import * as companyMessageController from '../controllers/companyMessageController';
 import * as paymentController from '../controllers/paymentController';
 import * as contestController from '../controllers/contestController';
+import * as jdController from '../controllers/jdController';
+import * as relevancyController from '../controllers/relevancyController';
+import * as jobApplicationController from '../controllers/jobApplicationController';
+import * as jobRoundController from '../controllers/jobRoundController';
 import { requireAuth } from '../middleware/requireAuth';
 import { requireRole } from '../middleware/requireRole';
 import { requireVerified } from '../middleware/requireVerified';
@@ -68,6 +72,86 @@ router.post(
   ...verifiedCompany,
   companyMessageController.startOrReplyThread,
 );
+
+// AI Relevancy Packages (Feature 1) — job creation + Groq JD parsing.
+// companyOnly, not verifiedCompany: an unverified company can still draft a
+// job the same way it can edit its own profile pre-verification; scoring
+// against candidates (Phase 2) is where verification will actually matter.
+router.post('/jobs', ...companyOnly, jdController.createJob);
+router.get('/jobs', ...companyOnly, jdController.listMyJobs);
+router.get('/jobs/:jobId', ...companyOnly, jdController.getJob);
+router.put('/jobs/:jobId', ...companyOnly, jdController.updateJob);
+// Feature 2, Phase 5 — careers page link + lifecycle.
+router.post('/jobs/:jobId/careers-link', ...companyOnly, jdController.generateCareersLink);
+router.post('/jobs/:jobId/close', ...companyOnly, jdController.closeJob);
+router.post('/jobs/:jobId/reopen', ...companyOnly, jdController.reopenJob);
+
+// Applications, badges, shortlisting (Phase 7) — verifiedCompany, same gate
+// as search/unlock/batches: this touches candidate data, not just the
+// company's own job draft.
+router.post('/jobs/:jobId/applications', ...verifiedCompany, jobApplicationController.shortlistCandidates);
+router.get('/jobs/:jobId/applications', ...verifiedCompany, jobApplicationController.listJobApplications);
+router.patch(
+  '/jobs/:jobId/applications/:applicationId',
+  ...verifiedCompany,
+  jobApplicationController.updateJobApplication,
+);
+
+// Coding & MCQ rounds (Phase 8).
+router.post('/jobs/:jobId/rounds/default-template', ...companyOnly, jobRoundController.seedDefaultRounds);
+router.get('/jobs/:jobId/rounds', ...companyOnly, jobRoundController.listRounds);
+router.post('/jobs/:jobId/rounds', ...companyOnly, jobRoundController.createRound);
+router.patch('/jobs/:jobId/rounds/:roundId', ...companyOnly, jobRoundController.updateRound);
+router.delete('/jobs/:jobId/rounds/:roundId', ...companyOnly, jobRoundController.deleteRound);
+
+router.get('/jobs/:jobId/rounds/:roundId/questions', ...companyOnly, jobRoundController.listRoundQuestions);
+router.post('/jobs/:jobId/rounds/:roundId/questions', ...companyOnly, jobRoundController.attachQuestion);
+router.delete(
+  '/jobs/:jobId/rounds/:roundId/questions/:linkId',
+  ...companyOnly,
+  jobRoundController.detachQuestion,
+);
+
+router.get('/jobs/:jobId/rounds/:roundId/results', ...verifiedCompany, jobRoundController.listRoundResults);
+router.patch(
+  '/jobs/:jobId/rounds/:roundId/results/:applicationId',
+  ...verifiedCompany,
+  jobRoundController.decideRound,
+);
+
+// Coding question bank (company-owned, optionally job-scoped).
+router.get('/coding-questions', ...companyOnly, jobRoundController.listCodingQuestions);
+router.post('/coding-questions', ...companyOnly, jobRoundController.createCodingQuestion);
+router.patch('/coding-questions/:id', ...companyOnly, jobRoundController.updateCodingQuestion);
+router.delete('/coding-questions/:id', ...companyOnly, jobRoundController.deleteCodingQuestion);
+
+// MCQ bank (company-owned, optionally job-scoped) — the public bank is
+// admin-managed, see adminRoutes.ts.
+router.get('/mcqs', ...companyOnly, jobRoundController.listMyMcqs);
+router.post('/mcqs', ...companyOnly, jobRoundController.createMcq);
+router.delete('/mcqs/:id', ...companyOnly, jobRoundController.deleteMcq);
+
+// Batch cards + browse-batch (Phase 2). verifiedCompany, not companyOnly —
+// this is "browse candidates using the normal unlock flow", same gate as
+// /search and the unlock endpoints above.
+router.get('/jobs/:jobId/batches', ...verifiedCompany, relevancyController.getJobBatches);
+router.get(
+  '/jobs/:jobId/batches/:tier/candidates',
+  ...verifiedCompany,
+  relevancyController.listBatchCandidates,
+);
+// Package purchase (Phase 3) + download (Phase 3, controller below).
+router.post(
+  '/jobs/:jobId/batches/:tier/purchase',
+  ...verifiedCompany,
+  paymentController.purchaseRelevancyPackage,
+);
+router.get(
+  '/relevancy-packages/:packageId/download',
+  ...verifiedCompany,
+  relevancyController.downloadPackage,
+);
+router.get('/jobs/:jobId/relevancy-packages', ...verifiedCompany, relevancyController.listJobPackages);
 
 // Payments (Phase 6)
 router.post('/payments/subscribe', requireAuth, requireRole('company'), paymentController.subscribe);

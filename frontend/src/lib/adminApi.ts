@@ -733,6 +733,43 @@ export function deletePlanMaster(id: string) {
   return apiFetch<void>(`/admin/masters/plans/${id}`, { method: 'DELETE' })
 }
 
+// ----- relevancy_package_price_bands (AI Relevancy Packages) -----
+// List is re-exported from relevancyApi.ts (listRelevancyPriceBands) rather
+// than duplicated — the public GET already returns every band, admin
+// included, so there's no separate admin-only list endpoint to wrap.
+export { listRelevancyPriceBands, type RelevancyPackagePriceBand } from './relevancyApi'
+
+export interface RelevancyPriceBandBody {
+  label?: string
+  minCandidates?: number
+  maxCandidates?: number | null
+  price?: number | null
+  isContactSales?: boolean
+  sortOrder?: number
+}
+
+export function createRelevancyPriceBand(body: {
+  label: string
+  minCandidates: number
+  maxCandidates: number | null
+  price: number | null
+  isContactSales?: boolean
+  sortOrder?: number
+}) {
+  return apiFetch('/admin/masters/relevancy-price-bands', { method: 'POST', body: JSON.stringify(body) })
+}
+
+export function updateRelevancyPriceBand(id: string, body: RelevancyPriceBandBody) {
+  return apiFetch(`/admin/masters/relevancy-price-bands/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  })
+}
+
+export function deleteRelevancyPriceBand(id: string) {
+  return apiFetch<void>(`/admin/masters/relevancy-price-bands/${id}`, { method: 'DELETE' })
+}
+
 // =======================================================================
 // Site settings
 // =======================================================================
@@ -818,7 +855,7 @@ export function getAnalyticsOverview() {
 
 export interface AdminPaymentRow {
   id: string
-  type: 'subscription' | 'pay_per_unlock' | 'boost'
+  type: 'subscription' | 'pay_per_unlock' | 'boost' | 'relevancy_package'
   status: 'created' | 'paid' | 'failed' | 'refunded'
   amount: number
   currency: string
@@ -830,7 +867,7 @@ export interface AdminPaymentRow {
 }
 
 export interface ListPaymentsParams {
-  type?: 'subscription' | 'pay_per_unlock' | 'boost'
+  type?: 'subscription' | 'pay_per_unlock' | 'boost' | 'relevancy_package'
   status?: 'created' | 'paid' | 'failed' | 'refunded'
   page?: number
   limit?: number

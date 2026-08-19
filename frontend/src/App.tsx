@@ -26,6 +26,7 @@ import CompanyEntryPoint from '@/pages/company/CompanyEntryPoint'
 import CompanyDashboardPage from '@/pages/company/DashboardPage'
 import CompanySetupPage from '@/pages/company/CompanySetupPage'
 import SearchPage from '@/pages/company/SearchPage'
+import RelevancyPage from '@/pages/company/RelevancyPage'
 import UnlockedCandidatesPage from '@/pages/company/UnlockedCandidatesPage'
 import MessagesPage from '@/pages/company/MessagesPage'
 import CompanyPaymentHistoryPage from '@/pages/company/PaymentHistoryPage'
@@ -168,6 +169,14 @@ function AppShell() {
             element={
               <ProtectedRoute allow={['company']} requireVerified>
                 <SearchPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/company/relevancy"
+            element={
+              <ProtectedRoute allow={['company']} requireVerified>
+                <RelevancyPage />
               </ProtectedRoute>
             }
           />

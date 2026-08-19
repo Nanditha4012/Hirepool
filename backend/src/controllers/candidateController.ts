@@ -17,6 +17,8 @@ import {
   Unlock,
   CompanyProfile,
   ProfileFieldCheck,
+  Job,
+  JobApplication,
 } from '../models';
 import {
   EDUCATION_LEVEL_ORDER,
@@ -942,6 +944,54 @@ export const listWhoUnlockedMe = asyncHandler(async (req: Request, res: Response
         logoLink: companyProfile?.logoLink ?? null,
         industry: companyProfile?.industry ?? null,
         unlockedAt: unlock.unlockedAt,
+      });
+    }
+
+    return items;
+  });
+
+  res.json(results);
+});
+
+// ---------------------------------------------------------------------
+// GET /me/applications (End-to-End ATS, Feature 2 Phase 7) — "My
+// Applications", the view the shortlist notification/email points to.
+// ---------------------------------------------------------------------
+
+interface MyApplicationResponse {
+  id: string;
+  jobId: string;
+  jobTitle: string;
+  companyName: string | null;
+  status: 'shortlisted' | 'rejected';
+  shortlistedAt: Date;
+}
+
+export const listMyApplications = asyncHandler(async (req: Request, res: Response) => {
+  const authUser = req.user!;
+
+  const results = await runInRequestContext(authUser, async (t) => {
+    const rows = await JobApplication.findAll({
+      where: { candidateId: authUser.id },
+      order: [['shortlistedAt', 'DESC']],
+      transaction: t,
+    });
+
+    const items: MyApplicationResponse[] = [];
+    for (const row of rows) {
+      // Sequential — shares transaction `t` (see buildProfileResponse above).
+      const job = await Job.findByPk(row.jobId, { transaction: t });
+      const companyProfile = job
+        ? await CompanyProfile.findOne({ where: { userId: job.companyId }, transaction: t })
+        : null;
+
+      items.push({
+        id: row.id,
+        jobId: row.jobId,
+        jobTitle: job?.title ?? 'Job',
+        companyName: companyProfile?.companyName ?? null,
+        status: row.status,
+        shortlistedAt: row.shortlistedAt,
       });
     }
 

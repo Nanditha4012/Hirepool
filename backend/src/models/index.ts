@@ -40,6 +40,19 @@ import { PostReaction } from './PostReaction';
 import { CommentReaction } from './CommentReaction';
 import { PostComment } from './PostComment';
 import { PostReport } from './PostReport';
+import { Job } from './Job';
+import { JobRequirementParsed } from './JobRequirementParsed';
+import { CandidateRelevancyScore } from './CandidateRelevancyScore';
+import { RelevancyPackage } from './RelevancyPackage';
+import { RelevancyPackagePriceBand } from './RelevancyPackagePriceBand';
+import { ApplicationFormsMaster } from './ApplicationFormsMaster';
+import { ExternalApplicant } from './ExternalApplicant';
+import { JobApplication } from './JobApplication';
+import { JobRound } from './JobRound';
+import { CustomCodingQuestion } from './CustomCodingQuestion';
+import { McqMaster } from './McqMaster';
+import { JobRoundQuestion } from './JobRoundQuestion';
+import { JobRoundResult } from './JobRoundResult';
 
 // User <-> CandidateProfile (1:1)
 User.hasOne(CandidateProfile, { foreignKey: 'userId', as: 'candidateProfile' });
@@ -227,6 +240,64 @@ PostReport.belongsTo(FeedPost, { foreignKey: 'postId', as: 'post' });
 User.hasMany(PostReport, { foreignKey: 'userId', as: 'postReports' });
 PostReport.belongsTo(User, { foreignKey: 'userId', as: 'user' });
 
+// AI Relevancy Packages (Feature 1 of the AI Packages & ATS spec) — Phase 1.
+// A company owns its jobs; a job owns at most one parsed-requirements row
+// and many candidate relevancy scores / purchased packages.
+User.hasMany(Job, { foreignKey: 'companyId', as: 'jobs' });
+Job.belongsTo(User, { foreignKey: 'companyId', as: 'company' });
+
+Job.hasOne(JobRequirementParsed, { foreignKey: 'jobId', as: 'requirementsParsed' });
+JobRequirementParsed.belongsTo(Job, { foreignKey: 'jobId', as: 'job' });
+
+Job.hasMany(CandidateRelevancyScore, { foreignKey: 'jobId', as: 'relevancyScores' });
+CandidateRelevancyScore.belongsTo(Job, { foreignKey: 'jobId', as: 'job' });
+User.hasMany(CandidateRelevancyScore, { foreignKey: 'candidateId', as: 'relevancyScores' });
+CandidateRelevancyScore.belongsTo(User, { foreignKey: 'candidateId', as: 'candidate' });
+
+Job.hasMany(RelevancyPackage, { foreignKey: 'jobId', as: 'relevancyPackages' });
+RelevancyPackage.belongsTo(Job, { foreignKey: 'jobId', as: 'job' });
+User.hasMany(RelevancyPackage, { foreignKey: 'purchasedByCompanyId', as: 'purchasedRelevancyPackages' });
+RelevancyPackage.belongsTo(User, { foreignKey: 'purchasedByCompanyId', as: 'purchasedByCompany' });
+
+// End-to-End ATS (Feature 2) — Phase 6: external applications.
+Job.hasMany(ExternalApplicant, { foreignKey: 'jobId', as: 'externalApplicants' });
+ExternalApplicant.belongsTo(Job, { foreignKey: 'jobId', as: 'job' });
+User.hasMany(ExternalApplicant, { foreignKey: 'convertedCandidateId', as: 'convertedApplications' });
+ExternalApplicant.belongsTo(User, { foreignKey: 'convertedCandidateId', as: 'convertedCandidate' });
+
+// Phase 7 — applications, badges, shortlisting.
+Job.hasMany(JobApplication, { foreignKey: 'jobId', as: 'applications' });
+JobApplication.belongsTo(Job, { foreignKey: 'jobId', as: 'job' });
+User.hasMany(JobApplication, { foreignKey: 'candidateId', as: 'jobApplications' });
+JobApplication.belongsTo(User, { foreignKey: 'candidateId', as: 'candidate' });
+ExternalApplicant.hasOne(JobApplication, { foreignKey: 'externalApplicantId', as: 'application' });
+JobApplication.belongsTo(ExternalApplicant, { foreignKey: 'externalApplicantId', as: 'externalApplicant' });
+
+// Phase 8 — coding & MCQ rounds.
+Job.hasMany(JobRound, { foreignKey: 'jobId', as: 'rounds' });
+JobRound.belongsTo(Job, { foreignKey: 'jobId', as: 'job' });
+JobApplication.belongsTo(JobRound, { foreignKey: 'currentRoundId', as: 'currentRound' });
+
+User.hasMany(CustomCodingQuestion, { foreignKey: 'companyId', as: 'customCodingQuestions' });
+CustomCodingQuestion.belongsTo(User, { foreignKey: 'companyId', as: 'company' });
+Job.hasMany(CustomCodingQuestion, { foreignKey: 'jobId', as: 'customCodingQuestions' });
+CustomCodingQuestion.belongsTo(Job, { foreignKey: 'jobId', as: 'job' });
+
+User.hasMany(McqMaster, { foreignKey: 'companyId', as: 'customMcqs' });
+McqMaster.belongsTo(User, { foreignKey: 'companyId', as: 'company' });
+Job.hasMany(McqMaster, { foreignKey: 'jobId', as: 'customMcqs' });
+McqMaster.belongsTo(Job, { foreignKey: 'jobId', as: 'job' });
+
+JobRound.hasMany(JobRoundQuestion, { foreignKey: 'roundId', as: 'questions' });
+JobRoundQuestion.belongsTo(JobRound, { foreignKey: 'roundId', as: 'round' });
+
+JobApplication.hasMany(JobRoundResult, { foreignKey: 'applicationId', as: 'roundResults' });
+JobRoundResult.belongsTo(JobApplication, { foreignKey: 'applicationId', as: 'application' });
+JobRound.hasMany(JobRoundResult, { foreignKey: 'roundId', as: 'results' });
+JobRoundResult.belongsTo(JobRound, { foreignKey: 'roundId', as: 'round' });
+User.hasMany(JobRoundResult, { foreignKey: 'updatedBy', as: 'roundResultsUpdated' });
+JobRoundResult.belongsTo(User, { foreignKey: 'updatedBy', as: 'updatedByUser' });
+
 export {
   sequelize,
   User,
@@ -270,4 +341,17 @@ export {
   PostComment,
   CommentReaction,
   PostReport,
+  Job,
+  JobRequirementParsed,
+  CandidateRelevancyScore,
+  RelevancyPackage,
+  RelevancyPackagePriceBand,
+  ApplicationFormsMaster,
+  ExternalApplicant,
+  JobApplication,
+  JobRound,
+  CustomCodingQuestion,
+  McqMaster,
+  JobRoundQuestion,
+  JobRoundResult,
 };

@@ -75,6 +75,27 @@ const envSchema = z.object({
    * quality in the field, which is not knowable up front.
    */
   AUTO_VERIFY_THRESHOLD: z.coerce.number().min(0).max(1).default(0.8),
+  // Groq (AI Relevancy Packages — JD parsing) — same "optional, empty-string
+  // default" pattern as Razorpay/SMTP/DigiLocker above: an optional external
+  // service credential that must NOT crash the app at boot if unset. Callers
+  // check isGroqConfigured() (see utils/groq.ts) before parsing a JD and
+  // record job_requirements_parsed.parseStatus = 'unavailable' instead of
+  // throwing, so job creation itself never hard-depends on this being set.
+  // GROQ_MODEL is overridable rather than hardcoded since Groq periodically
+  // retires hosted models.
+  GROQ_API_KEY: z.string().optional().default(''),
+  GROQ_MODEL: z.string().default('llama-3.3-70b-versatile'),
+  // Daily digest (End-to-End ATS, Feature 2 Phase 7) — the one genuinely
+  // time-based job in this app, invoked by Vercel Cron (see
+  // backend/vercel.json's `crons` entry) hitting GET
+  // /internal/cron/daily-digest. Vercel automatically attaches
+  // `Authorization: Bearer $CRON_SECRET` to cron-invoked requests once this
+  // is set as a Vercel project env var — see middleware/requireCronSecret.ts.
+  // Unlike every other "optional external service" var in this file, an
+  // UNSET CRON_SECRET means the endpoint refuses all requests (fail closed)
+  // rather than skipping its check — this endpoint has no legitimate
+  // unauthenticated caller the way, say, an unconfigured email send does.
+  CRON_SECRET: z.string().optional().default(''),
 });
 
 const parsed = envSchema.safeParse(process.env);

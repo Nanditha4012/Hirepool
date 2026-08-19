@@ -20,13 +20,14 @@ export interface CreateOrderResponse {
   razorpayKeyId: string
 }
 
-export type PaymentType = 'subscription' | 'pay_per_unlock' | 'boost'
+export type PaymentType = 'subscription' | 'pay_per_unlock' | 'boost' | 'relevancy_package'
 export type PaymentStatus = 'created' | 'paid' | 'failed' | 'refunded'
 
 export type PaymentMetadata =
   | { planId: string }
   | { unlockQuantity: number }
   | { boostDays: number }
+  | { relevancyPackageId: string }
 
 export interface PaymentRow {
   id: string

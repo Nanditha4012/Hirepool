@@ -72,6 +72,7 @@ export default function AdminPaymentsPage() {
               { value: 'subscription', label: 'Subscription' },
               { value: 'pay_per_unlock', label: 'Pay-per-unlock' },
               { value: 'boost', label: 'Boost' },
+              { value: 'relevancy_package', label: 'AI relevancy package' },
             ]}
             value={type}
             onChange={(e) => setType(e.target.value)}

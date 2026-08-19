@@ -10,6 +10,9 @@ import {
   RejectionReasonMaster,
   SiteSetting,
   PlanMaster,
+  RelevancyPackagePriceBand,
+  ApplicationFormsMaster,
+  McqMaster,
 } from '../models';
 import { asyncHandler } from '../utils/asyncHandler';
 import { runInRequestContext } from '../utils/withRequestContext';
@@ -104,6 +107,65 @@ export const requestCompany = asyncHandler(async (req: Request, res: Response) =
   );
 
   res.status(201).json(request);
+});
+
+/**
+ * Public price catalog for AI relevancy packages — a company needs this to
+ * see what a batch costs before buying it (Phase 3). Same "public SELECT,
+ * admin-only write" shape as listPlans above.
+ */
+export const listRelevancyPriceBands = asyncHandler(async (req: Request, res: Response) => {
+  const bands = await runInRequestContext(null, (t) =>
+    RelevancyPackagePriceBand.findAll({ order: [['sortOrder', 'ASC']], transaction: t }),
+  );
+  res.json(bands);
+});
+
+/**
+ * Field template for one of the three preset application forms (Simple /
+ * Detailed / Foreign) — used by a company's careers-link setup UI to
+ * preview a preset before choosing it. `custom` isn't queryable here; its
+ * field list lives on the job itself (jobs.customFormSchema).
+ */
+const listApplicationFormFieldsSchema = z.object({
+  formType: z.enum(['simple', 'detailed', 'foreign']),
+});
+
+export const listApplicationFormFields = asyncHandler(async (req: Request, res: Response) => {
+  const { formType } = listApplicationFormFieldsSchema.parse(req.query);
+
+  const fields = await runInRequestContext(null, (t) =>
+    ApplicationFormsMaster.findAll({
+      where: { formType },
+      order: [['sortOrder', 'ASC']],
+      transaction: t,
+    }),
+  );
+  res.json(fields);
+});
+
+/**
+ * The public/admin-curated MCQ bank (company_id IS NULL rows only) — lets a
+ * company's round-question-picker UI browse it. `correctAnswer` is
+ * included here since this is company/admin-facing, not candidate-facing;
+ * candidateRoundController strips it before a candidate ever sees a
+ * question.
+ */
+const listMcqBankSchema = z.object({
+  conceptOrLanguage: z.string().trim().optional(),
+});
+
+export const listMcqBank = asyncHandler(async (req: Request, res: Response) => {
+  const { conceptOrLanguage } = listMcqBankSchema.parse(req.query);
+
+  const rows = await runInRequestContext(null, (t) =>
+    McqMaster.findAll({
+      where: { companyId: null, ...(conceptOrLanguage ? { conceptOrLanguage } : {}) },
+      order: [['conceptOrLanguage', 'ASC']],
+      transaction: t,
+    }),
+  );
+  res.json(rows);
 });
 
 /**

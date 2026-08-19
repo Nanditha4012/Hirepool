@@ -13,6 +13,9 @@ router.get('/domains', masterController.listDomains);
 router.get('/rejection-reasons', masterController.listRejectionReasons);
 router.get('/site-settings', masterController.getSiteSettings);
 router.get('/plans', masterController.listPlans);
+router.get('/relevancy-price-bands', masterController.listRelevancyPriceBands);
+router.get('/application-forms', masterController.listApplicationFormFields);
+router.get('/mcqs', masterController.listMcqBank);
 router.post(
   '/companies/request',
   requireAuth,

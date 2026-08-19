@@ -48,6 +48,7 @@ import { hashPassword, comparePassword, strongPasswordSchema } from '../utils/pa
 import { sendEmail } from '../utils/email';
 import { profileStatusChangedEmail } from '../utils/emailTemplates';
 import { isMandatoryFieldKey } from '../utils/mandatoryFields';
+import { recomputeScoresForCandidate } from '../utils/relevancyScoring';
 
 export const ping = asyncHandler(async (req: Request, res: Response) => {
   res.json({ message: 'Signed in as verifier', userId: req.user!.id });
@@ -1391,8 +1392,26 @@ export const decideProfile = asyncHandler(async (req: Request, res: Response) =>
     // Returns the full review shape, not the bare row: the page needs the
     // refreshed checklist/timeline to render the post-decision state, and
     // this saves it an immediate follow-up GET.
-    return { candidateUser, notes, review: await buildReviewProfileResponse(id, t) };
+    return {
+      candidateUser,
+      notes,
+      candidateId: existing.userId,
+      review: await buildReviewProfileResponse(id, t),
+    };
   });
+
+  // AI Relevancy Packages (Feature 1, Phase 2) — event-triggered recompute:
+  // an approval is the trigger agreed on in place of a scheduler (see
+  // AI_PACKAGES_ATS_BUILD_PLAN.md / FEATURE1_PHASE2_SUMMARY.md). Run in its
+  // own transaction, after the decision itself has committed — a slow or
+  // failing recompute must never roll back or block the verifier's decision.
+  // Only 'approved' makes a candidate eligible for scoring at all
+  // (recomputeScoresForCandidate's own eligibility check would no-op the
+  // others anyway, but skipping the call entirely avoids a pointless extra
+  // transaction on every rejection/needs_info/flag).
+  if (body.decision === 'approved') {
+    await runInRequestContext(authUser, (t) => recomputeScoresForCandidate(response.candidateId, t));
+  }
 
   // Email sent AFTER runInRequestContext resolves (the decision transaction
   // has already committed) rather than inside the callback — an email

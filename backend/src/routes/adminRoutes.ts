@@ -85,6 +85,26 @@ router.post('/masters/plans', ...adminOnly, adminController.createPlanMaster);
 router.patch('/masters/plans/:id', ...adminOnly, adminController.updatePlanMaster);
 router.delete('/masters/plans/:id', ...adminOnly, adminController.deletePlanMaster);
 
+// AI Relevancy Packages (Feature 1) — price bands. List/read is public,
+// under /masters/relevancy-price-bands (masterRoutes.ts) — this is the
+// admin-only write side, same split as every other master table above.
+router.post('/masters/relevancy-price-bands', ...adminOnly, adminController.createRelevancyPriceBand);
+router.patch(
+  '/masters/relevancy-price-bands/:id',
+  ...adminOnly,
+  adminController.updateRelevancyPriceBand,
+);
+router.delete(
+  '/masters/relevancy-price-bands/:id',
+  ...adminOnly,
+  adminController.deleteRelevancyPriceBand,
+);
+
+// mcq_master — public bank only (see adminController's header comment).
+router.post('/masters/mcqs', ...adminOnly, adminController.createMcqMaster);
+router.patch('/masters/mcqs/:id', ...adminOnly, adminController.updateMcqMaster);
+router.delete('/masters/mcqs/:id', ...adminOnly, adminController.deleteMcqMaster);
+
 // ----- Site settings -----
 router.get('/site-settings', ...adminOnly, adminController.getSiteSettings);
 router.patch('/site-settings', ...adminOnly, adminController.updateSiteSettings);

@@ -36,6 +36,8 @@ function describePayment(row: PaymentRow): string {
       const days = (row.metadata as { boostDays?: number }).boostDays ?? 0
       return `${days}-day profile boost`
     }
+    case 'relevancy_package':
+      return 'AI relevancy package'
     default:
       return 'Purchase'
   }

@@ -35,9 +35,13 @@ import {
   updateRejectionReasonMaster,
   updateRoleMaster,
   updateSkillMaster,
+  createRelevancyPriceBand,
+  updateRelevancyPriceBand,
+  deleteRelevancyPriceBand,
+  listRelevancyPriceBands,
 } from '@/lib/adminApi'
 
-type TabKey = 'roles' | 'badges' | 'companies' | 'skills' | 'domains' | 'reasons' | 'plans'
+type TabKey = 'roles' | 'badges' | 'companies' | 'skills' | 'domains' | 'reasons' | 'plans' | 'relevancyPricing'
 
 const tabs: { key: TabKey; label: string }[] = [
   { key: 'roles', label: 'Roles' },
@@ -47,6 +51,7 @@ const tabs: { key: TabKey; label: string }[] = [
   { key: 'domains', label: 'Domains' },
   { key: 'reasons', label: 'Rejection reasons' },
   { key: 'plans', label: 'Plans' },
+  { key: 'relevancyPricing', label: 'Relevancy pricing' },
 ]
 
 /**
@@ -548,6 +553,41 @@ export default function MasterDataPage() {
           />
         )}
         {tab === 'plans' && <PlansTab />}
+        {tab === 'relevancyPricing' && (
+          <CrudTab
+            columns={[
+              { key: 'label', label: 'Label', type: 'text' },
+              { key: 'minCandidates', label: 'Min candidates', type: 'number' },
+              { key: 'maxCandidates', label: 'Max candidates (blank = no limit)', type: 'number' },
+              { key: 'price', label: 'Price (blank = contact sales)', type: 'number' },
+              { key: 'isContactSales', label: 'Contact sales only', type: 'checkbox' },
+              { key: 'sortOrder', label: 'Sort order', type: 'number' },
+            ]}
+            list={async () => listRelevancyPriceBands()}
+            create={(values) =>
+              createRelevancyPriceBand({
+                label: String(values.label),
+                minCandidates: Number(values.minCandidates),
+                maxCandidates: values.maxCandidates !== '' ? Number(values.maxCandidates) : null,
+                price: values.price !== '' ? Number(values.price) : null,
+                isContactSales: Boolean(values.isContactSales),
+                sortOrder: values.sortOrder !== '' ? Number(values.sortOrder) : undefined,
+              })
+            }
+            update={(id, values) =>
+              updateRelevancyPriceBand(id, {
+                label: String(values.label),
+                minCandidates: Number(values.minCandidates),
+                maxCandidates: values.maxCandidates !== '' ? Number(values.maxCandidates) : null,
+                price: values.price !== '' ? Number(values.price) : null,
+                isContactSales: Boolean(values.isContactSales),
+                sortOrder: values.sortOrder !== '' ? Number(values.sortOrder) : undefined,
+              })
+            }
+            remove={(id) => deleteRelevancyPriceBand(id)}
+            emptyLabel="No price bands yet."
+          />
+        )}
       </Card>
     </div>
   )

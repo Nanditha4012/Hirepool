@@ -10,6 +10,8 @@ import paymentRoutes from './paymentRoutes';
 import contestRoutes from './contestRoutes';
 import feedRoutes from './feedRoutes';
 import communityRoutes from './communityRoutes';
+import careersRoutes from './careersRoutes';
+import internalRoutes from './internalRoutes';
 
 const router = Router();
 
@@ -31,5 +33,11 @@ router.use('/me', meRoutes);
 // instead (see companyRoutes.ts / candidateRoutes.ts), matching how every
 // other role-scoped feature in this codebase is organized.
 router.use('/payments', paymentRoutes);
+// Public Careers Page (Feature 2, Phase 5) — genuinely anonymous, no auth
+// middleware anywhere under this prefix.
+router.use('/careers', careersRoutes);
+// Infrastructure-only (Vercel Cron) — see requireCronSecret, not the
+// JWT/RLS scheme every other route uses.
+router.use('/internal', internalRoutes);
 
 export default router;

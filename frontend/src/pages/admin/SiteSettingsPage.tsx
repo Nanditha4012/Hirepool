@@ -14,6 +14,11 @@ const FIELDS: { key: string; label: string; kind: 'text' | 'textarea' }[] = [
   { key: 'hero_subtitle', label: 'Hero subtitle', kind: 'text' },
   { key: 'boost_price_per_day', label: 'Boost price per day', kind: 'text' },
   { key: 'faq', label: 'FAQ (raw JSON)', kind: 'textarea' },
+  {
+    key: 'jd_parsing_prompt_template',
+    label: 'JD parsing prompt template (AI Relevancy Packages)',
+    kind: 'textarea',
+  },
 ]
 
 export default function SiteSettingsPage() {

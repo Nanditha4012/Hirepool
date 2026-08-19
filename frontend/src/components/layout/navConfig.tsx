@@ -105,6 +105,7 @@ const roleItems: Record<Role, NavItem[]> = {
   ],
   company: [
     { to: '/company/search', label: 'Find candidates', short: 'Search', icon: icons.search, gated: true },
+    { to: '/company/relevancy', label: 'AI Relevancy', short: 'Relevancy', icon: icons.leaderboard, gated: true },
     { to: '/company/unlocked', label: 'Unlocked', icon: icons.unlocked, gated: true },
     { to: '/company/messages', label: 'Messages', short: 'Messages', icon: icons.messages, gated: true },
     { to: '/company/payments', label: 'Payments', icon: icons.payments },

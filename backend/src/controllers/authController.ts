@@ -12,6 +12,7 @@ import {
   PlanMaster,
   VerifierInvite,
   PasswordResetOtp,
+  ExternalApplicant,
 } from '../models';
 import { env } from '../config/env';
 import { asyncHandler } from '../utils/asyncHandler';
@@ -347,6 +348,24 @@ export const signup = asyncHandler(async (req: Request, res: Response) => {
 
       const created = await User.create({ email, passwordHash, role }, { transaction: t });
       await createProfileForNewUser(created.id, email, role, { transaction: t });
+
+      // End-to-End ATS (Feature 2, Phase 6) — conversion. "Once they
+      // verify/register" (spec) reads as registration itself being the
+      // trigger — a candidate_id exists from here on regardless of when
+      // (or whether) that profile later gets verified, and this is the one
+      // point where a brand-new account's email is known for certain. Not
+      // scoped to `role === 'candidate'` in the where clause because
+      // company/verifier signup share this code path too, but only a
+      // candidate account is a meaningful conversion target for a job
+      // applicant — matching a company signup here would be a bug, not a
+      // feature.
+      if (role === 'candidate') {
+        await ExternalApplicant.update(
+          { convertedCandidateId: created.id },
+          { where: { email, convertedCandidateId: null }, transaction: t },
+        );
+      }
+
       return created;
     });
   } catch (err) {

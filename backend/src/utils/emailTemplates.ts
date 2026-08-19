@@ -166,3 +166,95 @@ export function renewalReminderEmail(
     }),
   };
 }
+
+/** End-to-End ATS (Feature 2, Phase 7) — a Verified candidate also gets an
+ * in-app Notification for this; the email is the second half of "in-app +
+ * email" the spec calls for. */
+export function shortlistedVerifiedEmail(
+  candidateName: string,
+  companyName: string,
+  jobTitle: string,
+): { subject: string; html: string } {
+  const name = candidateName || 'there';
+  return {
+    subject: `You've been shortlisted for ${jobTitle}`,
+    html: renderEmail({
+      heading: `Good news, ${name}!`,
+      bodyHtml: `
+        <p style="margin: 0; line-height: 1.5;">You've been shortlisted by <strong>${companyName}</strong> for <strong>${jobTitle}</strong>.</p>
+      `,
+      ctaUrl: `${env.FRONTEND_URL}/candidate/applications`,
+      ctaLabel: 'View your applications',
+    }),
+  };
+}
+
+/** External applicant (Phase 7) — email only, no account exists to carry an
+ * in-app Notification. The CTA is the conversion path: completing
+ * registration on Hirepool is what turns this into a Verified account. */
+export function shortlistedExternalEmail(
+  applicantName: string,
+  companyName: string,
+  jobTitle: string,
+): { subject: string; html: string } {
+  const name = applicantName || 'there';
+  return {
+    subject: `You've been shortlisted for ${jobTitle}`,
+    html: renderEmail({
+      heading: `Good news, ${name}!`,
+      bodyHtml: `
+        <p style="margin: 0 0 12px; line-height: 1.5;">You've been shortlisted by <strong>${companyName}</strong> for <strong>${jobTitle}</strong>.</p>
+        <p style="margin: 0; line-height: 1.5;">To proceed, complete your verification/registration on Hirepool — this links your application to a full account so you can track its progress.</p>
+      `,
+      ctaUrl: `${env.FRONTEND_URL}/signup`,
+      ctaLabel: 'Complete registration',
+    }),
+  };
+}
+
+/** Round result updated (Phase 8) — sent to both Verified (alongside an
+ * in-app Notification) and External (email-only) candidates, same
+ * verified/external split as the shortlist notifications. */
+export function roundResultUpdatedEmail(
+  candidateName: string,
+  jobTitle: string,
+  roundName: string,
+  result: 'pass' | 'fail' | 'hold',
+): { subject: string; html: string } {
+  const name = candidateName || 'there';
+  const resultCopy: Record<typeof result, string> = {
+    pass: `You've cleared the <strong>${roundName}</strong> for <strong>${jobTitle}</strong>.`,
+    fail: `Your result for the <strong>${roundName}</strong> of <strong>${jobTitle}</strong> has been recorded.`,
+    hold: `Your <strong>${roundName}</strong> for <strong>${jobTitle}</strong> is currently on hold.`,
+  };
+  return {
+    subject: `Update on your ${roundName} — ${jobTitle}`,
+    html: renderEmail({
+      heading: `Hi ${name}, there's an update`,
+      bodyHtml: `<p style="margin: 0; line-height: 1.5;">${resultCopy[result]}</p>`,
+      ctaUrl: `${env.FRONTEND_URL}/candidate/applications`,
+      ctaLabel: 'View your applications',
+    }),
+  };
+}
+
+/** Daily digest (Phase 7) — a low-noise nudge for pending items, sent by
+ * the Vercel Cron job (utils/dailyDigest.ts) rather than per micro-update. */
+export function dailyDigestEmail(
+  candidateName: string,
+  pendingCount: number,
+): { subject: string; html: string } {
+  const name = candidateName || 'there';
+  const itemWord = pendingCount === 1 ? 'item' : 'items';
+  return {
+    subject: 'You have pending items on Hirepool',
+    html: renderEmail({
+      heading: `Hi ${name}, you have ${pendingCount} pending ${itemWord}`,
+      bodyHtml: `
+        <p style="margin: 0; line-height: 1.5;">Check your dashboard for applications awaiting your attention.</p>
+      `,
+      ctaUrl: `${env.FRONTEND_URL}/candidate/applications`,
+      ctaLabel: 'View your applications',
+    }),
+  };
+}

@@ -1,4 +1,5 @@
 {
   "outputDirectory": "public",
-  "rewrites": [{ "source": "/(.*)", "destination": "/api" }]
+  "rewrites": [{ "source": "/(.*)", "destination": "/api" }],
+  "crons": [{ "path": "/api/internal/cron/daily-digest", "schedule": "0 3 * * *" }]
 }

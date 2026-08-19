@@ -1,8 +1,21 @@
 import { Request, Response } from 'express';
 import { Transaction } from 'sequelize';
 import { z } from 'zod';
-import { Payment, PlanMaster, CompanyProfile, CandidateProfile, SiteSetting, Notification, User } from '../models';
+import {
+  Payment,
+  PlanMaster,
+  CompanyProfile,
+  CandidateProfile,
+  SiteSetting,
+  Notification,
+  User,
+  Job,
+  CandidateRelevancyScore,
+  RelevancyPackage,
+  RelevancyPackagePriceBand,
+} from '../models';
 import type { PaymentType, PaymentMetadata } from '../models/Payment';
+import type { RelevancyTier } from '../models/CandidateRelevancyScore';
 import { asyncHandler } from '../utils/asyncHandler';
 import { ApiError } from '../utils/ApiError';
 import { runInRequestContext, RequestContextUser } from '../utils/withRequestContext';
@@ -54,9 +67,14 @@ async function getSiteSettingNumber(
 /** Razorpay receipts are capped at 40 chars — short type code + first 8
  * chars of the user id + a millisecond timestamp keeps this well under
  * that while staying unique per request. */
+const RECEIPT_TYPE_CODES: Record<PaymentType, string> = {
+  subscription: 'sub',
+  pay_per_unlock: 'unlk',
+  boost: 'bst',
+  relevancy_package: 'rlvp',
+};
 function buildReceipt(type: PaymentType, userId: string): string {
-  const shortType = type === 'subscription' ? 'sub' : type === 'pay_per_unlock' ? 'unlk' : 'bst';
-  return `hp_${shortType}_${userId.slice(0, 8)}_${Date.now()}`;
+  return `hp_${RECEIPT_TYPE_CODES[type]}_${userId.slice(0, 8)}_${Date.now()}`;
 }
 
 interface CreateOrderResult {
@@ -186,6 +204,78 @@ export const boost = asyncHandler(async (req: Request, res: Response) => {
 });
 
 // ---------------------------------------------------------------------
+// POST /companies/jobs/:jobId/batches/:tier/purchase (AI Relevancy
+// Packages, Feature 1 Phase 3) — a separate one-time purchase flow from
+// subscribe/unlock-topup above: its own Payment row/line item, and it does
+// not touch companyProfile.remainingUnlocks at all.
+// ---------------------------------------------------------------------
+
+const RELEVANCY_TIERS: RelevancyTier[] = ['100_percent', '90_plus', '75_plus', '50_plus'];
+
+export const purchaseRelevancyPackage = asyncHandler(async (req: Request, res: Response) => {
+  const authUser = req.user!;
+  const { jobId, tier } = req.params;
+  if (!RELEVANCY_TIERS.includes(tier as RelevancyTier)) {
+    throw ApiError.badRequest('Invalid tier');
+  }
+
+  // Checked before any write — a relevancy_packages row created here and
+  // then abandoned because Razorpay isn't configured would be a harmless
+  // but pointless orphan; failing fast avoids it entirely.
+  if (!isRazorpayConfigured()) {
+    throw ApiError.serviceUnavailable('Payments are not configured in this environment');
+  }
+
+  const { candidateCount, band } = await runInRequestContext(authUser, async (t) => {
+    const job = await Job.findOne({ where: { id: jobId, companyId: authUser.id }, transaction: t });
+    if (!job) throw ApiError.notFound('Job not found');
+
+    const candidateCount = await CandidateRelevancyScore.count({ where: { jobId, tier }, transaction: t });
+    if (candidateCount === 0) {
+      throw ApiError.badRequest('This batch has no candidates yet');
+    }
+
+    const bands = await RelevancyPackagePriceBand.findAll({
+      order: [['sortOrder', 'ASC']],
+      transaction: t,
+    });
+    const matched = bands.find(
+      (b) => candidateCount >= b.minCandidates && (b.maxCandidates === null || candidateCount <= b.maxCandidates),
+    );
+    if (!matched) {
+      throw ApiError.serviceUnavailable('No price band is configured for a batch of this size yet.');
+    }
+    if (matched.isContactSales || matched.price === null) {
+      throw ApiError.badRequest(
+        'This batch size is priced on request — contact sales rather than a self-serve purchase.',
+      );
+    }
+
+    return { candidateCount, band: matched };
+  });
+
+  // Created unpurchased (purchasedByCompanyId/purchasedAt stay null) —
+  // the webhook fills those in once payment is actually confirmed. This is
+  // the one flow in this controller that writes a non-Payment row before
+  // calling createOrderAndPaymentRow; every other checkout type here reuses
+  // an existing PlanMaster/site_settings row instead of creating one.
+  const relevancyPackage = await runInRequestContext(authUser, (t) =>
+    RelevancyPackage.create(
+      { jobId, tier: tier as RelevancyTier, candidateCount, price: Number(band.price) },
+      { transaction: t },
+    ),
+  );
+
+  const result = await createOrderAndPaymentRow(authUser, {
+    type: 'relevancy_package',
+    amount: Number(band.price),
+    metadata: { relevancyPackageId: relevancyPackage.id },
+  });
+
+  res.status(201).json(result);
+});
+
+// ---------------------------------------------------------------------
 // GET /companies/payments/history, GET /candidates/payments/history
 // ---------------------------------------------------------------------
 
@@ -250,6 +340,8 @@ function buildReceiptMessage(payment: Payment): string {
       const metadata = payment.metadata as { boostDays: number };
       return `Payment received — your profile is boosted for ${metadata.boostDays} day(s).`;
     }
+    case 'relevancy_package':
+      return 'Payment received — your relevancy package is ready to download.';
     default:
       return 'Payment received.';
   }
@@ -277,6 +369,11 @@ async function buildPaymentDescription(payment: Payment, t: Transaction): Promis
     case 'boost': {
       const metadata = payment.metadata as { boostDays: number };
       return `${metadata.boostDays}-day profile boost`;
+    }
+    case 'relevancy_package': {
+      const metadata = payment.metadata as { relevancyPackageId: string };
+      const pkg = await RelevancyPackage.findByPk(metadata.relevancyPackageId, { transaction: t });
+      return pkg ? `${pkg.candidateCount}-candidate relevancy package` : 'relevancy package';
     }
     default:
       return 'your purchase';
@@ -332,6 +429,17 @@ async function applyPaymentEffect(payment: Payment, t: Transaction): Promise<voi
     profile.isBoosted = true;
     profile.boostExpiresAt = new Date(base.getTime() + metadata.boostDays * 24 * 60 * 60 * 1000);
     await profile.save({ transaction: t });
+    return;
+  }
+
+  if (payment.type === 'relevancy_package') {
+    const metadata = payment.metadata as { relevancyPackageId: string };
+    const pkg = await RelevancyPackage.findByPk(metadata.relevancyPackageId, { transaction: t });
+    if (!pkg) return;
+
+    pkg.purchasedByCompanyId = payment.payerUserId;
+    pkg.purchasedAt = new Date();
+    await pkg.save({ transaction: t });
   }
 }
 

@@ -7,6 +7,7 @@ import * as verificationController from '../controllers/verificationController';
 import * as messageController from '../controllers/messageController';
 import * as candidateBlockController from '../controllers/candidateBlockController';
 import * as paymentController from '../controllers/paymentController';
+import * as candidateRoundController from '../controllers/candidateRoundController';
 import { requireAuth } from '../middleware/requireAuth';
 import { requireRole } from '../middleware/requireRole';
 
@@ -41,6 +42,12 @@ router.get(
   requireAuth,
   requireRole('candidate'),
   candidateController.listWhoUnlockedMe,
+);
+router.get(
+  '/me/applications',
+  requireAuth,
+  requireRole('candidate'),
+  candidateController.listMyApplications,
 );
 
 // Platform badges
@@ -152,6 +159,20 @@ router.post(
   requireAuth,
   requireRole('candidate'),
   candidateBlockController.blockCompany,
+);
+
+// Coding & MCQ rounds (Phase 8).
+router.get(
+  '/applications/:applicationId/rounds/:roundId',
+  requireAuth,
+  requireRole('candidate'),
+  candidateRoundController.getRound,
+);
+router.post(
+  '/applications/:applicationId/rounds/:roundId/submit',
+  requireAuth,
+  requireRole('candidate'),
+  candidateRoundController.submitRoundAttempt,
 );
 
 // Payments (Phase 6)

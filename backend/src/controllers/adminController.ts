@@ -26,6 +26,8 @@ import {
   SiteSetting,
   Payment,
   VerifierInvite,
+  RelevancyPackagePriceBand,
+  McqMaster,
 } from '../models';
 import type { CandidateProfileAttributes, CandidateStatus } from '../models/CandidateProfile';
 import type { UserAttributes } from '../models/User';
@@ -1397,6 +1399,133 @@ export const deletePlanMaster = asyncHandler(async (req: Request, res: Response)
     const existing = await PlanMaster.findByPk(id, { transaction: t });
     if (!existing) throw ApiError.notFound('Plan not found');
     await logAdminAction(authUser.id, 'master_plan_delete', `plan_master:${id}`, t);
+    await existing.destroy({ transaction: t });
+  });
+
+  res.status(204).send();
+});
+
+// ----- relevancy_package_price_bands (AI Relevancy Packages, Feature 1) -----
+
+const relevancyPriceBandBaseSchema = z.object({
+  label: z.string().trim().min(1),
+  minCandidates: z.number().int().min(1),
+  maxCandidates: z.number().int().min(1).nullable(),
+  price: z.number().min(0).nullable(),
+  isContactSales: z.boolean().optional(),
+  sortOrder: z.number().int().optional(),
+});
+
+const relevancyPriceBandSchema = relevancyPriceBandBaseSchema.refine(
+  (v) => v.isContactSales === true || v.price !== null,
+  { message: 'price is required unless isContactSales is true', path: ['price'] },
+);
+
+export const createRelevancyPriceBand = asyncHandler(async (req: Request, res: Response) => {
+  const authUser = req.user!;
+  const body = relevancyPriceBandSchema.parse(req.body);
+
+  const band = await runInRequestContext(authUser, async (t) => {
+    const created = await RelevancyPackagePriceBand.create(body, { transaction: t });
+    await logAdminAction(authUser.id, 'master_relevancy_price_band_create', `relevancy_price_band:${created.id}`, t);
+    return created;
+  });
+
+  res.status(201).json(band);
+});
+
+export const updateRelevancyPriceBand = asyncHandler(async (req: Request, res: Response) => {
+  const authUser = req.user!;
+  const { id } = req.params;
+  const body = relevancyPriceBandBaseSchema.partial().parse(req.body);
+
+  const band = await runInRequestContext(authUser, async (t) => {
+    const existing = await RelevancyPackagePriceBand.findByPk(id, { transaction: t });
+    if (!existing) throw ApiError.notFound('Price band not found');
+    if (body.label !== undefined) existing.label = body.label;
+    if (body.minCandidates !== undefined) existing.minCandidates = body.minCandidates;
+    if (body.maxCandidates !== undefined) existing.maxCandidates = body.maxCandidates;
+    if (body.price !== undefined) existing.price = body.price;
+    if (body.isContactSales !== undefined) existing.isContactSales = body.isContactSales;
+    if (body.sortOrder !== undefined) existing.sortOrder = body.sortOrder;
+    existing.updatedAt = new Date();
+    await existing.save({ transaction: t });
+    await logAdminAction(authUser.id, 'master_relevancy_price_band_update', `relevancy_price_band:${id}`, t);
+    return existing;
+  });
+
+  res.json(band);
+});
+
+export const deleteRelevancyPriceBand = asyncHandler(async (req: Request, res: Response) => {
+  const authUser = req.user!;
+  const { id } = req.params;
+
+  await runInRequestContext(authUser, async (t) => {
+    const existing = await RelevancyPackagePriceBand.findByPk(id, { transaction: t });
+    if (!existing) throw ApiError.notFound('Price band not found');
+    await logAdminAction(authUser.id, 'master_relevancy_price_band_delete', `relevancy_price_band:${id}`, t);
+    await existing.destroy({ transaction: t });
+  });
+
+  res.status(204).send();
+});
+
+// ----- mcq_master (End-to-End ATS, Feature 2 Phase 8) — the public/admin-
+// curated bank only (company_id stays null for everything created here;
+// a company's own custom MCQs are managed via jobRoundController instead). -----
+
+const mcqMasterSchema = z.object({
+  conceptOrLanguage: z.string().trim().min(1),
+  question: z.string().trim().min(1),
+  options: z.array(z.string()).min(2),
+  correctAnswer: z.number().int().min(0),
+});
+
+export const createMcqMaster = asyncHandler(async (req: Request, res: Response) => {
+  const authUser = req.user!;
+  const body = mcqMasterSchema.parse(req.body);
+  if (body.correctAnswer >= body.options.length) {
+    throw ApiError.badRequest('correctAnswer must be a valid index into options');
+  }
+
+  const created = await runInRequestContext(authUser, async (t) => {
+    const row = await McqMaster.create({ ...body, companyId: null, jobId: null }, { transaction: t });
+    await logAdminAction(authUser.id, 'master_mcq_create', `mcq_master:${row.id}`, t);
+    return row;
+  });
+
+  res.status(201).json(created);
+});
+
+export const updateMcqMaster = asyncHandler(async (req: Request, res: Response) => {
+  const authUser = req.user!;
+  const { id } = req.params;
+  const body = mcqMasterSchema.partial().parse(req.body);
+
+  const updated = await runInRequestContext(authUser, async (t) => {
+    const existing = await McqMaster.findOne({ where: { id, companyId: null }, transaction: t });
+    if (!existing) throw ApiError.notFound('MCQ not found in the public bank');
+    if (body.conceptOrLanguage !== undefined) existing.conceptOrLanguage = body.conceptOrLanguage;
+    if (body.question !== undefined) existing.question = body.question;
+    if (body.options !== undefined) existing.options = body.options;
+    if (body.correctAnswer !== undefined) existing.correctAnswer = body.correctAnswer;
+    await existing.save({ transaction: t });
+    await logAdminAction(authUser.id, 'master_mcq_update', `mcq_master:${id}`, t);
+    return existing;
+  });
+
+  res.json(updated);
+});
+
+export const deleteMcqMaster = asyncHandler(async (req: Request, res: Response) => {
+  const authUser = req.user!;
+  const { id } = req.params;
+
+  await runInRequestContext(authUser, async (t) => {
+    const existing = await McqMaster.findOne({ where: { id, companyId: null }, transaction: t });
+    if (!existing) throw ApiError.notFound('MCQ not found in the public bank');
+    await logAdminAction(authUser.id, 'master_mcq_delete', `mcq_master:${id}`, t);
     await existing.destroy({ transaction: t });
   });
 
