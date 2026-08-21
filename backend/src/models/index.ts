@@ -53,6 +53,9 @@ import { CustomCodingQuestion } from './CustomCodingQuestion';
 import { McqMaster } from './McqMaster';
 import { JobRoundQuestion } from './JobRoundQuestion';
 import { JobRoundResult } from './JobRoundResult';
+import { InterviewSession } from './InterviewSession';
+import { Offer } from './Offer';
+import { JoiningFormality } from './JoiningFormality';
 
 // User <-> CandidateProfile (1:1)
 User.hasOne(CandidateProfile, { foreignKey: 'userId', as: 'candidateProfile' });
@@ -298,6 +301,18 @@ JobRoundResult.belongsTo(JobRound, { foreignKey: 'roundId', as: 'round' });
 User.hasMany(JobRoundResult, { foreignKey: 'updatedBy', as: 'roundResultsUpdated' });
 JobRoundResult.belongsTo(User, { foreignKey: 'updatedBy', as: 'updatedByUser' });
 
+// Phase 9 — interview round.
+JobApplication.hasMany(InterviewSession, { foreignKey: 'applicationId', as: 'interviewSessions' });
+InterviewSession.belongsTo(JobApplication, { foreignKey: 'applicationId', as: 'application' });
+JobRound.hasMany(InterviewSession, { foreignKey: 'roundId', as: 'interviewSessions' });
+InterviewSession.belongsTo(JobRound, { foreignKey: 'roundId', as: 'round' });
+
+// Phase 10 — offer & joining.
+JobApplication.hasOne(Offer, { foreignKey: 'applicationId', as: 'offer' });
+Offer.belongsTo(JobApplication, { foreignKey: 'applicationId', as: 'application' });
+JobApplication.hasOne(JoiningFormality, { foreignKey: 'applicationId', as: 'joiningFormality' });
+JoiningFormality.belongsTo(JobApplication, { foreignKey: 'applicationId', as: 'application' });
+
 export {
   sequelize,
   User,
@@ -354,4 +369,7 @@ export {
   McqMaster,
   JobRoundQuestion,
   JobRoundResult,
+  InterviewSession,
+  Offer,
+  JoiningFormality,
 };

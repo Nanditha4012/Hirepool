@@ -8,6 +8,9 @@ import * as jdController from '../controllers/jdController';
 import * as relevancyController from '../controllers/relevancyController';
 import * as jobApplicationController from '../controllers/jobApplicationController';
 import * as jobRoundController from '../controllers/jobRoundController';
+import * as interviewController from '../controllers/interviewController';
+import * as offerController from '../controllers/offerController';
+import * as jobAnalyticsController from '../controllers/jobAnalyticsController';
 import { requireAuth } from '../middleware/requireAuth';
 import { requireRole } from '../middleware/requireRole';
 import { requireVerified } from '../middleware/requireVerified';
@@ -130,6 +133,35 @@ router.delete('/coding-questions/:id', ...companyOnly, jobRoundController.delete
 router.get('/mcqs', ...companyOnly, jobRoundController.listMyMcqs);
 router.post('/mcqs', ...companyOnly, jobRoundController.createMcq);
 router.delete('/mcqs/:id', ...companyOnly, jobRoundController.deleteMcq);
+
+// Interview round (Phase 9).
+router.post(
+  '/jobs/:jobId/rounds/:roundId/applications/:applicationId/interview',
+  ...companyOnly,
+  interviewController.scheduleInterview,
+);
+router.get(
+  '/jobs/:jobId/rounds/:roundId/applications/:applicationId/interview',
+  ...companyOnly,
+  interviewController.getInterview,
+);
+
+// Offer & joining (Phase 10).
+router.post('/jobs/:jobId/applications/:applicationId/offer', ...companyOnly, offerController.sendOffer);
+router.get('/jobs/:jobId/applications/:applicationId/offer', ...companyOnly, offerController.getOffer);
+router.get(
+  '/jobs/:jobId/applications/:applicationId/joining',
+  ...companyOnly,
+  offerController.getJoiningFormalities,
+);
+router.patch(
+  '/jobs/:jobId/applications/:applicationId/joining/bgv',
+  ...companyOnly,
+  offerController.updateBgvStatus,
+);
+
+// Analytics (Phase 11).
+router.get('/jobs/:jobId/analytics', ...verifiedCompany, jobAnalyticsController.getJobAnalytics);
 
 // Batch cards + browse-batch (Phase 2). verifiedCompany, not companyOnly —
 // this is "browse candidates using the normal unlock flow", same gate as

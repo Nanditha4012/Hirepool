@@ -8,6 +8,8 @@ import * as messageController from '../controllers/messageController';
 import * as candidateBlockController from '../controllers/candidateBlockController';
 import * as paymentController from '../controllers/paymentController';
 import * as candidateRoundController from '../controllers/candidateRoundController';
+import * as interviewController from '../controllers/interviewController';
+import * as candidateOfferController from '../controllers/candidateOfferController';
 import { requireAuth } from '../middleware/requireAuth';
 import { requireRole } from '../middleware/requireRole';
 
@@ -173,6 +175,38 @@ router.post(
   requireAuth,
   requireRole('candidate'),
   candidateRoundController.submitRoundAttempt,
+);
+router.get(
+  '/applications/:applicationId/rounds/:roundId/interview',
+  requireAuth,
+  requireRole('candidate'),
+  interviewController.getMyInterview,
+);
+
+// Offer & joining (Phase 10).
+router.get(
+  '/applications/:applicationId/offer',
+  requireAuth,
+  requireRole('candidate'),
+  candidateOfferController.getMyOffer,
+);
+router.post(
+  '/applications/:applicationId/offer/respond',
+  requireAuth,
+  requireRole('candidate'),
+  candidateOfferController.respondToOffer,
+);
+router.get(
+  '/applications/:applicationId/joining',
+  requireAuth,
+  requireRole('candidate'),
+  candidateOfferController.getMyJoiningFormalities,
+);
+router.patch(
+  '/applications/:applicationId/joining/documents',
+  requireAuth,
+  requireRole('candidate'),
+  candidateOfferController.uploadJoiningDocuments,
 );
 
 // Payments (Phase 6)

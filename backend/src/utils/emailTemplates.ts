@@ -238,6 +238,54 @@ export function roundResultUpdatedEmail(
   };
 }
 
+/** Interview scheduled (Phase 9) — Verified candidates also get an in-app
+ * Notification alongside this; External applicants get email only, same
+ * split established for shortlisting. */
+export function interviewScheduledEmail(
+  candidateName: string,
+  jobTitle: string,
+  roundName: string,
+  scheduledAt: Date,
+  meetingLink: string,
+): { subject: string; html: string } {
+  const name = candidateName || 'there';
+  const whenText = scheduledAt.toLocaleString('en-IN', { dateStyle: 'full', timeStyle: 'short' });
+  return {
+    subject: `Interview scheduled — ${jobTitle}`,
+    html: renderEmail({
+      heading: `Hi ${name}, your ${roundName.toLowerCase()} is scheduled`,
+      bodyHtml: `
+        <p style="margin: 0 0 12px; line-height: 1.5;">Your <strong>${roundName}</strong> for <strong>${jobTitle}</strong> is set for <strong>${whenText}</strong>.</p>
+        <p style="margin: 0; line-height: 1.5;">Join via the link below at the scheduled time — no account or download needed.</p>
+      `,
+      ctaUrl: meetingLink,
+      ctaLabel: 'Join the interview',
+    }),
+  };
+}
+
+/** Offer sent (Phase 10) — Verified candidates also get an in-app
+ * Notification alongside this; External applicants get email only, same
+ * split established for shortlisting. */
+export function offerSentEmail(
+  candidateName: string,
+  jobTitle: string,
+  offerLetterLink: string,
+): { subject: string; html: string } {
+  const name = candidateName || 'there';
+  return {
+    subject: `Your offer for ${jobTitle}`,
+    html: renderEmail({
+      heading: `Congratulations, ${name}!`,
+      bodyHtml: `
+        <p style="margin: 0; line-height: 1.5;">You've received an offer for <strong>${jobTitle}</strong>. Review it and respond from your Hirepool dashboard.</p>
+      `,
+      ctaUrl: offerLetterLink,
+      ctaLabel: 'View offer letter',
+    }),
+  };
+}
+
 /** Daily digest (Phase 7) — a low-noise nudge for pending items, sent by
  * the Vercel Cron job (utils/dailyDigest.ts) rather than per micro-update. */
 export function dailyDigestEmail(
