@@ -10,6 +10,7 @@ const PAGE_LIMIT = 20
 const statusTone: Record<PaymentStatus, 'verified' | 'boost' | 'danger' | 'neutral'> = {
   paid: 'verified',
   created: 'boost',
+  submitted: 'boost',
   failed: 'danger',
   refunded: 'neutral',
 }
@@ -17,6 +18,7 @@ const statusTone: Record<PaymentStatus, 'verified' | 'boost' | 'danger' | 'neutr
 const statusLabel: Record<PaymentStatus, string> = {
   paid: 'Paid',
   created: 'Processing',
+  submitted: 'Awaiting verification',
   failed: 'Failed',
   refunded: 'Refunded',
 }

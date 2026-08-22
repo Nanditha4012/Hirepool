@@ -1,25 +1,27 @@
 import { useEffect, useState } from 'react'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
-import ProfileCard, { type ProfileCardData } from '@/components/candidate/ProfileCard'
+import CandidateSummaryCard, {
+  type CandidateSummaryCardData,
+} from '@/components/company/CandidateSummaryCard'
 import { listMyUnlocked, updateUnlockNote, type UnlockedCandidate } from '@/lib/companyApi'
 import PageSkeleton from '@/components/ui/PageSkeleton'
 
-function mapToProfileCardData(candidate: UnlockedCandidate): ProfileCardData {
+function toCardData(candidate: UnlockedCandidate): CandidateSummaryCardData {
   return {
     id: candidate.candidateId,
     fullName: candidate.fullName,
-    status: 'approved',
-    category: (candidate.category as ProfileCardData['category']) || null,
+    category: (candidate.category as CandidateSummaryCardData['category']) || null,
     primaryRole: candidate.primaryRole,
     yearsOfExperience: candidate.yearsOfExperience,
-    secondaryRoles: [],
+    location: candidate.location,
     skills: candidate.skills,
-    domain: null,
     education: candidate.education,
-    isMncAlumni: false,
-    isFaangMaangAlumni: false,
-    isStartupAlumni: false,
+    // domain/secondaryRoles/alumni flags: GET /companies/me/unlocked doesn't
+    // return them (see companyApi.ts's UnlockedCandidate) — left undefined
+    // rather than faked, and CandidateSummaryCard renders fewer meta/
+    // highlight items accordingly.
+    isUnlockedByMe: true,
     // Same boundary as search: paying to unlock buys the contact details, not
     // the projects, portfolio or coding-platform links. See the backend's
     // utils/companyVisibleProfile.ts.
@@ -101,10 +103,10 @@ export default function UnlockedCandidatesPage() {
           <p className="text-ink/60">You haven&apos;t unlocked any candidates yet.</p>
         </Card>
       ) : (
-        <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
           {candidates.map((candidate) => (
-            <div key={candidate.candidateId} className="flex flex-col gap-3">
-              <ProfileCard profile={mapToProfileCardData(candidate)} />
+            <div key={candidate.candidateId} className="flex h-full flex-col gap-3">
+              <CandidateSummaryCard candidate={toCardData(candidate)} />
               <Card className="flex flex-col gap-2 p-4">
                 <label className="text-sm font-medium text-ink" htmlFor={`note-${candidate.candidateId}`}>
                   Private note

@@ -75,6 +75,39 @@ export const contactIcons = {
       <path {...stroke} d="M8 8V6a2 2 0 012-2h4a2 2 0 012 2v2M2 13h20" />
     </>
   ),
+  /** Open padlock — "contact unlocked" state. */
+  lockOpen: (
+    <>
+      <rect {...stroke} x="4" y="11" width="16" height="10" rx="2" />
+      <path {...stroke} d="M7 11V7a5 5 0 019.5-2.2" />
+    </>
+  ),
+  /** Closed padlock — "contact locked" placeholder before an unlock. */
+  lockClosed: (
+    <>
+      <rect {...stroke} x="4" y="11" width="16" height="10" rx="2" />
+      <path {...stroke} d="M7 11V7a5 5 0 0110 0v4" />
+    </>
+  ),
+  trophy: (
+    <path
+      {...stroke}
+      d="M8 4h8v5a4 4 0 11-8 0V4zM8 6H5v1a3 3 0 003 3M16 6h3v1a3 3 0 01-3 3M12 13v4m-3 3h6"
+    />
+  ),
+  /** Data structures & algorithms — code brackets. */
+  code: <path {...stroke} d="M8 6l-6 6 6 6M16 6l6 6-6 6" />,
+  /** Domain-specific challenges — a wrench. */
+  tools: (
+    <path
+      {...stroke}
+      d="M14.7 6.3a4 4 0 00-5.4 5.4L2 19l3 3 7.3-7.3a4 4 0 005.4-5.4l-2.8 2.8-2-2z"
+    />
+  ),
+  /** Quant — a bar chart. */
+  chart: <path {...stroke} d="M5 20V10m7 10V4m7 16v-6" />,
+  /** Domain/industry marker — a diamond. */
+  domain: <path {...stroke} d="M12 2l4.5 5.5L12 22 7.5 7.5z" />,
 } satisfies Record<string, React.ReactNode>
 
 export type ContactIconName = keyof typeof contactIcons

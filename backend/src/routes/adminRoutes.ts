@@ -118,6 +118,8 @@ router.get('/analytics/overview', ...adminOnly, adminController.getAnalyticsOver
 
 // ----- Financial ledger (Phase 6) -----
 router.get('/payments', ...adminOnly, adminController.listPayments);
+router.post('/payments/:id/approve', ...adminOnly, adminController.approveUpiPayment);
+router.post('/payments/:id/reject', ...adminOnly, adminController.rejectUpiPayment);
 
 // ----- Contests (test & question management) -----
 // Questions are addressed by their own id at the top level rather than nested

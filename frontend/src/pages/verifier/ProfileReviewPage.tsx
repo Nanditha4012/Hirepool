@@ -479,9 +479,11 @@ export default function ProfileReviewPage() {
           </Card>
         </div>
 
-        {/* Decision + timeline rail */}
-        <div className="flex flex-col gap-6">
-          <Card className="lg:sticky lg:top-24">
+        {/* Decision + timeline rail — sticky as one block so the two cards
+            move together while scrolling, rather than one staying pinned
+            while the other scrolls out from under it. */}
+        <div className="flex flex-col gap-6 lg:sticky lg:top-24 lg:self-start">
+          <Card>
             <h2 className="text-lg font-semibold text-ink">Push this profile</h2>
 
             {isDecided ? (

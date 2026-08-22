@@ -20,8 +20,19 @@ export interface CreateOrderResponse {
   razorpayKeyId: string
 }
 
+/** Manual-UPI counterpart to CreateOrderResponse — no Razorpay order, no
+ *  key id. See usePaymentCheckout.ts for the Razorpay-driven flow this sits
+ *  alongside rather than replaces. */
+export interface CreateManualUpiOrderResponse {
+  paymentId: string
+  manualReference: string
+  amount: number
+  currency: string
+}
+
 export type PaymentType = 'subscription' | 'pay_per_unlock' | 'boost' | 'relevancy_package'
-export type PaymentStatus = 'created' | 'paid' | 'failed' | 'refunded'
+export type PaymentStatus = 'created' | 'submitted' | 'paid' | 'failed' | 'refunded'
+export type PaymentMethod = 'razorpay' | 'upi_manual'
 
 export type PaymentMetadata =
   | { planId: string }
@@ -36,9 +47,12 @@ export interface PaymentRow {
   amount: number
   currency: string
   status: PaymentStatus
-  razorpayOrderId: string
+  method: PaymentMethod
+  razorpayOrderId: string | null
   razorpayPaymentId: string | null
   razorpaySignature: string | null
+  manualReference: string | null
+  upiUtr: string | null
   metadata: PaymentMetadata | Record<string, unknown>
   createdAt: string
   updatedAt: string
@@ -85,6 +99,14 @@ export function subscribeToPlan(planId: string) {
   })
 }
 
+/** Manual-UPI counterpart to subscribeToPlan — same plan, no Razorpay. */
+export function subscribeToPlanUpi(planId: string) {
+  return apiFetch<CreateManualUpiOrderResponse>('/companies/payments/subscribe/upi', {
+    method: 'POST',
+    body: JSON.stringify({ planId }),
+  })
+}
+
 export function buyUnlockTopup(quantity: number) {
   return apiFetch<CreateOrderResponse>('/companies/payments/unlock-topup', {
     method: 'POST',
@@ -107,6 +129,28 @@ export function buyBoost(days: number) {
   })
 }
 
+/** Manual-UPI counterpart to buyBoost — same days, no Razorpay. */
+export function buyBoostUpi(days: number) {
+  return apiFetch<CreateManualUpiOrderResponse>('/candidates/payments/boost/upi', {
+    method: 'POST',
+    body: JSON.stringify({ days }),
+  })
+}
+
 export function listCandidatePaymentHistory(params: ListPaymentHistoryParams = {}) {
   return apiFetch<PaymentHistoryResponse>(`/candidates/payments/history${buildQuery(params)}`)
+}
+
+// ---------------------------------------------------------------------------
+// Manual UPI (shared — role-agnostic, see backend's paymentRoutes.ts)
+// ---------------------------------------------------------------------------
+
+/** Attaches the UPI transaction reference (UTR) to a manual payment row
+ *  after the payer has actually sent the money — see UpiManualPayment.tsx.
+ *  Flips the row from `created` to `submitted`, awaiting admin review. */
+export function submitUpiPaymentReference(paymentId: string, upiUtr: string) {
+  return apiFetch<PaymentRow>(`/payments/upi/${paymentId}/submit`, {
+    method: 'PATCH',
+    body: JSON.stringify({ upiUtr }),
+  })
 }

@@ -6,7 +6,7 @@ import Input from '@/components/ui/Input'
 import Select from '@/components/ui/Select'
 import Combobox from '@/components/ui/Combobox'
 import ChipMultiSelect from '@/components/ui/ChipMultiSelect'
-import ProfileCard, { type ProfileCardData } from '@/components/candidate/ProfileCard'
+import CandidateSummaryCard from '@/components/company/CandidateSummaryCard'
 import CandidateProfileSheet from '@/components/company/CandidateProfileSheet'
 import PageSkeleton from '@/components/ui/PageSkeleton'
 import PageHero, { HeroStat } from '@/components/ui/PageHero'
@@ -106,31 +106,6 @@ const initialFilters: FilterState = {
   sort: 'relevance',
 }
 
-function mapToProfileCardData(result: CandidateSearchResult): ProfileCardData {
-  return {
-    id: result.id,
-    fullName: result.fullName,
-    status: 'approved',
-    category: result.category,
-    primaryRole: result.primaryRole,
-    yearsOfExperience: result.yearsOfExperience,
-    secondaryRoles: result.secondaryRoles,
-    skills: result.skills,
-    domain: result.domain,
-    education: result.education,
-    location: result.location,
-    isMncAlumni: result.isMncAlumni,
-    isFaangMaangAlumni: result.isFaangMaangAlumni,
-    isStartupAlumni: result.isStartupAlumni,
-    // resumeLink / portfolioLink / platformBadges / verifiedAchievementCounts
-    // are deliberately absent: the server no longer sends them to a company,
-    // and their blocks on the card don't render without them. Companies get
-    // the generated profile sheet instead — see CandidateProfileSheet.
-    phone: result.phone,
-    email: result.email,
-    whatsappLink: result.whatsappLink,
-  }
-}
 
 function ToggleChip({
   active,
@@ -840,61 +815,40 @@ export default function SearchPage() {
             </Card>
           )}
 
-          <div className="mt-4 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {/* Capped at 3-up (not 4) — these cards carry a lot (skills,
+              highlights, contact once unlocked); at 4-up on a typical
+              laptop width everything wrapped/truncated. */}
+          <div className="mt-4 grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
             {results.map((result, index) => (
               <div
                 key={result.id}
-                className="flex animate-fade-up flex-col gap-2"
+                className="flex h-full animate-fade-up flex-col"
                 // Small per-card stagger so a page of results settles in as a
                 // wave rather than snapping in all at once. Capped so the last
                 // card on a full page isn't left waiting.
                 style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }}
               >
-                <ProfileCard profile={mapToProfileCardData(result)} />
-                <div className="flex flex-col gap-1">
-                  <div className="flex flex-wrap gap-2">
-                    {/* Messaging never requires an unlock first — companies can
-                        reach out before committing a credit, per spec. */}
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="secondary"
-                      // The name travels with the id so the inbox can open a
-                      // brand-new conversation headed by who it is with,
-                      // rather than by a UUID it would have to resolve.
-                      onClick={() =>
-                        navigate('/company/messages', {
-                          state: { candidateId: result.id, candidateName: result.fullName },
-                        })
-                      }
-                    >
-                      Message
-                    </Button>
-                    {/* Replaces "open resume". The sheet is generated from the
-                        verified fields this company is entitled to see, so it
-                        can be printed and passed to a hiring manager without
-                        leaking the candidate's own resume file. */}
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => setSheetFor(result)}
-                    >
-                      Profile sheet
-                    </Button>
-                    {!result.isUnlockedByMe && (
-                      <Button
-                        type="button"
-                        size="sm"
-                        loading={unlockingId === result.id}
-                        onClick={() => handleUnlock(result.id)}
-                      >
-                        Unlock Contact
-                      </Button>
-                    )}
-                  </div>
-                  {unlockErrors[result.id] && <p className="text-xs text-danger">{unlockErrors[result.id]}</p>}
-                </div>
+                <CandidateSummaryCard
+                  candidate={result}
+                  // Messaging never requires an unlock first — companies can
+                  // reach out before committing a credit, per spec. The name
+                  // travels with the id so the inbox can open a brand-new
+                  // conversation headed by who it is with, rather than by a
+                  // UUID it would have to resolve.
+                  onMessage={() =>
+                    navigate('/company/messages', {
+                      state: { candidateId: result.id, candidateName: result.fullName },
+                    })
+                  }
+                  // Replaces "open resume". The sheet is generated from the
+                  // verified fields this company is entitled to see, so it
+                  // can be printed and passed to a hiring manager without
+                  // leaking the candidate's own resume file.
+                  onViewSheet={() => setSheetFor(result)}
+                  onUnlock={() => handleUnlock(result.id)}
+                  unlocking={unlockingId === result.id}
+                  unlockError={unlockErrors[result.id]}
+                />
               </div>
             ))}
           </div>

@@ -2,7 +2,13 @@ import { DataTypes, Model, Optional } from 'sequelize';
 import { sequelize } from '../config/database';
 
 export type PaymentType = 'subscription' | 'pay_per_unlock' | 'boost' | 'relevancy_package';
-export type PaymentStatus = 'created' | 'paid' | 'failed' | 'refunded';
+export type PaymentStatus = 'created' | 'submitted' | 'paid' | 'failed' | 'refunded';
+/**
+ * `razorpay`: the original Checkout-driven flow (unchanged).
+ * `upi_manual`: pay a merchant UPI ID directly, then submit a UTR for an
+ * admin to manually approve/reject — see the manual-upi-payments migration.
+ */
+export type PaymentMethod = 'razorpay' | 'upi_manual';
 
 /**
  * Shape of `metadata`, keyed by `type` — see the header comment in
@@ -29,9 +35,17 @@ export interface PaymentAttributes {
   amount: number;
   currency: string;
   status: PaymentStatus;
-  razorpayOrderId: string;
+  method: PaymentMethod;
+  /** Null for method: 'upi_manual' rows — see manualReference instead. */
+  razorpayOrderId: string | null;
   razorpayPaymentId: string | null;
   razorpaySignature: string | null;
+  /** Locally-generated identifier for method: 'upi_manual' rows — the
+   *  equivalent of razorpayOrderId, but never null for it since Razorpay
+   *  never sees this payment at all. */
+  manualReference: string | null;
+  /** UPI transaction reference the payer submits as proof of payment. */
+  upiUtr: string | null;
   metadata: PaymentMetadata | Record<string, unknown>;
   createdAt: Date;
   updatedAt: Date;
@@ -42,8 +56,12 @@ type PaymentCreationAttributes = Optional<
   | 'id'
   | 'currency'
   | 'status'
+  | 'method'
+  | 'razorpayOrderId'
   | 'razorpayPaymentId'
   | 'razorpaySignature'
+  | 'manualReference'
+  | 'upiUtr'
   | 'metadata'
   | 'createdAt'
   | 'updatedAt'
@@ -59,9 +77,12 @@ export class Payment
   declare amount: number;
   declare currency: string;
   declare status: PaymentStatus;
-  declare razorpayOrderId: string;
+  declare method: PaymentMethod;
+  declare razorpayOrderId: string | null;
   declare razorpayPaymentId: string | null;
   declare razorpaySignature: string | null;
+  declare manualReference: string | null;
+  declare upiUtr: string | null;
   declare metadata: PaymentMetadata | Record<string, unknown>;
   declare readonly createdAt: Date;
   // Not readonly, unlike most other models' updatedAt — the Razorpay
@@ -82,13 +103,25 @@ Payment.init(
     amount: { type: DataTypes.DECIMAL, allowNull: false },
     currency: { type: DataTypes.STRING, allowNull: false, defaultValue: 'INR' },
     status: {
-      type: DataTypes.ENUM('created', 'paid', 'failed', 'refunded'),
+      type: DataTypes.ENUM('created', 'submitted', 'paid', 'failed', 'refunded'),
       allowNull: false,
       defaultValue: 'created',
     },
+    method: {
+      type: DataTypes.ENUM('razorpay', 'upi_manual'),
+      allowNull: false,
+      defaultValue: 'razorpay',
+    },
+    manualReference: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      unique: true,
+      field: 'manual_reference',
+    },
+    upiUtr: { type: DataTypes.STRING, allowNull: true, field: 'upi_utr' },
     razorpayOrderId: {
       type: DataTypes.STRING,
-      allowNull: false,
+      allowNull: true,
       unique: true,
       field: 'razorpay_order_id',
     },

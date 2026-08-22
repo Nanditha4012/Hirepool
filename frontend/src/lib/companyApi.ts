@@ -207,6 +207,7 @@ export interface UnlockedCandidate {
   primaryRole: { id: string; roleName: string } | null
   category: string | null
   yearsOfExperience: number | null
+  location: string | null
   skills: { id: string; skillName: string }[]
   education: CandidateEducationSummary[]
   note: string | null

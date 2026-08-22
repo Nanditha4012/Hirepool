@@ -135,6 +135,7 @@ interface UnlockedCandidateResponse {
   primaryRole: { id: string; roleName: string } | null;
   category: string | null;
   yearsOfExperience: number | null;
+  location: string | null;
   skills: { id: string; skillName: string }[];
   education: CompanyVisibleEducation[];
   note: string | null;
@@ -185,6 +186,7 @@ export const listMyUnlocked = asyncHandler(async (req: Request, res: Response) =
           : null,
         category: plainProfile?.category ?? null,
         yearsOfExperience: plainProfile?.yearsOfExperience ?? null,
+        location: plainProfile?.location ?? null,
         skills: skillRows.map((row) => {
           const plain = row.get({ plain: true }) as CandidateSkillAttributes & {
             skill: SkillMasterAttributes;

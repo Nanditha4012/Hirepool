@@ -195,4 +195,8 @@ router.post(
 );
 router.get('/payments/history', requireAuth, requireRole('company'), paymentController.listMyPayments);
 
+// Manual UPI payment path — alternative to the Razorpay checkout above, not
+// a replacement for it.
+router.post('/payments/subscribe/upi', requireAuth, requireRole('company'), paymentController.subscribeUpi);
+
 export default router;

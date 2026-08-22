@@ -856,25 +856,40 @@ export function getAnalyticsOverview() {
 export interface AdminPaymentRow {
   id: string
   type: 'subscription' | 'pay_per_unlock' | 'boost' | 'relevancy_package'
-  status: 'created' | 'paid' | 'failed' | 'refunded'
+  status: 'created' | 'submitted' | 'paid' | 'failed' | 'refunded'
+  method: 'razorpay' | 'upi_manual'
   amount: number
   currency: string
   payer: { id: string; email: string; fullName: string | null; role: string } | null
-  razorpayOrderId: string
+  razorpayOrderId: string | null
   razorpayPaymentId: string | null
+  manualReference: string | null
+  upiUtr: string | null
   createdAt: string
   updatedAt: string
 }
 
 export interface ListPaymentsParams {
   type?: 'subscription' | 'pay_per_unlock' | 'boost' | 'relevancy_package'
-  status?: 'created' | 'paid' | 'failed' | 'refunded'
+  status?: 'created' | 'submitted' | 'paid' | 'failed' | 'refunded'
+  method?: 'razorpay' | 'upi_manual'
   page?: number
   limit?: number
 }
 
 export function listPayments(params: ListPaymentsParams = {}) {
   return apiFetch<AdminListResponse<AdminPaymentRow>>(`/admin/payments${buildQuery(params)}`)
+}
+
+/** Approves a manual UPI payment (status submitted -> paid) — applies its
+ *  effect (plan/unlock/boost) exactly as the Razorpay webhook would. */
+export function approvePayment(id: string) {
+  return apiFetch<void>(`/admin/payments/${id}/approve`, { method: 'POST' })
+}
+
+/** Rejects a manual UPI payment (status submitted -> failed). */
+export function rejectPayment(id: string) {
+  return apiFetch<void>(`/admin/payments/${id}/reject`, { method: 'POST' })
 }
 
 // =======================================================================

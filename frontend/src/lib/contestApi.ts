@@ -11,22 +11,22 @@ export type InteractiveKind = 'drag_drop' | 'fill_blank' | 'scenario'
 
 export const CONTEST_TYPE_META: Record<
   ContestType,
-  { label: string; blurb: string; icon: string }
+  { label: string; blurb: string; iconKey: 'code' | 'tools' | 'chart' }
 > = {
   dsa: {
     label: 'DSA Coding Contest',
     blurb: 'Data structures & algorithms — write real code, judged against hidden test cases.',
-    icon: '🧠',
+    iconKey: 'code',
   },
   domain: {
     label: 'Domain Coding Contest',
     blurb: 'Domain-specific challenges: web, backend, databases and system design.',
-    icon: '🛠️',
+    iconKey: 'tools',
   },
   quant: {
     label: 'Quant Contest',
     blurb: 'Math, Logical Reasoning and English — three sections in one test.',
-    icon: '📊',
+    iconKey: 'chart',
   },
 }
 

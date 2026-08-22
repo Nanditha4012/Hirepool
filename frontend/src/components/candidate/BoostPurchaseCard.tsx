@@ -4,7 +4,8 @@ import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Badge from '@/components/ui/Badge'
-import { buyBoost, listCandidatePaymentHistory } from '@/lib/paymentsApi'
+import UpiManualPayment from '@/components/payments/UpiManualPayment'
+import { buyBoost, buyBoostUpi, listCandidatePaymentHistory } from '@/lib/paymentsApi'
 import { usePaymentCheckout } from '@/lib/usePaymentCheckout'
 import { getSiteSetting, type SiteSettingsMap } from '@/lib/siteSettings'
 
@@ -25,6 +26,8 @@ export default function BoostPurchaseCard({ isBoosted, boostExpiresAt, siteSetti
 
   const pricePerDay = Number(getSiteSetting(siteSettings, 'boost_price_per_day', '49'))
   const estimatedPrice = days * (Number.isFinite(pricePerDay) ? pricePerDay : 49)
+  const razorpayEnabled = getSiteSetting(siteSettings, 'razorpay_enabled', 'true') !== 'false'
+  const upiId = getSiteSetting(siteSettings, 'upi_id', '')
 
   const { status, error, start, reset } = usePaymentCheckout({
     pollHistory: listCandidatePaymentHistory,
@@ -68,6 +71,8 @@ export default function BoostPurchaseCard({ isBoosted, boostExpiresAt, siteSetti
           error={error || purchaseError}
           onPurchase={handlePurchase}
           onReset={reset}
+          razorpayEnabled={razorpayEnabled}
+          upiId={upiId}
         />
       </Card>
     )
@@ -86,6 +91,8 @@ export default function BoostPurchaseCard({ isBoosted, boostExpiresAt, siteSetti
         error={error || purchaseError}
         onPurchase={handlePurchase}
         onReset={reset}
+        razorpayEnabled={razorpayEnabled}
+        upiId={upiId}
       />
     </Card>
   )
@@ -100,9 +107,22 @@ interface BoostFormProps {
   error: string | null
   onPurchase: () => void
   onReset: () => void
+  razorpayEnabled: boolean
+  upiId: string
 }
 
-function BoostForm({ days, setDays, estimatedPrice, purchasing, status, error, onPurchase, onReset }: BoostFormProps) {
+function BoostForm({
+  days,
+  setDays,
+  estimatedPrice,
+  purchasing,
+  status,
+  error,
+  onPurchase,
+  onReset,
+  razorpayEnabled,
+  upiId,
+}: BoostFormProps) {
   if (status === 'processing') {
     return (
       <div className="mt-4 rounded-card bg-boost/10 px-3 py-3 text-sm text-boost">
@@ -168,9 +188,19 @@ function BoostForm({ days, setDays, estimatedPrice, purchasing, status, error, o
       <p className="text-sm text-ink/60">
         Estimated cost: <span className="font-semibold text-ink">₹{estimatedPrice.toLocaleString('en-IN')}</span>
       </p>
-      <Button type="button" loading={purchasing || status === 'opening'} onClick={onPurchase} className="self-start">
-        Boost my profile
-      </Button>
+      {razorpayEnabled && (
+        <Button type="button" loading={purchasing || status === 'opening'} onClick={onPurchase} className="self-start">
+          Boost my profile
+        </Button>
+      )}
+      {upiId && (
+        <UpiManualPayment
+          upiId={upiId}
+          amount={estimatedPrice}
+          description={`${days}-day profile boost`}
+          createOrder={() => buyBoostUpi(days)}
+        />
+      )}
       {error && <p className="text-sm text-danger">{error}</p>}
     </div>
   )

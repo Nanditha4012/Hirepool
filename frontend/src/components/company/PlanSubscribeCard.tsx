@@ -3,12 +3,15 @@ import { Link } from 'react-router-dom'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import Select from '@/components/ui/Select'
-import { subscribeToPlan, listCompanyPaymentHistory } from '@/lib/paymentsApi'
+import UpiManualPayment from '@/components/payments/UpiManualPayment'
+import { subscribeToPlan, subscribeToPlanUpi, listCompanyPaymentHistory } from '@/lib/paymentsApi'
 import { usePaymentCheckout } from '@/lib/usePaymentCheckout'
 import { listPlanCatalog, type CompanyPlan, type PlanCatalogEntry } from '@/lib/companyApi'
+import { getSiteSetting, type SiteSettingsMap } from '@/lib/siteSettings'
 
 interface PlanSubscribeCardProps {
   plan: CompanyPlan | null
+  siteSettings: SiteSettingsMap
 }
 
 /**
@@ -16,8 +19,14 @@ interface PlanSubscribeCardProps {
  * GET /masters/plans catalog added alongside Phase 6 — before that endpoint
  * existed, this card could only re-charge the company's *current* plan since
  * there was no way to see what else was available.
+ *
+ * Razorpay stays the default; `razorpay_enabled` (site setting, defaults to
+ * "true" when unset) lets an admin hide it and fall back to UPI-only
+ * without touching any code — see UpiManualPayment.tsx.
  */
-export default function PlanSubscribeCard({ plan }: PlanSubscribeCardProps) {
+export default function PlanSubscribeCard({ plan, siteSettings }: PlanSubscribeCardProps) {
+  const razorpayEnabled = getSiteSetting(siteSettings, 'razorpay_enabled', 'true') !== 'false'
+  const upiId = getSiteSetting(siteSettings, 'upi_id', '')
   const [catalog, setCatalog] = useState<PlanCatalogEntry[]>([])
   const [loadingCatalog, setLoadingCatalog] = useState(true)
   const [catalogError, setCatalogError] = useState<string | null>(null)
@@ -125,15 +134,26 @@ export default function PlanSubscribeCard({ plan }: PlanSubscribeCardProps) {
             value={selectedPlanId}
             onChange={(e) => setSelectedPlanId(e.target.value)}
           />
-          <Button
-            type="button"
-            loading={subscribing || status === 'opening'}
-            disabled={!selectedPlanId}
-            onClick={handleSubscribe}
-          >
-            {selectedPlanId === plan?.id ? 'Renew' : 'Switch plan'}
-          </Button>
+          {razorpayEnabled && (
+            <Button
+              type="button"
+              loading={subscribing || status === 'opening'}
+              disabled={!selectedPlanId}
+              onClick={handleSubscribe}
+            >
+              {selectedPlanId === plan?.id ? 'Renew' : 'Switch plan'}
+            </Button>
+          )}
         </div>
+      )}
+
+      {!loadingCatalog && selectedPlanId && upiId && (
+        <UpiManualPayment
+          upiId={upiId}
+          amount={selectedPlan ? Number(selectedPlan.price) : 0}
+          description={selectedPlan ? `${selectedPlan.name} plan subscription` : 'Plan subscription'}
+          createOrder={() => subscribeToPlanUpi(selectedPlanId)}
+        />
       )}
 
       {(error || subscribeError) && <p className="mt-2 text-sm text-danger">{error || subscribeError}</p>}

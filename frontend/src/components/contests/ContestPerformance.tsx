@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import Badge from '@/components/ui/Badge'
 import Skeleton from '@/components/ui/Skeleton'
+import BrandIcon, { contactIcons } from '@/components/ui/BrandIcon'
 import { useAuth } from '@/lib/authStore'
 import {
   CONTEST_TYPE_META,
@@ -105,18 +106,25 @@ export default function ContestPerformance({ candidateId, className = '' }: Cont
               className="flex min-w-0 flex-col rounded-card border border-line bg-card p-3 transition-shadow hover:shadow-soft"
             >
               <div className="flex items-start justify-between gap-2">
-                <span className="text-xl leading-none" aria-hidden="true">
-                  {meta.icon}
+                <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                  <BrandIcon glyph={contactIcons[meta.iconKey]} className="h-4 w-4" />
                 </span>
                 {entry.isTopRank && (
                   <Badge tone="boost">
-                    <span className="whitespace-nowrap">🏆 #1</span>
+                    <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                      <BrandIcon glyph={contactIcons.trophy} className="h-3 w-3" />
+                      #1
+                    </span>
                   </Badge>
                 )}
               </div>
 
-              <p className="mt-2 truncate text-xs font-semibold text-ink/60">
-                {/* "DSA Coding Contest" is too long for a tile. */}
+              {/* Wraps rather than truncates — this tile's real width varies
+                  a lot by where it's embedded (a narrow dashboard column vs
+                  a wide search-grid card), and "DSA Codi…" mid-word ellipsis
+                  read as broken far more often than a short two-line wrap
+                  ever looks awkward. */}
+              <p className="mt-2 text-xs font-semibold leading-snug text-ink/60">
                 {meta.label.replace(' Contest', '')}
               </p>
 
@@ -124,13 +132,12 @@ export default function ContestPerformance({ candidateId, className = '' }: Cont
                 {entry.bestScorePercent}%
               </p>
 
-              {/* Two lines, not one: at tile width the rank and the attempt
-                  count together always wrapped mid-number or got cut. */}
-              <p className="mt-1.5 truncate text-xs text-ink/50">
-                Rank #{entry.rank} of {entry.totalParticipants}
-              </p>
-              <p className="truncate text-xs text-ink/40">
-                {entry.testsCompleted} test{entry.testsCompleted === 1 ? '' : 's'} completed
+              {/* One combined line, not two — "Rank #X of Y" and "N tests
+                  completed" as separate lines cost two words ("Rank",
+                  "completed") of width each for no extra information. */}
+              <p className="mt-1.5 leading-snug text-xs text-ink/50">
+                #{entry.rank} of {entry.totalParticipants} · {entry.testsCompleted} test
+                {entry.testsCompleted === 1 ? '' : 's'}
               </p>
 
               {/* A proportional bar so the three scores can be compared

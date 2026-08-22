@@ -13,6 +13,16 @@ const FIELDS: { key: string; label: string; kind: 'text' | 'textarea' }[] = [
   { key: 'hero_title', label: 'Hero title', kind: 'text' },
   { key: 'hero_subtitle', label: 'Hero subtitle', kind: 'text' },
   { key: 'boost_price_per_day', label: 'Boost price per day', kind: 'text' },
+  {
+    key: 'upi_id',
+    label: 'UPI ID (for manual UPI payments, e.g. yourname@bank)',
+    kind: 'text',
+  },
+  {
+    key: 'razorpay_enabled',
+    label: 'Razorpay enabled — type "true" or "false" (leave blank = enabled)',
+    kind: 'text',
+  },
   { key: 'faq', label: 'FAQ (raw JSON)', kind: 'textarea' },
   {
     key: 'jd_parsing_prompt_template',

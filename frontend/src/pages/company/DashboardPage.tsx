@@ -180,7 +180,7 @@ export default function DashboardPage() {
 
       <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2">
         <UnlockTopUpCard siteSettings={siteSettings} />
-        <PlanSubscribeCard plan={profile.plan} />
+        <PlanSubscribeCard plan={profile.plan} siteSettings={siteSettings} />
       </div>
 
       <Card className="mt-6">

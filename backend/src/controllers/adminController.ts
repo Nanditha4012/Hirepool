@@ -42,6 +42,13 @@ import { ApiError } from '../utils/ApiError';
 import { runInRequestContext } from '../utils/withRequestContext';
 import { hashPassword } from '../utils/password';
 import { signAccessToken } from '../utils/jwt';
+import { sendEmail } from '../utils/email';
+import { paymentReceiptEmail, paymentFailedEmail } from '../utils/emailTemplates';
+import {
+  applyPaymentEffect,
+  buildReceiptMessage,
+  buildPaymentDescription,
+} from './paymentController';
 
 export const ping = asyncHandler(async (req: Request, res: Response) => {
   res.json({ message: 'Signed in as admin', userId: req.user!.id });
@@ -1636,8 +1643,9 @@ export const createAnnouncement = asyncHandler(async (req: Request, res: Respons
 // =======================================================================
 
 const listPaymentsQuerySchema = paginationQuerySchema.extend({
-  type: z.enum(['subscription', 'pay_per_unlock', 'boost']).optional(),
-  status: z.enum(['created', 'paid', 'failed', 'refunded']).optional(),
+  type: z.enum(['subscription', 'pay_per_unlock', 'boost', 'relevancy_package']).optional(),
+  status: z.enum(['created', 'submitted', 'paid', 'failed', 'refunded']).optional(),
+  method: z.enum(['razorpay', 'upi_manual']).optional(),
 });
 
 /**
@@ -1655,6 +1663,7 @@ export const listPayments = asyncHandler(async (req: Request, res: Response) => 
     const where: Record<string, unknown> = {};
     if (query.type) where.type = query.type;
     if (query.status) where.status = query.status;
+    if (query.method) where.method = query.method;
 
     const payments = await Payment.findAll({
       where,
@@ -1675,6 +1684,7 @@ export const listPayments = asyncHandler(async (req: Request, res: Response) => 
           id: plain.id,
           type: plain.type,
           status: plain.status,
+          method: plain.method,
           amount: Number(plain.amount),
           currency: plain.currency,
           payer: plain.payer
@@ -1682,6 +1692,8 @@ export const listPayments = asyncHandler(async (req: Request, res: Response) => 
             : null,
           razorpayOrderId: plain.razorpayOrderId,
           razorpayPaymentId: plain.razorpayPaymentId,
+          manualReference: plain.manualReference,
+          upiUtr: plain.upiUtr,
           createdAt: plain.createdAt,
           updatedAt: plain.updatedAt,
         };
@@ -1693,6 +1705,119 @@ export const listPayments = asyncHandler(async (req: Request, res: Response) => 
   });
 
   res.json(result);
+});
+
+/**
+ * Approves a manual UPI payment the payer has submitted a UTR for —
+ * transitions it `submitted` -> `paid` and applies its effect via the exact
+ * same applyPaymentEffect(...) the Razorpay webhook uses, so a manually
+ * approved plan/boost/unlock purchase behaves identically to a
+ * Razorpay-confirmed one. Only ever touches method: 'upi_manual' rows —
+ * a Razorpay row must only ever transition via razorpayWebhook.
+ */
+export const approveUpiPayment = asyncHandler(async (req: Request, res: Response) => {
+  const authUser = req.user!;
+  const { id } = req.params;
+
+  const emailTask = await runInRequestContext(authUser, async (t) => {
+    const payment = await Payment.findOne({ where: { id, method: 'upi_manual' }, transaction: t });
+    if (!payment) {
+      throw ApiError.notFound('Manual UPI payment not found');
+    }
+    if (payment.status !== 'submitted') {
+      throw ApiError.badRequest('Only a submitted payment can be approved');
+    }
+
+    payment.status = 'paid';
+    payment.updatedAt = new Date();
+    await payment.save({ transaction: t });
+
+    await applyPaymentEffect(payment, t);
+
+    await Notification.create(
+      {
+        userId: payment.payerUserId,
+        type: 'payment_receipt',
+        message: buildReceiptMessage(payment),
+        link: '/payments/history',
+      },
+      { transaction: t },
+    );
+
+    await logAdminAction(authUser.id, 'upi_payment_approve', payment.id, t);
+
+    const payer = await User.findByPk(payment.payerUserId, { transaction: t });
+    if (!payer) return null;
+    const description = await buildPaymentDescription(payment, t);
+    return {
+      to: payer.email,
+      name: payer.fullName ?? payer.email,
+      description,
+      amount: Number(payment.amount),
+      currency: payment.currency,
+    };
+  });
+
+  // Sent after the transaction commits — same reasoning as
+  // paymentController.razorpayWebhook's emailTask (a slow/failed receipt
+  // email must never roll back an already-durable approval).
+  if (emailTask) {
+    const { subject, html } = paymentReceiptEmail(
+      emailTask.name,
+      emailTask.description,
+      emailTask.amount,
+      emailTask.currency,
+    );
+    await sendEmail({ to: emailTask.to, subject, html });
+  }
+
+  res.status(204).send();
+});
+
+const rejectUpiPaymentSchema = z.object({ reason: z.string().trim().max(500).optional() });
+
+export const rejectUpiPayment = asyncHandler(async (req: Request, res: Response) => {
+  const authUser = req.user!;
+  const { id } = req.params;
+  rejectUpiPaymentSchema.parse(req.body ?? {});
+
+  const emailTask = await runInRequestContext(authUser, async (t) => {
+    const payment = await Payment.findOne({ where: { id, method: 'upi_manual' }, transaction: t });
+    if (!payment) {
+      throw ApiError.notFound('Manual UPI payment not found');
+    }
+    if (payment.status !== 'submitted') {
+      throw ApiError.badRequest('Only a submitted payment can be rejected');
+    }
+
+    payment.status = 'failed';
+    payment.updatedAt = new Date();
+    await payment.save({ transaction: t });
+
+    await Notification.create(
+      {
+        userId: payment.payerUserId,
+        type: 'payment_failed',
+        message: 'Your UPI payment could not be verified. Please try again or contact support.',
+        link: '/payments/history',
+      },
+      { transaction: t },
+    );
+
+    await logAdminAction(authUser.id, 'upi_payment_reject', payment.id, t);
+
+    const payer = await User.findByPk(payment.payerUserId, { transaction: t });
+    if (!payer) return null;
+    const description = await buildPaymentDescription(payment, t);
+    return { to: payer.email, name: payer.fullName ?? payer.email, description };
+  });
+
+  if (emailTask) {
+    const { subject, html } = paymentFailedEmail(emailTask.name, emailTask.description);
+    await sendEmail({ to: emailTask.to, subject, html });
+  }
+
+  res.status(204).send();
 });
 
 // =======================================================================

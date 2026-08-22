@@ -213,4 +213,8 @@ router.patch(
 router.post('/payments/boost', requireAuth, requireRole('candidate'), paymentController.boost);
 router.get('/payments/history', requireAuth, requireRole('candidate'), paymentController.listMyPayments);
 
+// Manual UPI payment path — alternative to the Razorpay checkout above, not
+// a replacement for it.
+router.post('/payments/boost/upi', requireAuth, requireRole('candidate'), paymentController.boostUpi);
+
 export default router;

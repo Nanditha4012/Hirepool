@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import Badge from '@/components/ui/Badge'
+import BrandIcon, { contactIcons } from '@/components/ui/BrandIcon'
 import { HeroStat } from '@/components/ui/PageHero'
 import { type SegmentedTabOption } from '@/components/ui/SegmentedTabs'
 import SupportNote from '@/components/ui/SupportNote'
@@ -100,9 +101,7 @@ export default function ContestHubPage() {
       eyebrow="Contests"
       title={
         <>
-          <span className="mr-2" aria-hidden="true">
-            {meta.icon}
-          </span>
+          <BrandIcon glyph={contactIcons[meta.iconKey]} className="mr-2 inline h-5 w-5 align-[-3px]" />
           {meta.label}
         </>
       }

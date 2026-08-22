@@ -200,7 +200,7 @@ function FoldBlock({
   defaultOpen = false,
   children,
 }: {
-  label: string
+  label: React.ReactNode
   /** Shown next to the label while folded — the answer without the detail. */
   summary?: string
   defaultOpen?: boolean
@@ -216,8 +216,8 @@ function FoldBlock({
         aria-expanded={open}
         className="group flex w-full items-center justify-between gap-2 text-left"
       >
-        <span className="flex min-w-0 items-baseline gap-2">
-          <span className="text-[10px] font-bold uppercase tracking-wide text-ink/40 transition-colors group-hover:text-primary">
+        <span className="flex min-w-0 items-center gap-2">
+          <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-ink/40 transition-colors group-hover:text-primary">
             {label}
           </span>
           {summary && !open && (
@@ -303,7 +303,16 @@ export default function ProfileCard({ profile }: ProfileCardProps) {
   const isApproved = status === 'approved'
 
   return (
-    <div className="overflow-hidden rounded-card border border-line bg-card shadow-soft transition-shadow duration-200 hover:shadow-lift">
+    // flex-1 (not h-full): the search grid's row already stretches this
+    // card's wrapper div to match its tallest sibling (CSS Grid's default
+    // align-items: stretch), but that stretch only reached the invisible
+    // wrapper — this card's own bordered/shadowed box, one level deeper,
+    // stayed at its natural content height, so cards in the same row still
+    // looked different sizes. flex-1 makes this box itself grow to fill
+    // whatever height its wrapper was stretched to. (A no-op wherever
+    // ProfileCard isn't inside a flex/grid parent, e.g. a candidate's own
+    // profile page.)
+    <div className="flex h-full flex-1 flex-col overflow-hidden rounded-card border border-line bg-card shadow-soft transition-shadow duration-200 hover:shadow-lift">
       {!isApproved && (
         <div className="bg-surface px-5 py-1.5 text-xs font-medium text-ink/60 sm:px-6">
           {statusBannerText[status]}
@@ -373,14 +382,15 @@ export default function ProfileCard({ profile }: ProfileCardProps) {
         </div>
       </div>
 
-      <div className="flex flex-col gap-4 p-5 sm:p-6">
-        {/* Skills lead, and lead open: it is the first thing anyone actually
-            reads on a candidate card, and folding it by default would hide
-            the answer to the question the card exists to answer. */}
+      <div className="flex flex-1 flex-col gap-4 p-5 sm:p-6">
+        {/* Every section folds closed by default now — a card that opens
+            with skills, education and documents all expanded read as a
+            wall of text at the narrow width a 3-4 column search grid
+            actually gives it. The summary text is the answer at a glance;
+            a click gets the detail. */}
         {skills.length > 0 && (
           <FoldBlock
             label="Skills"
-            defaultOpen
             summary={`${skills.length} listed`}
           >
             <div className="flex flex-wrap gap-1.5">
@@ -396,7 +406,6 @@ export default function ProfileCard({ profile }: ProfileCardProps) {
         {education && education.length > 0 && (
           <FoldBlock
             label="Education"
-            defaultOpen
             summary={
               education[education.length - 1]?.institution ?? `${education.length} entries`
             }
@@ -472,7 +481,7 @@ export default function ProfileCard({ profile }: ProfileCardProps) {
         <ContestPerformance candidateId={profile.id} className="border-t border-line pt-4" />
 
         {hasDocuments && (
-          <FoldBlock label="Documents" defaultOpen>
+          <FoldBlock label="Documents" summary={[resumeLink && 'Resume', portfolioLink && 'Portfolio'].filter(Boolean).join(' · ')}>
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               {resumeLink && (
                 <ContactLink
@@ -497,10 +506,15 @@ export default function ProfileCard({ profile }: ProfileCardProps) {
         )}
 
         {hasContactInfo && (
-          <div className="border-t border-line pt-4">
-            <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-verified">
-              🔓 Contact unlocked
-            </p>
+          <FoldBlock
+            label={
+              <span className="inline-flex items-center gap-1.5 text-verified">
+                <BrandIcon glyph={contactIcons.lockOpen} className="h-3.5 w-3.5" />
+                Contact unlocked
+              </span>
+            }
+            summary={[phone && 'Phone', email && 'Email', whatsappLink && 'WhatsApp'].filter(Boolean).join(' · ')}
+          >
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               {phone && (
                 <ContactLink
@@ -528,7 +542,7 @@ export default function ProfileCard({ profile }: ProfileCardProps) {
                 />
               )}
             </div>
-          </div>
+          </FoldBlock>
         )}
       </div>
     </div>

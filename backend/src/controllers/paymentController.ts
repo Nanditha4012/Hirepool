@@ -77,6 +77,26 @@ function buildReceipt(type: PaymentType, userId: string): string {
   return `hp_${RECEIPT_TYPE_CODES[type]}_${userId.slice(0, 8)}_${Date.now()}`;
 }
 
+/** manualReference's equivalent of buildReceipt above — same shape, "upi"
+ * prefix instead of "hp" so the two are visually distinguishable in the
+ * admin ledger even before `method` is read. */
+function buildManualReference(type: PaymentType, userId: string): string {
+  return `upi_${RECEIPT_TYPE_CODES[type]}_${userId.slice(0, 8)}_${Date.now()}`;
+}
+
+/**
+ * Reads a non-empty site_settings string value, or null if the row is
+ * missing/blank — unlike getSiteSettingNumber above, there is no sane
+ * fallback for "what UPI ID do I show" so callers must treat null as "this
+ * checkout path isn't set up yet" rather than silently substituting
+ * something.
+ */
+async function getSiteSettingString(key: string, authUser: RequestContextUser): Promise<string | null> {
+  const row = await runInRequestContext(authUser, (t) => SiteSetting.findOne({ where: { key }, transaction: t }));
+  const value = row?.value?.trim();
+  return value ? value : null;
+}
+
 interface CreateOrderResult {
   paymentId: string;
   razorpayOrderId: string;
@@ -130,10 +150,61 @@ async function createOrderAndPaymentRow(
 
   return {
     paymentId: payment.id,
-    razorpayOrderId: payment.razorpayOrderId,
+    // Never null here — this helper always sets it from a real Razorpay
+    // order id above, unlike createManualPaymentRow's rows.
+    razorpayOrderId: payment.razorpayOrderId as string,
     amount: payment.amount,
     currency: payment.currency,
     razorpayKeyId: env.RAZORPAY_KEY_ID,
+  };
+}
+
+interface CreateManualOrderResult {
+  paymentId: string;
+  manualReference: string;
+  amount: number;
+  currency: string;
+}
+
+/**
+ * Manual-UPI counterpart to createOrderAndPaymentRow above — no Razorpay
+ * call, no razorpay_order_id. Throws ApiError.serviceUnavailable (same
+ * convention as the Razorpay path's isRazorpayConfigured() check) if the
+ * admin hasn't set a upi_id site_settings value yet, before writing
+ * anything.
+ */
+async function createManualPaymentRow(
+  authUser: RequestContextUser,
+  params: { type: PaymentType; amount: number; metadata: PaymentMetadata },
+): Promise<CreateManualOrderResult> {
+  const upiId = await getSiteSettingString('upi_id', authUser);
+  if (!upiId) {
+    throw ApiError.serviceUnavailable('Manual UPI payments are not configured in this environment');
+  }
+
+  const manualReference = buildManualReference(params.type, authUser.id);
+
+  const payment = await runInRequestContext(authUser, (t) =>
+    Payment.create(
+      {
+        type: params.type,
+        payerUserId: authUser.id,
+        amount: params.amount,
+        currency: 'INR',
+        status: 'created',
+        method: 'upi_manual',
+        manualReference,
+        metadata: params.metadata,
+      },
+      { transaction: t },
+    ),
+  );
+
+  return {
+    paymentId: payment.id,
+    manualReference: payment.manualReference as string,
+    amount: payment.amount,
+    currency: payment.currency,
   };
 }
 
@@ -153,6 +224,30 @@ export const subscribe = asyncHandler(async (req: Request, res: Response) => {
   }
 
   const result = await createOrderAndPaymentRow(authUser, {
+    type: 'subscription',
+    amount: Number(plan.price),
+    metadata: { planId },
+  });
+
+  res.status(201).json(result);
+});
+
+// ---------------------------------------------------------------------
+// POST /companies/payments/subscribe/upi — manual UPI counterpart to
+// subscribe() above. Same plan lookup/validation, different order-creation
+// helper.
+// ---------------------------------------------------------------------
+
+export const subscribeUpi = asyncHandler(async (req: Request, res: Response) => {
+  const authUser = req.user!;
+  const { planId } = subscribeSchema.parse(req.body);
+
+  const plan = await runInRequestContext(authUser, (t) => PlanMaster.findByPk(planId, { transaction: t }));
+  if (!plan || !plan.isActive) {
+    throw ApiError.notFound('Plan not found or is not currently available');
+  }
+
+  const result = await createManualPaymentRow(authUser, {
     type: 'subscription',
     amount: Number(plan.price),
     metadata: { planId },
@@ -195,6 +290,26 @@ export const boost = asyncHandler(async (req: Request, res: Response) => {
   const pricePerDay = await getSiteSettingNumber('boost_price_per_day', 49, authUser);
 
   const result = await createOrderAndPaymentRow(authUser, {
+    type: 'boost',
+    amount: days * pricePerDay,
+    metadata: { boostDays: days },
+  });
+
+  res.status(201).json(result);
+});
+
+// ---------------------------------------------------------------------
+// POST /candidates/payments/boost/upi — manual UPI counterpart to boost()
+// above.
+// ---------------------------------------------------------------------
+
+export const boostUpi = asyncHandler(async (req: Request, res: Response) => {
+  const authUser = req.user!;
+  const { days } = boostSchema.parse(req.body);
+
+  const pricePerDay = await getSiteSettingNumber('boost_price_per_day', 49, authUser);
+
+  const result = await createManualPaymentRow(authUser, {
     type: 'boost',
     amount: days * pricePerDay,
     metadata: { boostDays: days },
@@ -304,6 +419,42 @@ export const listMyPayments = asyncHandler(async (req: Request, res: Response) =
 });
 
 // ---------------------------------------------------------------------
+// PATCH /payments/upi/:paymentId/submit — payer attaches the UPI
+// transaction reference (UTR) to their own manual-method payment row.
+// Requires requireAuth only (any role) — routes.ts; ownership is enforced
+// both by the query below and by payments_owner_update_manual_upi's RLS.
+// ---------------------------------------------------------------------
+
+const submitUpiReferenceSchema = z.object({ upiUtr: z.string().trim().min(1).max(64) });
+
+export const submitUpiReference = asyncHandler(async (req: Request, res: Response) => {
+  const authUser = req.user!;
+  const { paymentId } = req.params;
+  const { upiUtr } = submitUpiReferenceSchema.parse(req.body);
+
+  const payment = await runInRequestContext(authUser, async (t) => {
+    const existing = await Payment.findOne({
+      where: { id: paymentId, payerUserId: authUser.id, method: 'upi_manual' },
+      transaction: t,
+    });
+    if (!existing) {
+      throw ApiError.notFound('Payment not found');
+    }
+    if (existing.status !== 'created') {
+      throw ApiError.badRequest('This payment has already been submitted or resolved');
+    }
+
+    existing.upiUtr = upiUtr;
+    existing.status = 'submitted';
+    existing.updatedAt = new Date();
+    await existing.save({ transaction: t });
+    return existing;
+  });
+
+  res.json(payment);
+});
+
+// ---------------------------------------------------------------------
 // POST /payments/razorpay/webhook (public — no requireAuth, see routes)
 // ---------------------------------------------------------------------
 
@@ -328,7 +479,7 @@ interface RazorpayWebhookEvent {
   };
 }
 
-function buildReceiptMessage(payment: Payment): string {
+export function buildReceiptMessage(payment: Payment): string {
   switch (payment.type) {
     case 'subscription':
       return `Payment received — your subscription is now active.`;
@@ -355,7 +506,7 @@ function buildReceiptMessage(payment: Payment): string {
  * message, which is already a full sentence); this is just the short noun
  * phrase the email templates slot into their own sentence.
  */
-async function buildPaymentDescription(payment: Payment, t: Transaction): Promise<string> {
+export async function buildPaymentDescription(payment: Payment, t: Transaction): Promise<string> {
   switch (payment.type) {
     case 'subscription': {
       const metadata = payment.metadata as { planId: string };
@@ -385,7 +536,7 @@ async function buildPaymentDescription(payment: Payment, t: Transaction): Promis
  * called in the same transaction as the payments row's status update — see
  * razorpayWebhook below.
  */
-async function applyPaymentEffect(payment: Payment, t: Transaction): Promise<void> {
+export async function applyPaymentEffect(payment: Payment, t: Transaction): Promise<void> {
   if (payment.type === 'subscription') {
     const metadata = payment.metadata as { planId: string };
     const plan = await PlanMaster.findByPk(metadata.planId, { transaction: t });
